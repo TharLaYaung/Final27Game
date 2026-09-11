@@ -1,31 +1,41 @@
 #pragma once
 
-// DxLibを使うために読み込む
+// DxLibを使用する
 #include "DxLib.h"
 
+// プレイヤーを管理するクラス
 class Player
 {
 public:
 
     // コンストラクタ
-    // プレイヤーを作った時に最初に呼ばれる
     Player();
 
-    // プレイヤーの移動やマウス操作を更新する
+    // プレイヤーを更新する
     void Update();
 
-    // FPSカメラを更新する
+    // カメラを更新する
     void UpdateCamera();
+
+    // プレイヤーの現在位置を取得する
+    VECTOR GetPosition() const;
+
+    // プレイヤーが向いている方向を取得する
+    VECTOR GetForward() const;
+
+    // プレイヤーの位置を変更する
+    // 自転車に乗る時や降りる時に使用する
+    void SetPosition(VECTOR newPosition);
 
 private:
 
     // プレイヤーの現在位置
     VECTOR position;
 
-    // カメラの左右の角度
+    // 左右の視点角度
     float yaw;
 
-    // カメラの上下の角度
+    // 上下の視点角度
     float pitch;
 
     // プレイヤーの移動速度
@@ -37,14 +47,9 @@ private:
     // プレイヤーの目線の高さ
     float eyeHeight;
 
-    // プレイヤーの当たり判定の半径
+    // プレイヤーの当たり判定の大きさ
     float collisionRadius;
 
-    // ========================================
-    // 次の位置へ移動できるか確認する関数
-    //
-    // true  = 移動できる
-    // false = 壁に当たっている
-    // ========================================
+    // 指定した位置に移動できるか確認する
     bool CanMove(VECTOR nextPosition);
 };

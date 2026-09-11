@@ -3,370 +3,287 @@
 
 
 // ========================================
-// Playerのコンストラクタ
-// プレイヤーを作成した時に一度だけ実行される
+// コンストラクタ
 // ========================================
 Player::Player()
 {
-    // プレイヤーの初期位置を設定する
-    // X = 左右
-    // Y = 高さ
-    // Z = 前後
+    // プレイヤー初期位置
     position = VGet(
         0.0f,
         1.7f,
         -5.0f
     );
 
-    // 最初の左右のカメラ角度
+    // 左右の視点角度
     yaw = 0.0f;
 
-    // 最初の上下のカメラ角度
+    // 上下の視点角度
     pitch = 0.0f;
 
-    // プレイヤーの移動速度
+    // 移動速度
     moveSpeed = 0.1f;
 
-    // マウスの感度
+    // マウス感度
     mouseSensitivity = 0.003f;
 
-    // プレイヤーの目線の高さ
+    // 目線の高さ
     eyeHeight = 1.7f;
 
-    // プレイヤーの横方向の当たり判定サイズ
+    // 当たり判定の大きさ
     collisionRadius = 0.4f;
-
-    // マウスカーソルを画面中央へ移動する
-    // 1280 × 720なので中央は640 × 360
-    SetMousePoint(
-        640,
-        360
-    );
 }
 
 
 // ========================================
-// プレイヤーを毎フレーム更新する
+// プレイヤー更新
 // ========================================
 void Player::Update()
 {
-    // ========================================
-    // マウス入力
-    // ========================================
-
-    // 現在のマウスX座標を保存する
+    // ----------------------------------------
+    // マウス移動量を取得
+    // ----------------------------------------
     int mouseX;
-
-    // 現在のマウスY座標を保存する
     int mouseY;
 
-    // 現在のマウス位置を取得する
     GetMousePoint(
         &mouseX,
         &mouseY
     );
 
 
-    // 画面中央のX座標
-    int centerX = 640;
-
-    // 画面中央のY座標
-    int centerY = 360;
+    // 画面中央
+    const int centerX = 640;
+    const int centerY = 360;
 
 
-    // マウスが中央から横にどれだけ動いたか
+    // 中央からどれくらい動いたか計算
     int deltaX =
         mouseX - centerX;
 
-    // マウスが中央から縦にどれだけ動いたか
     int deltaY =
         mouseY - centerY;
 
 
-    // マウス横移動で左右を見る
+    // マウス移動で視点回転
     yaw +=
         deltaX * mouseSensitivity;
 
-    // マウス縦移動で上下を見る
     pitch +=
         deltaY * mouseSensitivity;
 
 
-    // ========================================
-    // 上を向きすぎないように制限
-    // ========================================
-
-    // 上方向の最大角度を超えた場合
-    if (pitch > 1.2f)
+    // 上下を向きすぎないように制限
+    if (pitch > 1.5f)
     {
-        // 最大値に固定する
-        pitch = 1.2f;
+        pitch = 1.5f;
+    }
+
+    if (pitch < -1.5f)
+    {
+        pitch = -1.5f;
     }
 
 
-    // ========================================
-    // 下を向きすぎないように制限
-    // ========================================
-
-    // 下方向の最大角度を超えた場合
-    if (pitch < -1.2f)
-    {
-        // 最小値に固定する
-        pitch = -1.2f;
-    }
-
-
-    // マウスを毎フレーム画面中央へ戻す
+    // マウスを画面中央に戻す
     SetMousePoint(
         centerX,
         centerY
     );
 
 
-    // ========================================
-    // プレイヤーの前方向を計算
-    // ========================================
-
-    // 前方向を保存する
+    // ----------------------------------------
+    // 前方向を計算
+    // ----------------------------------------
     VECTOR forward;
 
-    // 左右の向きからX方向を計算する
     forward.x = sinf(yaw);
-
-    // 上下には移動しない
     forward.y = 0.0f;
-
-    // 左右の向きからZ方向を計算する
     forward.z = cosf(yaw);
 
 
-    // ========================================
-    // プレイヤーの右方向を計算
-    // ========================================
-
-    // 右方向を保存する
+    // ----------------------------------------
+    // 右方向を計算
+    // ----------------------------------------
     VECTOR right;
 
-    // 右方向のXを計算する
     right.x = cosf(yaw);
-
-    // 上下には移動しない
     right.y = 0.0f;
-
-    // 右方向のZを計算する
     right.z = -sinf(yaw);
 
 
-    // ========================================
-    // 次に移動する予定の位置を作る
-    // ========================================
-
-    // 現在位置をコピーする
-    VECTOR nextPosition =
-        position;
+    // 次の位置
+    VECTOR nextPosition = position;
 
 
-    // ========================================
     // Wキー
-    // 前へ移動
-    // ========================================
-
-    // Wキーが押されている場合
     if (CheckHitKey(KEY_INPUT_W))
     {
-        // 前方向へX座標を移動する
         nextPosition.x +=
             forward.x * moveSpeed;
 
-        // 前方向へZ座標を移動する
         nextPosition.z +=
             forward.z * moveSpeed;
     }
 
 
-    // ========================================
     // Sキー
-    // 後ろへ移動
-    // ========================================
-
-    // Sキーが押されている場合
     if (CheckHitKey(KEY_INPUT_S))
     {
-        // 前方向とは逆へX座標を移動する
         nextPosition.x -=
             forward.x * moveSpeed;
 
-        // 前方向とは逆へZ座標を移動する
         nextPosition.z -=
             forward.z * moveSpeed;
     }
 
 
-    // ========================================
-    // Dキー
-    // 右へ移動
-    // ========================================
-
-    // Dキーが押されている場合
-    if (CheckHitKey(KEY_INPUT_D))
-    {
-        // 右方向へX座標を移動する
-        nextPosition.x +=
-            right.x * moveSpeed;
-
-        // 右方向へZ座標を移動する
-        nextPosition.z +=
-            right.z * moveSpeed;
-    }
-
-
-    // ========================================
     // Aキー
-    // 左へ移動
-    // ========================================
-
-    // Aキーが押されている場合
     if (CheckHitKey(KEY_INPUT_A))
     {
-        // 右方向とは逆へX座標を移動する
         nextPosition.x -=
             right.x * moveSpeed;
 
-        // 右方向とは逆へZ座標を移動する
         nextPosition.z -=
             right.z * moveSpeed;
     }
 
 
-    // ========================================
-    // 当たり判定
-    // ========================================
+    // Dキー
+    if (CheckHitKey(KEY_INPUT_D))
+    {
+        nextPosition.x +=
+            right.x * moveSpeed;
 
-    // 次の位置へ移動可能か確認する
+        nextPosition.z +=
+            right.z * moveSpeed;
+    }
+
+
+    // 高さを固定
+    nextPosition.y =
+        eyeHeight;
+
+
+    // 移動可能なら位置更新
     if (CanMove(nextPosition))
     {
-        // 壁に当たっていなければ
-        // プレイヤーの位置を更新する
-        position = nextPosition;
+        position =
+            nextPosition;
     }
 
-
-    // ========================================
-    // プレイヤーの高さを固定
-    // ========================================
-
-    // FPSなので目線を常に1.7の高さにする
-    position.y = eyeHeight;
-}
+} // ← ここがとても重要
 
 
 // ========================================
-// プレイヤーが移動できるか確認する関数
-//
-// true  = 移動できる
-// false = 壁に当たっている
-// ========================================
-bool Player::CanMove(VECTOR nextPosition)
-{
-    // ========================================
-    // テスト用の赤い箱の座標
-    // ========================================
-
-    // 箱の左側
-    float boxMinX =
-        -1.0f;
-
-    // 箱の右側
-    float boxMaxX =
-        1.0f;
-
-    // 箱の手前側
-    float boxMinZ =
-        5.0f;
-
-    // 箱の奥側
-    float boxMaxZ =
-        7.0f;
-
-
-    // ========================================
-    // プレイヤーと箱の当たり判定
-    // ========================================
-
-    // プレイヤーの円形サイズを考慮して
-    // 箱と重なっているか確認する
-    if (
-        nextPosition.x + collisionRadius > boxMinX &&
-        nextPosition.x - collisionRadius < boxMaxX &&
-        nextPosition.z + collisionRadius > boxMinZ &&
-        nextPosition.z - collisionRadius < boxMaxZ
-        )
-    {
-        // 箱と重なっているので
-        // 移動できない
-        return false;
-    }
-
-
-    // 箱に当たっていないので
-    // 移動可能
-    return true;
-}
-
-
-// ========================================
-// FPSカメラを更新する
+// カメラ更新
 // ========================================
 void Player::UpdateCamera()
 {
-    // ========================================
-    // カメラが向いている方向を計算
-    // ========================================
-
-    // カメラ方向を保存する
-    VECTOR direction;
-
-    // 左右と上下の角度からX方向を計算する
-    direction.x =
-        sinf(yaw) * cosf(pitch);
-
-    // 上下の向きを計算する
-    direction.y =
-        -sinf(pitch);
-
-    // 左右と上下の角度からZ方向を計算する
-    direction.z =
-        cosf(yaw) * cosf(pitch);
+    // プレイヤーが向いている方向を取得
+    VECTOR forward =
+        GetForward();
 
 
-    // ========================================
-    // カメラが見る場所を計算
-    // ========================================
-
-    // カメラの注視点を保存する
+    // カメラが見る位置
     VECTOR target;
 
-    // プレイヤー位置＋見る方向
     target.x =
-        position.x + direction.x;
+        position.x + forward.x;
 
-    // プレイヤーの高さ＋見る方向
     target.y =
-        position.y + direction.y;
+        position.y + forward.y;
 
-    // プレイヤー位置＋見る方向
     target.z =
-        position.z + direction.z;
+        position.z + forward.z;
 
 
-    // ========================================
-    // DxLibのカメラを設定
-    // ========================================
-
-    // プレイヤー位置から
-    // target方向を見るカメラを作る
+    // カメラ位置と注視点を設定
     SetCameraPositionAndTarget_UpVecY(
         position,
         target
     );
+
+} // ← ここも重要
+
+
+// ========================================
+// プレイヤー位置を取得
+// ========================================
+VECTOR Player::GetPosition() const
+{
+    return position;
+}
+
+
+// ========================================
+// プレイヤーが向いている方向を取得
+// ========================================
+VECTOR Player::GetForward() const
+{
+    VECTOR forward;
+
+
+    // X方向
+    forward.x =
+        sinf(yaw) * cosf(pitch);
+
+
+    // Y方向
+    forward.y =
+        -sinf(pitch);
+
+
+    // Z方向
+    forward.z =
+        cosf(yaw) * cosf(pitch);
+
+
+    return forward;
+}
+// プレイヤーの位置を変更する
+void Player::SetPosition(VECTOR newPosition)
+{
+    // 新しい位置をプレイヤーの現在位置に設定する
+    position = newPosition;
+}
+// 移動できるか確認
+
+bool Player::CanMove(
+    VECTOR nextPosition
+)
+{
+    // ----------------------------------------
+    // テスト用の赤い箱
+    // ----------------------------------------
+
+    float minX =
+        -1.0f - collisionRadius;
+
+    float maxX =
+        1.0f + collisionRadius;
+
+    float minZ =
+        5.0f - collisionRadius;
+
+    float maxZ =
+        7.0f + collisionRadius;
+
+
+    // 箱の中に入ろうとしている場合
+    if (
+        nextPosition.x > minX &&
+        nextPosition.x < maxX &&
+        nextPosition.z > minZ &&
+        nextPosition.z < maxZ
+        )
+    {
+        // 移動させない
+        return false;
+    }
+
+
+    // 移動可能
+    return true;
+
+
 }

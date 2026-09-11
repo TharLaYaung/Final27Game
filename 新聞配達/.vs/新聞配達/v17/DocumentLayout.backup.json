@@ -3,16 +3,16 @@
   "WorkspaceRootPath": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Bicycle.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Ground.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Ground.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Ground.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Ground.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Bicycle.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Player.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -21,6 +21,22 @@
     {
       "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Player.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Player.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Interaction.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Interaction.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Interaction.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Interaction.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Ground.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Ground.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Ground.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Ground.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Camera.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -38,8 +54,60 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 6,
+          "SelectedChildIndex": 0,
           "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Bicycle.cpp",
+              "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.cpp",
+              "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Bicycle.cpp",
+              "ToolTip": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.cpp",
+              "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Bicycle.cpp",
+              "ViewState": "AgIAACMAAAAAAAAAAAAmwDsAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-09-11T01:52:12.19Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "Bicycle.h",
+              "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.h",
+              "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Bicycle.h",
+              "ToolTip": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.h",
+              "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Bicycle.h",
+              "ViewState": "AgIAABMAAAAAAAAAAAAmwDcAAAAUAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-09-11T01:51:33.956Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "Interaction.cpp",
+              "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Interaction.cpp",
+              "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Interaction.cpp",
+              "ToolTip": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Interaction.cpp",
+              "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Interaction.cpp",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAKUAAAAZAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
+              "WhenOpened": "2026-09-11T00:58:40.947Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "Interaction.h",
+              "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Interaction.h",
+              "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Interaction.h",
+              "ToolTip": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Interaction.h",
+              "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Interaction.h",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABkAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
+              "WhenOpened": "2026-09-11T00:56:34.069Z",
+              "EditorCaption": ""
+            },
             {
               "$type": "Document",
               "DocumentIndex": 3,
@@ -48,7 +116,7 @@
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Player.cpp",
               "ToolTip": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Player.cpp",
               "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Player.cpp",
-              "ViewState": "AgIAAAYAAAAAAAAAAAAAAA8AAAANAAAAAAAAAA==",
+              "ViewState": "AgIAAOwAAAAAAAAAAAAAAP0AAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-09-09T02:52:13.779Z",
               "EditorCaption": ""
@@ -61,14 +129,14 @@
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Player.h",
               "ToolTip": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Player.h",
               "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Player.h",
-              "ViewState": "AgIAACQAAAAAAAAAAAAAADEAAAACAAAAAAAAAA==",
+              "ViewState": "AgIAABEAAAAAAAAAAAAmwB4AAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
               "WhenOpened": "2026-09-09T02:51:33.554Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 7,
               "Title": "Ground.cpp",
               "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Ground.cpp",
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Ground.cpp",
@@ -76,12 +144,11 @@
               "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Ground.cpp",
               "ViewState": "AgIAACsAAAAAAAAAAAAmwD4AAAALAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-09-09T02:45:15.285Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-09-09T02:45:15.285Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 8,
               "Title": "Ground.h",
               "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Ground.h",
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Ground.h",
@@ -89,12 +156,11 @@
               "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Ground.h",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000680|",
-              "WhenOpened": "2026-09-08T05:36:39.405Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-09-08T05:36:39.405Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
+              "DocumentIndex": 9,
               "Title": "Camera.cpp",
               "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Camera.cpp",
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Camera.cpp",
@@ -106,7 +172,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 10,
               "Title": "Camera.h",
               "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Camera.h",
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Camera.h",
@@ -118,13 +184,13 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "Main.cpp",
               "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Main.cpp",
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Main.cpp",
               "ToolTip": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Main.cpp",
               "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Main.cpp",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAYAAAAAAAAAA==",
+              "ViewState": "AgIAABUAAAAAAAAAAAAAAKoAAAAKAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-09-08T03:21:56.787Z",
               "EditorCaption": ""
