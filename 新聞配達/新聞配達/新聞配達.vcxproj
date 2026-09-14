@@ -134,6 +134,7 @@
     <ClCompile Include="Ground.cpp" />
     <ClCompile Include="Interaction.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Newspaper.cpp" />
     <ClCompile Include="Player.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -141,6 +142,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Ground.h" />
     <ClInclude Include="Interaction.h" />
+    <ClInclude Include="Newspaper.h" />
     <ClInclude Include="Player.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -1,9 +1,7 @@
 #pragma once
 
-// DxLibを使用する
 #include "DxLib.h"
 
-// Playerクラスを使用する
 class Player;
 
 // 自転車を管理するクラス
@@ -26,32 +24,41 @@ public:
     // 自転車を描画する
     void Draw();
 
+    // UIを描画する
+    void DrawUI();
+
     // 自転車モデルを削除する
     void Finalize();
 
-    // プレイヤーが自転車に乗っているか取得する
+    // 自転車に乗っているか取得する
     bool IsRiding() const;
 
-    // 自転車の現在位置を取得する
+    // 自転車の位置を取得する
     VECTOR GetPosition() const;
 
 private:
 
-    // 自転車モデルのハンドル
+    // 自転車モデル
     int modelHandle;
 
-    // 自転車の現在位置
+    // 自転車の位置
     VECTOR position;
 
     // 自転車の向き
     float angle;
 
-    // プレイヤーが自転車に乗っているか
+    // 自転車に乗っているか
     bool isRiding;
 
-    // 前のフレームでEキーが押されていたか
+    // 自転車をカーソルで選択しているか
+    bool canRide;
+
+    // 前のフレームのEキー状態
     bool oldEKey;
 
     // 自転車の移動速度
     float moveSpeed;
+
+    // 自転車が移動できるか確認する
+    bool CanMove(VECTOR nextPosition);
 };

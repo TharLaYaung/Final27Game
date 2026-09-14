@@ -3,6 +3,7 @@
 #include "Player.h"
 #include "Interaction.h"
 #include "Bicycle.h"
+#include "Newspaper.h"
 
 // Windowsアプリケーションの開始地点
 int WINAPI WinMain(
@@ -48,13 +49,26 @@ int WINAPI WinMain(
     // 自転車を作成する
     Bicycle bicycle;
 
+    // 新聞を作成する
+    Newspaper newspaper;
+
     // 自転車モデルを読み込む
     if (bicycle.Initialize() == false)
     {
-        // 読み込みに失敗した場合はエラーを表示する
         MessageBox(
             NULL,
             "自転車モデルの読み込みに失敗しました。",
+            "エラー",
+            MB_OK
+        );
+    }
+
+    // 新聞モデルを読み込む
+    if (newspaper.Initialize() == false)
+    {
+        MessageBox(
+            NULL,
+            "新聞モデルの読み込みに失敗しました。",
             "エラー",
             MB_OK
         );
@@ -72,11 +86,35 @@ int WINAPI WinMain(
         // 前の画面を消す
         ClearDrawScreen();
 
-        // プレイヤーを更新する
-        player.Update();
+        // 自転車の位置をプレイヤーに渡す
+        player.SetBicyclePosition(
+            bicycle.GetPosition()
+        );
+
+        // 自転車に乗っていない時だけ当たり判定を使う
+        player.SetBicycleCollisionEnabled(
+            bicycle.IsRiding() == false
+        );
+
+        // 自転車に乗っていない場合
+        if (bicycle.IsRiding() == false)
+        {
+            // 徒歩移動とマウス視点を更新する
+            player.Update();
+        }
+        else
+        {
+            // 自転車に乗っている時はマウス視点だけ更新する
+            player.UpdateLook();
+        }
 
         // 自転車を更新する
         bicycle.Update(player);
+
+        // 新聞を自転車の位置に合わせる
+        newspaper.Update(
+            bicycle.GetPosition()
+        );
 
         // カメラを更新する
         player.UpdateCamera();
@@ -87,8 +125,11 @@ int WINAPI WinMain(
         // 地面を描画する
         DrawGround();
 
-        // 自転車モデルを描画する
+        // 自転車を描画する
         bicycle.Draw();
+
+        // 新聞を描画する
+        newspaper.Draw();
 
         // テスト用の赤い箱を描画する
         DrawCube3D(
@@ -118,6 +159,9 @@ int WINAPI WinMain(
 
             TRUE
         );
+
+        // 自転車のUIを描画する
+        bicycle.DrawUI();
 
         // インタラクトUIを描画する
         interaction.Draw();
