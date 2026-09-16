@@ -13,46 +13,46 @@ int WINAPI WinMain(
     int nCmdShow
 )
 {
-    // ウィンドウモードで起動する
+    // ウィンドウモード
     ChangeWindowMode(TRUE);
 
-    // ゲーム画面を1280×720に設定する
+    // 画面サイズ
     SetGraphMode(
         1280,
         720,
         32
     );
 
-    // DxLibを初期化する
+    // DxLib初期化
     if (DxLib_Init() == -1)
     {
         return -1;
     }
 
-    // 裏画面に描画する
+    // 裏画面描画
     SetDrawScreen(
         DX_SCREEN_BACK
     );
 
-    // 3Dカメラの表示距離を設定する
+    // カメラ描画距離
     SetCameraNearFar(
         0.1f,
         1000.0f
     );
 
-    // プレイヤーを作成する
+    // プレイヤー
     Player player;
 
-    // インタラクトシステムを作成する
+    // インタラクト
     Interaction interaction;
 
-    // 自転車を作成する
+    // 自転車
     Bicycle bicycle;
 
-    // 新聞を作成する
+    // 新聞
     Newspaper newspaper;
 
-    // 自転車モデルを読み込む
+    // 自転車初期化
     if (bicycle.Initialize() == false)
     {
         MessageBox(
@@ -63,7 +63,7 @@ int WINAPI WinMain(
         );
     }
 
-    // 新聞モデルを読み込む
+    // 新聞初期化
     if (newspaper.Initialize() == false)
     {
         MessageBox(
@@ -77,61 +77,69 @@ int WINAPI WinMain(
     // ゲームループ
     while (ProcessMessage() == 0)
     {
-        // ESCキーでゲームを終了する
+        // ESCで終了
         if (CheckHitKey(KEY_INPUT_ESCAPE))
         {
             break;
         }
 
-        // 前の画面を消す
+        // 画面クリア
         ClearDrawScreen();
 
-        // 自転車の位置をプレイヤーに渡す
+        // 自転車位置をプレイヤーに渡す
         player.SetBicyclePosition(
             bicycle.GetPosition()
         );
 
-        // 自転車に乗っていない時だけ当たり判定を使う
+        // 自転車に乗っていない時だけ
+        // 自転車との衝突を有効にする
         player.SetBicycleCollisionEnabled(
             bicycle.IsRiding() == false
         );
 
-        // 自転車に乗っていない場合
+        // 徒歩状態
         if (bicycle.IsRiding() == false)
         {
-            // 徒歩移動とマウス視点を更新する
+            // 移動＋マウス視点
             player.Update();
         }
         else
         {
-            // 自転車に乗っている時はマウス視点だけ更新する
+            // 乗車中はマウス視点だけ
             player.UpdateLook();
         }
 
-        // 自転車を更新する
-        bicycle.Update(player);
-
-        // 新聞を自転車の位置に合わせる
-        newspaper.Update(
-            bicycle.GetPosition()
+        // 自転車更新
+        bicycle.Update(
+            player
         );
 
-        // カメラを更新する
+        // 新聞更新
+        newspaper.Update(
+            player,
+            bicycle.GetPosition(),
+            bicycle.GetAngle(),
+            bicycle.IsRiding()
+        );
+
+        // カメラ更新
         player.UpdateCamera();
 
-        // インタラクト処理を更新する
-        interaction.Update(player);
+        // 通常インタラクト更新
+        interaction.Update(
+            player
+        );
 
-        // 地面を描画する
+        // 地面描画
         DrawGround();
 
-        // 自転車を描画する
+        // 自転車描画
         bicycle.Draw();
 
-        // 新聞を描画する
+        // 新聞描画
         newspaper.Draw();
 
-        // テスト用の赤い箱を描画する
+        // テスト用赤い箱
         DrawCube3D(
             VGet(
                 -1.0f,
@@ -160,13 +168,16 @@ int WINAPI WinMain(
             TRUE
         );
 
-        // 自転車のUIを描画する
+        // 自転車UI
         bicycle.DrawUI();
 
-        // インタラクトUIを描画する
+        // 新聞UI
+        newspaper.DrawUI();
+
+        // 通常インタラクトUI
         interaction.Draw();
 
-        // 移動方法を表示する
+        // 操作説明
         DrawString(
             20,
             20,
@@ -178,7 +189,6 @@ int WINAPI WinMain(
             )
         );
 
-        // マウス操作を表示する
         DrawString(
             20,
             40,
@@ -190,11 +200,10 @@ int WINAPI WinMain(
             )
         );
 
-        // インタラクト操作を表示する
         DrawString(
             20,
             60,
-            "E : Interact",
+            "E : Ride / Interact",
             GetColor(
                 255,
                 255,
@@ -202,11 +211,10 @@ int WINAPI WinMain(
             )
         );
 
-        // 終了方法を表示する
         DrawString(
             20,
             80,
-            "ESC : Exit",
+            "Left Click : Take Newspaper",
             GetColor(
                 255,
                 255,
@@ -214,13 +222,25 @@ int WINAPI WinMain(
             )
         );
 
-        // 裏画面を表画面に表示する
+        // 画面中央の照準
+        DrawCircle(
+            640,
+            360,
+            3,
+            GetColor(
+                255,
+                255,
+                255
+            ),
+            TRUE
+        );
+
+        // 画面表示
         ScreenFlip();
     }
 
-    // DxLibを終了する
+    // DxLib終了
     DxLib_End();
 
-    // 正常終了
     return 0;
 }

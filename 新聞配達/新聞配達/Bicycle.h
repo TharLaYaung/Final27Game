@@ -36,6 +36,9 @@ public:
     // Ž©“]ŽÔ‚ÌˆÊ’u‚ðŽæ“¾‚·‚é
     VECTOR GetPosition() const;
 
+    // Ž©“]ŽÔ‚ÌŒü‚«‚ðŽæ“¾‚·‚é
+    float GetAngle() const;
+
 private:
 
     // Ž©“]ŽÔƒ‚ƒfƒ‹

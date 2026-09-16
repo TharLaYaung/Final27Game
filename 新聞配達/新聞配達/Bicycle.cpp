@@ -520,3 +520,9 @@ VECTOR Bicycle::GetPosition() const
 {
     return position;
 }
+
+// Ž©“]ŽÔ‚ÌŒü‚«‚ðŽæ“¾‚·‚é
+float Bicycle::GetAngle() const
+{
+    return angle;
+}
