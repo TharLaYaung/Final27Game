@@ -4,6 +4,7 @@
 #include "Interaction.h"
 #include "Bicycle.h"
 #include "Newspaper.h"
+#include "Map.h"
 
 // Windowsアプリケーションの開始地点
 int WINAPI WinMain(
@@ -28,6 +29,8 @@ int WINAPI WinMain(
     {
         return -1;
     }
+
+    MapInit();
 
     // 裏画面に描画する
     SetDrawScreen(
@@ -124,6 +127,9 @@ int WINAPI WinMain(
 
         // 地面を描画する
         DrawGround();
+
+        // 家の描画
+        MapDraw();
 
         // 自転車を描画する
         bicycle.Draw();

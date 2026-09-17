@@ -24,33 +24,33 @@ void DrawGround()
     // 左奥
     VECTOR p1 =
         VGet(
-            -20.0f,
+            -200.0f,
             0.0f,
-            -20.0f
+            -200.0f
         );
 
     // 右奥
     VECTOR p2 =
         VGet(
-            20.0f,
+            200.0f,
             0.0f,
-            -20.0f
+            -200.0f
         );
 
     // 左手前
     VECTOR p3 =
         VGet(
-            -20.0f,
+            -200.0f,
             0.0f,
-            20.0f
+            200.0f
         );
 
     // 右手前
     VECTOR p4 =
         VGet(
-            20.0f,
+            200.0f,
             0.0f,
-            20.0f
+            200.0f
         );
 
 
