@@ -28,7 +28,7 @@ Bicycle::Bicycle()
     oldEKey = false;
 
     // Ž©“]ŽÔ‚ÌˆÚ“®‘¬“x
-    moveSpeed = 0.15f;
+    moveSpeed = 0.14f;
 }
 
 

@@ -35,6 +35,9 @@ public:
     // 終了処理
     void Finalize();
 
+    // 配達処理（手持ち状態を解除する）
+    void Deliver();
+
     // 新聞を持っているか
     bool IsHolding() const;
 

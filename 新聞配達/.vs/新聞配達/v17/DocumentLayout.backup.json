@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
+      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Bicycle.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Main.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
@@ -13,10 +17,6 @@
     {
       "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Newspaper.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
       "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Newspaper.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
-      "RelativeMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|solutionrelative:\u65B0\u805E\u914D\u9054\\Bicycle.cpp||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{AF1571EA-1A1E-4510-85DB-A64922CDD08A}|\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054.vcxproj|D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.h||{D0E1A5C6-B359-4E41-9B60-3365922C2A22}",
@@ -62,11 +62,11 @@
       "DocumentGroups": [
         {
           "DockedWidth": 200,
-          "SelectedChildIndex": 2,
+          "SelectedChildIndex": 3,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 3,
               "Title": "Newspaper.cpp",
               "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Newspaper.cpp",
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Newspaper.cpp",
@@ -90,32 +90,33 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 0,
+              "DocumentIndex": 1,
               "Title": "Main.cpp",
               "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Main.cpp",
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Main.cpp",
               "ToolTip": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Main.cpp",
               "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Main.cpp",
-              "ViewState": "AgIAANEAAAAAAAAAAAAYwOEAAAATAAAAAAAAAA==",
+              "ViewState": "AgIAAL8AAAAAAAAAAAAYwNQAAAAPAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
               "WhenOpened": "2026-09-08T03:21:56.787Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 0,
               "Title": "Bicycle.cpp",
               "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.cpp",
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Bicycle.cpp",
               "ToolTip": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Bicycle.cpp",
               "RelativeToolTip": "\u65B0\u805E\u914D\u9054\\Bicycle.cpp",
-              "ViewState": "AgIAAPgBAAAAAAAAAAAQwA8CAAABAAAAAAAAAA==",
+              "ViewState": "AgIAABgAAAAAAAAAAAAAAA8CAAABAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000677|",
-              "WhenOpened": "2026-09-11T01:52:12.19Z"
+              "WhenOpened": "2026-09-11T01:52:12.19Z",
+              "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
+              "DocumentIndex": 2,
               "Title": "Newspaper.h",
               "DocumentMoniker": "D:\\Final27Game\\\u65B0\u805E\u914D\u9054\\\u65B0\u805E\u914D\u9054\\Newspaper.h",
               "RelativeDocumentMoniker": "\u65B0\u805E\u914D\u9054\\Newspaper.h",

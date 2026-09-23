@@ -607,3 +607,10 @@ void Newspaper::Finalize()
         modelHandle = -1;
     }
 }
+
+// 配達処理（手持ち新聞をポストに入れて手放す）
+void Newspaper::Deliver()
+{
+    // 手に持っている新聞を手放す
+    isHolding = false;
+}

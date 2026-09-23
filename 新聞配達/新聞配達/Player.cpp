@@ -18,7 +18,7 @@ Player::Player()
     pitch = 0.0f;
 
     // 徒歩の移動速度
-    moveSpeed = 0.1f;
+    moveSpeed = 0.08f;
 
     // マウス感度
     mouseSensitivity = 0.003f;

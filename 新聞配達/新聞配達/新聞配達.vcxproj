@@ -133,6 +133,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="Ground.cpp" />
     <ClCompile Include="Interaction.cpp" />
+    <ClCompile Include="Mailbox.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="Newspaper.cpp" />
     <ClCompile Include="Player.cpp" />
@@ -142,6 +143,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="Ground.h" />
     <ClInclude Include="Interaction.h" />
+    <ClInclude Include="Mailbox.h" />
     <ClInclude Include="Newspaper.h" />
     <ClInclude Include="Player.h" />
   </ItemGroup>

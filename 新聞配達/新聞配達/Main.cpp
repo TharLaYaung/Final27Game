@@ -4,6 +4,7 @@
 #include "Interaction.h"
 #include "Bicycle.h"
 #include "Newspaper.h"
+#include "Mailbox.h"
 
 // Windowsアプリケーションの開始地点
 int WINAPI WinMain(
@@ -52,6 +53,9 @@ int WINAPI WinMain(
     // 新聞
     Newspaper newspaper;
 
+    // メールボックス（郵便ポスト）
+    Mailbox mailbox;
+
     // 自転車初期化
     if (bicycle.Initialize() == false)
     {
@@ -74,9 +78,29 @@ int WINAPI WinMain(
         );
     }
 
+    // メールボックス初期化
+    if (mailbox.Initialize() == false)
+    {
+        MessageBox(
+            NULL,
+            "メールボックスモデルの読み込みに失敗しました。",
+            "エラー",
+            MB_OK
+        );
+    }
+
+    // 60FPS制御用の時間記録
+    LONGLONG prevTime = GetNowHiPerformanceCount();
+
     // ゲームループ
     while (ProcessMessage() == 0)
     {
+        // 60FPS（約16.6ミリ秒）に速度を一定化
+        while (GetNowHiPerformanceCount() - prevTime < 16666)
+        {
+            Sleep(0);
+        }
+        prevTime = GetNowHiPerformanceCount();
         // ESCで終了
         if (CheckHitKey(KEY_INPUT_ESCAPE))
         {
@@ -122,6 +146,12 @@ int WINAPI WinMain(
             bicycle.IsRiding()
         );
 
+        // メールボックス更新
+        mailbox.Update(
+            player,
+            newspaper
+        );
+
         // カメラ更新
         player.UpdateCamera();
 
@@ -139,40 +169,19 @@ int WINAPI WinMain(
         // 新聞描画
         newspaper.Draw();
 
-        // テスト用赤い箱
-        DrawCube3D(
-            VGet(
-                -1.0f,
-                0.0f,
-                5.0f
-            ),
+        // メールボックス描画
+        mailbox.Draw();
 
-            VGet(
-                1.0f,
-                2.0f,
-                7.0f
-            ),
 
-            GetColor(
-                200,
-                50,
-                50
-            ),
-
-            GetColor(
-                255,
-                255,
-                255
-            ),
-
-            TRUE
-        );
 
         // 自転車UI
         bicycle.DrawUI();
 
         // 新聞UI
         newspaper.DrawUI();
+
+        // メールボックスUI
+        mailbox.DrawUI();
 
         // 通常インタラクトUI
         interaction.Draw();
@@ -214,7 +223,7 @@ int WINAPI WinMain(
         DrawString(
             20,
             80,
-            "Left Click : Take Newspaper",
+            "Left Click : Take / Deliver Newspaper",
             GetColor(
                 255,
                 255,
