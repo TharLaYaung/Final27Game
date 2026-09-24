@@ -1,7 +1,45 @@
+# ========================================
+# Visual Studio 一時ファイル・キャッシュ
+# ========================================
 .vs/
-Debug/
-Release/
+**/.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.db
+*.opendb
+
+# Precompiled Headers (100MB超の巨大ファイル)
+**/ipch/
+*.ipch
+
+# ========================================
+# ビルド成果物・中間生成物
+# ========================================
+[Dd]ebug/
+[Rr]elease/
+**/[Dd]ebug/
+**/[Rr]elease/
 x64/
 x86/
-*.user
-*.suo
+**/x64/
+**/x86/
+
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.idb
+*.tlog
+*.lastbuildstate
+*.recipe
+*.log
+*.res
+*.pch
+
+# ========================================
+# DxLib 実行ログファイル
+# ========================================
+Log.txt
+**/Log.txt
