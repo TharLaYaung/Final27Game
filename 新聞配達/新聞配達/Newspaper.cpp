@@ -1,63 +1,64 @@
 #include "Newspaper.h"
 #include "Player.h"
+#include "HorrorUI.h"
 #include <cmath>
 
-// ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+// ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 Newspaper::Newspaper()
 {
-    // ƒ‚ƒfƒ‹–¢“Ç‚İ‚İ
+    // ãƒ¢ãƒ‡ãƒ«æœªèª­ã¿è¾¼ã¿
     modelHandle = -1;
 
-    // ©“]Ô‚Ì‰ŠúˆÊ’u
+    // è‡ªè»¢è»Šã®åˆæœŸä½ç½®
     bicyclePosition = VGet(
         0.0f,
         0.0f,
         0.0f
     );
 
-    // ©“]Ô‚Ì‰ŠúŠp“x
+    // è‡ªè»¢è»Šã®åˆæœŸè§’åº¦
     bicycleAngle = 0.0f;
 
-    // ƒJƒS“à‚Å‚ÌV•·‚ÌŒÅ’èˆÊ’u
+    // ã‚«ã‚´å†…ã§ã®æ–°èã®å›ºå®šä½ç½®
     localPosition = VGet(
         1.03f,
         0.55f,
         -0.24f
     );
 
-    // ƒJƒS“à‚Å‚ÌV•·‚ÌŒÅ’èŠp“x
+    // ã‚«ã‚´å†…ã§ã®æ–°èã®å›ºå®šè§’åº¦
     localRotation = VGet(
         0.0f,
         1.1f * DX_PI_F / 180.0f,
         -39.0f * DX_PI_F / 180.0f
     );
 
-    // V•·‚Ì‘å‚«‚³
+    // æ–°èã®å¤§ãã•
     modelScale = 0.0100f;
 
-    // V•·“¯m‚ÌŠÔŠu
+    // æ–°èåŒå£«ã®é–“éš”
     stackInterval = 0.020f;
 
-    // Å‰‚Í8–‡
+    // æœ€åˆã¯8æš
     newspaperCount = 8;
 
-    // Å‰‚ÍV•·‚ğ‚Á‚Ä‚¢‚È‚¢
+    // æœ€åˆã¯æ–°èã‚’æŒã£ã¦ã„ãªã„
     isHolding = false;
 
-    // Å‰‚Íæ‚ê‚È‚¢
+    // æœ€åˆã¯å–ã‚Œãªã„
     canTake = false;
 
-    // ¶ƒNƒŠƒbƒNó‘Ô
+    // å·¦ã‚¯ãƒªãƒƒã‚¯çŠ¶æ…‹
     oldLeftClick = false;
 
-    // ƒvƒŒƒCƒ„[ˆÊ’u
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ä½ç½®
     playerPosition = VGet(
         0.0f,
         0.0f,
         0.0f
     );
 
-    // ƒvƒŒƒCƒ„[•ûŒü
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼æ–¹å‘
     playerForward = VGet(
         0.0f,
         0.0f,
@@ -66,22 +67,22 @@ Newspaper::Newspaper()
 }
 
 
-// ƒfƒXƒgƒ‰ƒNƒ^
+// ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 Newspaper::~Newspaper()
 {
     Finalize();
 }
 
 
-// ‰Šú‰»
+// åˆæœŸåŒ–
 bool Newspaper::Initialize()
 {
-    // V•·ƒ‚ƒfƒ‹‚ğ“Ç‚İ‚Ş
+    // æ–°èãƒ¢ãƒ‡ãƒ«ã‚’èª­ã¿è¾¼ã‚€
     modelHandle = MV1LoadModel(
         "Data/Model/Newspaper.mv1"
     );
 
-    // “Ç‚İ‚İ¸”s
+    // èª­ã¿è¾¼ã¿å¤±æ•—
     if (modelHandle == -1)
     {
         return false;
@@ -91,18 +92,18 @@ bool Newspaper::Initialize()
 }
 
 
-// ƒJƒS‚ÌV•·‚ÌŒ»İˆÊ’u‚ğæ“¾
+// ã‚«ã‚´ã®æ–°èã®ç¾åœ¨ä½ç½®ã‚’å–å¾—
 VECTOR Newspaper::GetBasketNewspaperPosition() const
 {
-    // ©“]Ô‚ÌŠp“x
+    // è‡ªè»¢è»Šã®è§’åº¦
     float cosAngle =
         cosf(bicycleAngle);
 
     float sinAngle =
         sinf(bicycleAngle);
 
-    // ƒJƒS“à‚Ìƒ[ƒJƒ‹ˆÊ’u‚ğ
-    // ©“]Ô‚ÌŒü‚«‚É‡‚í‚¹‚é
+    // ã‚«ã‚´å†…ã®ãƒ­ãƒ¼ã‚«ãƒ«ä½ç½®ã‚’
+    // è‡ªè»¢è»Šã®å‘ãã«åˆã‚ã›ã‚‹
     float worldOffsetX =
         localPosition.x * cosAngle +
         localPosition.z * sinAngle;
@@ -111,7 +112,7 @@ VECTOR Newspaper::GetBasketNewspaperPosition() const
         -localPosition.x * sinAngle +
         localPosition.z * cosAngle;
 
-    // V•·‚Ìˆê”Ôã‚ ‚½‚è‚ğ‘_‚¢‚â‚·‚­‚·‚é
+    // æ–°èã®ä¸€ç•ªä¸Šã‚ãŸã‚Šã‚’ç‹™ã„ã‚„ã™ãã™ã‚‹
     float topHeight = 0.0f;
 
     if (newspaperCount > 0)
@@ -135,7 +136,7 @@ VECTOR Newspaper::GetBasketNewspaperPosition() const
 }
 
 
-// XV
+// æ›´æ–°
 void Newspaper::Update(
     Player& player,
     VECTOR newBicyclePosition,
@@ -143,73 +144,73 @@ void Newspaper::Update(
     bool bicycleRiding
 )
 {
-    // ©“]Ô‚ÌŒ»İˆÊ’u
+    // è‡ªè»¢è»Šã®ç¾åœ¨ä½ç½®
     bicyclePosition =
         newBicyclePosition;
 
-    // ©“]Ô‚ÌŒ»İŠp“x
+    // è‡ªè»¢è»Šã®ç¾åœ¨è§’åº¦
     bicycleAngle =
         newBicycleAngle;
 
-    // ƒvƒŒƒCƒ„[‚ÌˆÊ’u‚ğ•Û‘¶
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ä½ç½®ã‚’ä¿å­˜
     playerPosition =
         player.GetPosition();
 
-    // ƒvƒŒƒCƒ„[‚ÌŒü‚«‚ğ•Û‘¶
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å‘ãã‚’ä¿å­˜
     playerForward =
         player.GetForward();
 
-    // –ˆƒtƒŒ[ƒ€‰Šú‰»
+    // æ¯ãƒ•ãƒ¬ãƒ¼ãƒ åˆæœŸåŒ–
     canTake = false;
 
-    // ¶ƒNƒŠƒbƒN‚ÌŒ»İó‘Ô
+    // å·¦ã‚¯ãƒªãƒƒã‚¯ã®ç¾åœ¨çŠ¶æ…‹
     bool leftClick =
         (GetMouseInput() & MOUSE_INPUT_LEFT) != 0;
 
-    // ©“]Ô‚Éæ‚Á‚Ä‚¢‚È‚¢
-    // V•·‚ªc‚Á‚Ä‚¢‚é
-    // V•·‚ğ‚Ü‚¾‚Á‚Ä‚¢‚È‚¢
+    // è‡ªè»¢è»Šã«ä¹—ã£ã¦ã„ãªã„
+    // æ–°èãŒæ®‹ã£ã¦ã„ã‚‹
+    // æ–°èã‚’ã¾ã æŒã£ã¦ã„ãªã„
     if (
         bicycleRiding == false &&
         newspaperCount > 0 &&
         isHolding == false
         )
     {
-        // ƒJƒS‚ÌV•·ˆÊ’u
+        // ã‚«ã‚´ã®æ–°èä½ç½®
         VECTOR newspaperPosition =
             GetBasketNewspaperPosition();
 
-        // ƒvƒŒƒCƒ„[‚©‚çV•·‚Ö‚Ì•ûŒü
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‹ã‚‰æ–°èã¸ã®æ–¹å‘
         VECTOR toNewspaper =
             VSub(
                 newspaperPosition,
                 playerPosition
             );
 
-        // V•·‚Ü‚Å‚Ì‹——£
+        // æ–°èã¾ã§ã®è·é›¢
         float distance =
             VSize(
                 toNewspaper
             );
 
-        // 3ƒ[ƒgƒ‹ˆÈ“à
+        // 3ãƒ¡ãƒ¼ãƒˆãƒ«ä»¥å†…
         if (distance <= 3.0f)
         {
-            // •ûŒü‚ğ³‹K‰»
+            // æ–¹å‘ã‚’æ­£è¦åŒ–
             VECTOR direction =
                 VNorm(
                     toNewspaper
                 );
 
-            // ƒvƒŒƒCƒ„[‚ª‚Ç‚ê‚­‚ç‚¢
-            // V•·‚Ì•ûŒü‚ğŒ©‚Ä‚¢‚é‚©
+            // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒã©ã‚Œãã‚‰ã„
+            // æ–°èã®æ–¹å‘ã‚’è¦‹ã¦ã„ã‚‹ã‹
             float dot =
                 VDot(
                     playerForward,
                     direction
                 );
 
-            // V•·‚ğŒ©‚Ä‚¢‚éê‡
+            // æ–°èã‚’è¦‹ã¦ã„ã‚‹å ´åˆ
             if (dot >= 0.94f)
             {
                 canTake = true;
@@ -217,59 +218,59 @@ void Newspaper::Update(
         }
     }
 
-    // V•·‚ğ‘_‚Á‚Ä‚¢‚é
-    // ¶ƒNƒŠƒbƒN‚ğ‰Ÿ‚µ‚½uŠÔ
+    // æ–°èã‚’ç‹™ã£ã¦ã„ã‚‹
+    // å·¦ã‚¯ãƒªãƒƒã‚¯ã‚’æŠ¼ã—ãŸç¬é–“
     if (
         canTake == true &&
         leftClick == true &&
         oldLeftClick == false
         )
     {
-        // ƒJƒS‚©‚çV•·‚ğ1–‡Œ¸‚ç‚·
+        // ã‚«ã‚´ã‹ã‚‰æ–°èã‚’1æšæ¸›ã‚‰ã™
         newspaperCount--;
 
-        // ƒvƒŒƒCƒ„[‚ªV•·‚ğ‚Â
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒæ–°èã‚’æŒã¤
         isHolding = true;
 
-        // æ“¾‚µ‚½‚Ì‚Å•\¦‚ğÁ‚·
+        // å–å¾—ã—ãŸã®ã§è¡¨ç¤ºã‚’æ¶ˆã™
         canTake = false;
     }
 
-    // ¶ƒNƒŠƒbƒNó‘Ô‚ğ•Û‘¶
+    // å·¦ã‚¯ãƒªãƒƒã‚¯çŠ¶æ…‹ã‚’ä¿å­˜
     oldLeftClick =
         leftClick;
 }
 
 
-// ƒJƒS‚ÌV•·‚ğ•`‰æ
+// ã‚«ã‚´ã®æ–°èã‚’æç”»
 void Newspaper::DrawBasketNewspapers()
 {
-    // V•·‚ª0–‡‚È‚ç•`‰æ‚µ‚È‚¢
+    // æ–°èãŒ0æšãªã‚‰æç”»ã—ãªã„
     if (newspaperCount <= 0)
     {
         return;
     }
 
-    // ©“]Ô‚Ì‰ñ“]s—ñ
+    // è‡ªè»¢è»Šã®å›è»¢è¡Œåˆ—
     MATRIX bicycleRotationMatrix =
         MGetRotY(
             bicycleAngle
         );
 
-    // ©“]Ô‚ÌˆÚ“®s—ñ
+    // è‡ªè»¢è»Šã®ç§»å‹•è¡Œåˆ—
     MATRIX bicycleTranslationMatrix =
         MGetTranslate(
             bicyclePosition
         );
 
-    // ©“]Ô‘S‘Ì‚Ìs—ñ
+    // è‡ªè»¢è»Šå…¨ä½“ã®è¡Œåˆ—
     MATRIX bicycleMatrix =
         MMult(
             bicycleRotationMatrix,
             bicycleTranslationMatrix
         );
 
-    // V•·ƒTƒCƒY
+    // æ–°èã‚µã‚¤ã‚º
     MATRIX scaleMatrix =
         MGetScale(
             VGet(
@@ -279,7 +280,7 @@ void Newspaper::DrawBasketNewspapers()
             )
         );
 
-    // V•·‚ÌŒÅ’è‰ñ“]
+    // æ–°èã®å›ºå®šå›è»¢
     MATRIX rotationXMatrix =
         MGetRotX(
             localRotation.x
@@ -307,10 +308,10 @@ void Newspaper::DrawBasketNewspapers()
             rotationZMatrix
         );
 
-    // c‚Á‚Ä‚¢‚éV•·‚ğ•`‰æ
+    // æ®‹ã£ã¦ã„ã‚‹æ–°èã‚’æç”»
     for (int i = 0; i < newspaperCount; i++)
     {
-        // ƒJƒS“à‚Å‚ÌŒÅ’èˆÊ’u
+        // ã‚«ã‚´å†…ã§ã®å›ºå®šä½ç½®
         VECTOR stackPosition =
             VGet(
                 localPosition.x,
@@ -321,13 +322,13 @@ void Newspaper::DrawBasketNewspapers()
                 localPosition.z
             );
 
-        // ƒJƒS“à‚Å‚ÌˆÚ“®s—ñ
+        // ã‚«ã‚´å†…ã§ã®ç§»å‹•è¡Œåˆ—
         MATRIX newspaperPositionMatrix =
             MGetTranslate(
                 stackPosition
             );
 
-        // V•·‚ÌÅIs—ñ
+        // æ–°èã®æœ€çµ‚è¡Œåˆ—
         MATRIX newspaperMatrix =
             scaleMatrix;
 
@@ -349,13 +350,13 @@ void Newspaper::DrawBasketNewspapers()
                 bicycleMatrix
             );
 
-        // V•·‚És—ñ‚ğİ’è
+        // æ–°èã«è¡Œåˆ—ã‚’è¨­å®š
         MV1SetMatrix(
             modelHandle,
             newspaperMatrix
         );
 
-        // •`‰æ
+        // æç”»
         MV1DrawModel(
             modelHandle
         );
@@ -363,22 +364,22 @@ void Newspaper::DrawBasketNewspapers()
 }
 
 
-// è‚É‚Á‚Ä‚¢‚éV•·‚ğ•`‰æ
+// æ‰‹ã«æŒã£ã¦ã„ã‚‹æ–°èã‚’æç”»
 void Newspaper::DrawHeldNewspaper()
 {
-    // ‚Á‚Ä‚¢‚È‚¢ê‡
+    // æŒã£ã¦ã„ãªã„å ´åˆ
     if (isHolding == false)
     {
         return;
     }
 
-    // ƒvƒŒƒCƒ„[‚Ì‘O•ûŒü
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å‰æ–¹å‘
     VECTOR forward =
         VNorm(
             playerForward
         );
 
-    // ƒvƒŒƒCƒ„[‚Ì‰E•ûŒü
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å³æ–¹å‘
     VECTOR right =
         VGet(
             forward.z,
@@ -386,7 +387,7 @@ void Newspaper::DrawHeldNewspaper()
             -forward.x
         );
 
-    // ‰E•ûŒü‚ğ³‹K‰»
+    // å³æ–¹å‘ã‚’æ­£è¦åŒ–
     if (VSize(right) > 0.001f)
     {
         right =
@@ -395,7 +396,7 @@ void Newspaper::DrawHeldNewspaper()
             );
     }
 
-    // è‚É‚ÂV•·‚ÌˆÊ’u
+    // æ‰‹ã«æŒã¤æ–°èã®ä½ç½®
     VECTOR heldPosition =
         VAdd(
             playerPosition,
@@ -405,7 +406,7 @@ void Newspaper::DrawHeldNewspaper()
             )
         );
 
-    // ­‚µ‰E‚É‚·‚é
+    // å°‘ã—å³ã«ã™ã‚‹
     heldPosition =
         VAdd(
             heldPosition,
@@ -415,29 +416,29 @@ void Newspaper::DrawHeldNewspaper()
             )
         );
 
-    // ­‚µ‰º‚É‚·‚é
+    // å°‘ã—ä¸‹ã«ã™ã‚‹
     heldPosition.y -=
         0.30f;
 
-    // ƒvƒŒƒCƒ„[‚ÌŒü‚«‚©‚ç
-    // Y²Šp“x‚ğŒvZ
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å‘ãã‹ã‚‰
+    // Yè»¸è§’åº¦ã‚’è¨ˆç®—
     float playerYaw =
         atan2f(
             forward.x,
             forward.z
         );
 
-    // ã‰º‚ğŒ©‚éŠp“x
+    // ä¸Šä¸‹ã‚’è¦‹ã‚‹è§’åº¦
     float playerPitch =
         -asinf(
             forward.y
         );
 
-    // è‚¿V•·‚Í­‚µ¬‚³‚­‚·‚é
+    // æ‰‹æŒã¡æ–°èã¯å°‘ã—å°ã•ãã™ã‚‹
     float heldScale =
         0.0060f;
 
-    // ƒTƒCƒY
+    // ã‚µã‚¤ã‚º
     MATRIX scaleMatrix =
         MGetScale(
             VGet(
@@ -447,7 +448,7 @@ void Newspaper::DrawHeldNewspaper()
             )
         );
 
-    // è‚¿V•·‚Ì‰ñ“]
+    // æ‰‹æŒã¡æ–°èã®å›è»¢
     MATRIX rotationXMatrix =
         MGetRotX(
             playerPitch
@@ -458,7 +459,7 @@ void Newspaper::DrawHeldNewspaper()
             playerYaw
         );
 
-    // ­‚µÎ‚ß‚É‚Â
+    // å°‘ã—æ–œã‚ã«æŒã¤
     MATRIX rotationZMatrix =
         MGetRotZ(
             -25.0f *
@@ -478,13 +479,13 @@ void Newspaper::DrawHeldNewspaper()
             rotationZMatrix
         );
 
-    // è‚ÌˆÊ’u
+    // æ‰‹ã®ä½ç½®
     MATRIX positionMatrix =
         MGetTranslate(
             heldPosition
         );
 
-    // ÅIs—ñ
+    // æœ€çµ‚è¡Œåˆ—
     MATRIX heldMatrix =
         scaleMatrix;
 
@@ -500,117 +501,86 @@ void Newspaper::DrawHeldNewspaper()
             positionMatrix
         );
 
-    // ƒ‚ƒfƒ‹‚Éİ’è
+    // ãƒ¢ãƒ‡ãƒ«ã«è¨­å®š
     MV1SetMatrix(
         modelHandle,
         heldMatrix
     );
 
-    // •`‰æ
+    // æç”»
     MV1DrawModel(
         modelHandle
     );
 }
 
 
-// •`‰æ
+// æç”»
 void Newspaper::Draw()
 {
-    // ƒ‚ƒfƒ‹‚ª‚È‚¢ê‡
+    // ãƒ¢ãƒ‡ãƒ«ãŒãªã„å ´åˆ
     if (modelHandle == -1)
     {
         return;
     }
 
-    // ƒJƒS‚ÌV•·
+    // ã‚«ã‚´ã®æ–°è
     DrawBasketNewspapers();
 
-    // è‚¿V•·
+    // æ‰‹æŒã¡æ–°è
     DrawHeldNewspaper();
 }
 
 
-// UI•`‰æ
+// UIæç”»ï¼ˆãƒ›ãƒ©ãƒ¼UIã¸ã®ãƒ—ãƒ­ãƒ³ãƒ—ãƒˆä¼é”ï¼‰
 void Newspaper::DrawUI()
 {
-    // V•·‚ğæ‚ê‚éê‡
+    // ã‚«ã‚´ã‹ã‚‰æ–°èã‚’å–ã‚Œã‚‹çŠ¶æ…‹ãªã‚‰ãƒ—ãƒ­ãƒ³ãƒ—ãƒˆã‚’è¨­å®š
     if (canTake == true)
     {
-        DrawString(
-            540,
-            410,
-            "Left Click : Take Newspaper",
-            GetColor(
-                255,
-                255,
-                0
-            )
-        );
-    }
-
-    // c‚èV•·–‡”
-    DrawFormatString(
-        20,
-        100,
-        GetColor(
-            255,
-            255,
-            255
-        ),
-        "Newspaper : %d",
-        newspaperCount
-    );
-
-    // V•·‚ğ‚Á‚Ä‚¢‚éê‡
-    if (isHolding == true)
-    {
-        DrawString(
-            20,
-            120,
-            "Holding Newspaper",
-            GetColor(
-                255,
-                255,
-                0
-            )
-        );
+        HorrorUI::Instance().SetPrompt(PromptType::TakeNewspaper);
     }
 }
 
+// æ–°èã‚’å–ã‚Œã‚‹çŠ¶æ…‹ã‹
+bool Newspaper::CanTake() const
+{
+    return canTake;
+}
 
-// V•·‚ğ‚Á‚Ä‚¢‚é‚©
+
+// æ–°èã‚’æŒã£ã¦ã„ã‚‹ã‹
 bool Newspaper::IsHolding() const
 {
     return isHolding;
 }
 
 
-// c‚èV•·–‡”
+// æ®‹ã‚Šæ–°èæšæ•°
 int Newspaper::GetNewspaperCount() const
 {
     return newspaperCount;
 }
 
 
-// I—¹ˆ—
+// çµ‚äº†å‡¦ç†
 void Newspaper::Finalize()
 {
-    // ƒ‚ƒfƒ‹‚ª‚ ‚éê‡
+    // ãƒ¢ãƒ‡ãƒ«ãŒã‚ã‚‹å ´åˆ
     if (modelHandle != -1)
     {
-        // ƒ‚ƒfƒ‹íœ
+        // ãƒ¢ãƒ‡ãƒ«å‰Šé™¤
         MV1DeleteModel(
             modelHandle
         );
 
-        // ƒŠƒZƒbƒg
+        // ãƒªã‚»ãƒƒãƒˆ
         modelHandle = -1;
     }
 }
 
-// ”z’Bˆ—iè‚¿V•·‚ğƒ|ƒXƒg‚É“ü‚ê‚Äè•ú‚·j
+// é…é”å‡¦ç†ï¼ˆæ‰‹æŒã¡æ–°èã‚’ãƒã‚¹ãƒˆã«å…¥ã‚Œã¦æ‰‹æ”¾ã™ï¼‰
 void Newspaper::Deliver()
 {
-    // è‚É‚Á‚Ä‚¢‚éV•·‚ğè•ú‚·
+    // æ‰‹ã«æŒã£ã¦ã„ã‚‹æ–°èã‚’æ‰‹æ”¾ã™
     isHolding = false;
 }

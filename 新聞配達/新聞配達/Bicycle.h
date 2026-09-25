@@ -4,64 +4,67 @@
 
 class Player;
 
-// ���]�Ԃ��Ǘ�����N���X
+// 自転車を管理するクラス
 class Bicycle
 {
 public:
 
-    // �R���X�g���N�^
+    // コンストラクタ
     Bicycle();
 
-    // �f�X�g���N�^
+    // デストラクタ
     ~Bicycle();
 
-    // ���]�ԃ��f��������������
+    // 自転車モデルを初期化する
     bool Initialize();
 
-    // ���]�Ԃ��X�V����
+    // 自転車を更新する
     void Update(Player& player);
 
-    // ���]�Ԃ�`�悷��
+    // 自転車を描画する
     void Draw();
 
-    // UI��`�悷��
+    // UIを描画する
     void DrawUI();
 
-    // ���]�ԃ��f�����폜����
+    // 自転車モデルを削除する
     void Finalize();
 
-    // ���]�Ԃɏ���Ă��邩�擾����
+    // 自転車に乗っているか取得する
     bool IsRiding() const;
 
-    // ���]�Ԃ̈ʒu���擾����
+    // 自転車を選択可能か取得する
+    bool CanRide() const;
+
+    // 自転車の位置を取得する
     VECTOR GetPosition() const;
 
-    // ���]�Ԃ̌������擾����
+    // 自転車の向きを取得する
     float GetAngle() const;
 
 private:
 
-    // ���]�ԃ��f��
+    // 自転車モデル
     int modelHandle;
 
-    // ���]�Ԃ̈ʒu
+    // 自転車の位置
     VECTOR position;
 
-    // ���]�Ԃ̌���
+    // 自転車の向き
     float angle;
 
-    // ���]�Ԃɏ���Ă��邩
+    // 自転車に乗っているか
     bool isRiding;
 
-    // ���]�Ԃ��J�[�\���őI�����Ă��邩
+    // 自転車をカーソルで選択しているか
     bool canRide;
 
-    // �O�̃t���[����E�L�[���
+    // 前のフレームのEキー状態
     bool oldEKey;
 
-    // ���]�Ԃ̈ړ����x
+    // 自転車の移動速度
     float moveSpeed;
 
-    // ���]�Ԃ��ړ��ł��邩�m�F����
+    // 自転車が移動できるか確認する
     bool CanMove(VECTOR nextPosition);
 };

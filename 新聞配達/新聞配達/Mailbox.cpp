@@ -1,286 +1,164 @@
 #include "Mailbox.h"
 #include "Player.h"
 #include "Newspaper.h"
+#include "DeliveryManager.h"
+#include "HorrorUI.h"
 #include <cmath>
 
-// ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+// ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 Mailbox::Mailbox()
 {
-    // ƒ‚ƒfƒ‹ƒnƒ“ƒhƒ‹‚ğ–¢“Ç‚İ‚İó‘Ô‚Éİ’è
     modelHandle = -1;
-
-    // ƒ|ƒXƒg‚Ì‰Šú”z’uˆÊ’u‚ğİ’èi³–Ê•ûŒü5ƒ[ƒgƒ‹æj
-    position = VGet(
-        0.0f,
-        0.0f,
-        5.0f
-    );
-
-    // ƒ|ƒXƒg‚ÌŒü‚«iƒvƒŒƒCƒ„[‚©‚ç“Š”ŸŒû‚ªŒ©‚¦‚â‚·‚¢Šp“xj
-    angle = DX_PI_F * 0.75f;
-
-    // ƒ‚ƒfƒ‹‚ÌƒXƒP[ƒ‹i©“]Ô‚âƒvƒŒƒCƒ„[‚ÌƒTƒCƒYŠ´‚É‡‚í‚¹‚Ä2.2”{j
     scale = 2.2f;
-
-    // ‰Šúó‘Ô‚Å‚Í”z’B•s‰Â
     canDeliver = false;
-
-    // ‰Šúó‘Ô‚Å‚Í–¢”z’B
-    delivered = false;
-
-    // ¶ƒNƒŠƒbƒN‰Šúó‘Ô
+    aimedMailboxId = 0;
     oldLeftClick = false;
-
-    // ƒƒbƒZ[ƒWƒ^ƒCƒ}[‰Šú‰»
-    messageTimer = 0;
 }
 
-// ƒfƒXƒgƒ‰ƒNƒ^
+// ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
 Mailbox::~Mailbox()
 {
-    // ƒ‚ƒfƒ‹ƒŠƒ\[ƒX‚ğ‰ğ•ú‚·‚é
     Finalize();
 }
 
-// ‰Šú‰»ˆ—
+// åˆæœŸåŒ–
 bool Mailbox::Initialize()
 {
-    // ƒ[ƒ‹ƒ{ƒbƒNƒX‚Ì3Dƒ‚ƒfƒ‹‚ğ“Ç‚İ‚Ş
-    modelHandle = MV1LoadModel(
-        "Data/Model/Mailbox.mv1"
-    );
-
-    // “Ç‚İ‚İ‚É¸”s‚µ‚½ê‡‚Ífalse‚ğ•Ô‚·
+    // éƒµä¾¿ãƒã‚¹ãƒˆã®3Dãƒ¢ãƒ‡ãƒ«ã‚’èª­ã¿è¾¼ã¿
+    modelHandle = MV1LoadModel("Data/Model/Mailbox.mv1");
     if (modelHandle == -1)
     {
         return false;
     }
 
-    // ƒ‚ƒfƒ‹‚ÌˆÊ’u‚ğİ’è‚·‚é
-    MV1SetPosition(
-        modelHandle,
-        position
-    );
-
-    // ƒ‚ƒfƒ‹‚Ì‘å‚«‚³‚ğİ’è‚·‚é
-    MV1SetScale(
-        modelHandle,
-        VGet(
-            scale,
-            scale,
-            scale
-        )
-    );
-
-    // ƒ‚ƒfƒ‹‚Ì‰ñ“]‚ğİ’è‚·‚é
-    MV1SetRotationXYZ(
-        modelHandle,
-        VGet(
-            0.0f,
-            angle,
-            0.0f
-        )
-    );
-
     return true;
 }
 
-// XVˆ—
-void Mailbox::Update(Player& player, Newspaper& newspaper)
+// æ›´æ–°å‡¦ç†
+void Mailbox::Update(Player& player, Newspaper& newspaper, DeliveryManager& deliveryManager)
 {
-    // ƒ‚ƒfƒ‹‚ª“Ç‚İ‚Ü‚ê‚Ä‚¢‚È‚¢ê‡‚Í‰½‚à‚µ‚È‚¢
     if (modelHandle == -1)
     {
         return;
     }
 
-    // –ˆƒtƒŒ[ƒ€”»’èƒtƒ‰ƒO‚ğ‰Šú‰»‚·‚é
+    aimedMailboxId = 0;
     canDeliver = false;
 
-    // Œ»İ‚Ìƒ}ƒEƒX¶ƒNƒŠƒbƒNó‘Ô‚ğæ“¾‚·‚é
-    bool leftClick =
-        (GetMouseInput() & MOUSE_INPUT_LEFT) != 0;
+    // å·¦ã‚¯ãƒªãƒƒã‚¯ã®ã‚¨ãƒƒã‚¸ãƒˆãƒªã‚¬ãƒ¼æ¤œå‡ºï¼ˆæŠ¼ã—ãŸç¬é–“ã®ã¿trueï¼‰
+    bool currentLeftClick = (GetMouseInput() & MOUSE_INPUT_LEFT) != 0;
+    bool leftClickDown = currentLeftClick && !oldLeftClick;
 
-    // ƒvƒŒƒCƒ„[‚ªV•·‚ğè‚É‚Á‚Ä‚¨‚èA‚Ü‚¾”z’B‚µ‚Ä‚¢‚È‚¢ê‡‚Ì‚İ”»’è‚·‚é
-    if (newspaper.IsHolding() == true && delivered == false)
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒæ–°èã‚’æ‰€æŒã—ã¦ã„ã‚‹å ´åˆã€å„ãƒã‚¹ãƒˆã¨ã®è·é›¢ãƒ»ç…§æº–ã‚’åˆ¤å®š
+    if (newspaper.IsHolding())
     {
-        // ƒvƒŒƒCƒ„[‚ÌŒ»İˆÊ’u‚ğæ“¾‚·‚é
-        VECTOR playerPosition =
-            player.GetPosition();
+        VECTOR playerPosition = player.GetPosition();
+        VECTOR playerForward = player.GetForward();
 
-        // ƒvƒŒƒCƒ„[‚Ì‹ü•ûŒü‚ğæ“¾‚·‚é
-        VECTOR playerForward =
-            player.GetForward();
+        const std::vector<DeliveryPoint>& points = deliveryManager.GetDeliveryPoints();
 
-        // ƒ|ƒXƒg‚Ì’†S–Ú•WˆÊ’ui–Úü‚Ì‚‚³‚É‡‚í‚¹‚Ä” ‚Ì‚‚³–ñ1.2m‚ğ‘_‚¤j
-        VECTOR targetPosition =
-            VGet(
-                position.x,
-                position.y + 1.2f,
-                position.z
-            );
-
-        // ƒvƒŒƒCƒ„[‚©‚çƒ|ƒXƒg‚Ö‚ÌƒxƒNƒgƒ‹‚ğŒvZ‚·‚é
-        VECTOR toMailbox =
-            VSub(
-                targetPosition,
-                playerPosition
-            );
-
-        // ƒ|ƒXƒg‚Ü‚Å‚Ì‹——£‚ğŒvZ‚·‚é
-        float distance =
-            VSize(
-                toMailbox
-            );
-
-        // 3.2ƒ[ƒgƒ‹ˆÈ“à‚É‹ß‚Ã‚¢‚Ä‚¢‚éê‡
-        if (distance <= 3.2f)
+        for (size_t i = 0; i < points.size(); i++)
         {
-            // ƒ|ƒXƒg‚Ö‚Ì•ûŒüƒxƒNƒgƒ‹‚ğ³‹K‰»‚·‚é
-            VECTOR direction =
-                VNorm(
-                    toMailbox
-                );
+            // ãƒã‚¹ãƒˆã®æŠ•å…¥å£ä»˜è¿‘ï¼ˆé«˜ã•1.2mï¼‰ã‚’ç›®æ¨™ç‚¹ã¨ã™ã‚‹
+            VECTOR targetPos = VGet(
+                points[i].position.x,
+                points[i].position.y + 1.2f,
+                points[i].position.z
+            );
 
-            // ƒvƒŒƒCƒ„[‚Ì‹ü‚Æƒ|ƒXƒg‚Ö‚Ì•ûŒü‚Ì“àÏ‚ğŒvZ‚·‚é
-            float dot =
-                VDot(
-                    playerForward,
-                    direction
-                );
+            VECTOR toMailbox = VSub(targetPos, playerPosition);
+            float distance = VSize(toMailbox);
 
-            // ƒ|ƒXƒg‚Ì•ûŒü‚ğ‚µ‚Á‚©‚èŒ©‚Ä‚¢‚éê‡idot >= 0.88fj
-            if (dot >= 0.88f)
+            // 3.2mä»¥å†…ã«æ¥è¿‘ã—ã¦ã„ã‚‹å ´åˆ
+            if (distance <= 3.2f)
             {
-                // ”z’B‰Â”\ƒtƒ‰ƒO‚ğ—§‚Ä‚é
-                canDeliver = true;
+                VECTOR direction = VNorm(toMailbox);
+                float dot = VDot(playerForward, direction);
+
+                // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒãƒã‚¹ãƒˆã®æ–¹å‘ã‚’å‘ã„ã¦ã„ã‚‹å ´åˆ
+                if (dot >= 0.88f)
+                {
+                    aimedMailboxId = points[i].id;
+                    canDeliver = true;
+                    break;
+                }
             }
         }
     }
 
-    // ”z’B‰Â”\‚Èó‘Ô‚ÅA¶ƒNƒŠƒbƒN‚ğu¡‰Ÿ‚µ‚½uŠÔv‚¾‚¯”z’B‚ğÀs‚·‚é
-    if (
-        canDeliver == true &&
-        leftClick == true &&
-        oldLeftClick == false
-        )
+    // ã‚¨ãƒƒã‚¸ãƒˆãƒªã‚¬ãƒ¼ã§å·¦ã‚¯ãƒªãƒƒã‚¯ã•ã‚ŒãŸæ™‚ã®é…é”å‡¦ç†
+    if (leftClickDown && canDeliver && newspaper.IsHolding())
     {
-        // è‚É‚Á‚Ä‚¢‚éV•·‚ğ”z’B‚·‚éiè•ú‚·j
-        newspaper.Deliver();
-
-        // ƒ|ƒXƒg‚ğ”z’BÏ‚İ‚É‚·‚éi“ñd”z’B‚ğ–h~j
-        delivered = true;
-
-        // ”z’BˆÄ“à‚ğÁ‚·
-        canDeliver = false;
-
-        // ”z’BŠ®—¹ƒƒbƒZ[ƒW‚ğ–ñ120ƒtƒŒ[ƒ€i2•bŠÔj•\¦‚·‚é
-        messageTimer = 120;
+        // é…é”å—ä»˜ä¸­ï¼ˆé€šå¸¸çŠ¶æ…‹ï¼‰ã®å ´åˆã®ã¿å‡¦ç†
+        if (deliveryManager.GetState() == DeliveryState::Active)
+        {
+            if (aimedMailboxId == deliveryManager.GetCurrentTargetId())
+            {
+                // æ­£ã—ã„ç¾åœ¨ã®é…é”ç›®æ¨™ãƒã‚¹ãƒˆã¸ã®é…é”
+                newspaper.Deliver();
+                deliveryManager.OnDeliverySuccess(aimedMailboxId);
+                canDeliver = false;
+            }
+            else
+            {
+                // èª¤ã£ãŸãƒã‚¹ãƒˆã¸ã®é…é”è©¦è¡Œ
+                deliveryManager.TriggerWrongDelivery();
+            }
+        }
     }
 
-    // Ÿ‚ÌƒtƒŒ[ƒ€‚Ì‚½‚ß‚ÉŒ»İ‚Ì¶ƒNƒŠƒbƒNó‘Ô‚ğ•Û‘¶‚·‚é
-    oldLeftClick =
-        leftClick;
-
-    // ƒƒbƒZ[ƒW•\¦ŠÔ‚ğƒJƒEƒ“ƒgƒ_ƒEƒ“‚·‚é
-    if (messageTimer > 0)
-    {
-        messageTimer--;
-    }
+    // æ¬¡ãƒ•ãƒ¬ãƒ¼ãƒ åˆ¤å®šç”¨ã«ã‚¯ãƒªãƒƒã‚¯çŠ¶æ…‹ã‚’ä¿æŒ
+    oldLeftClick = currentLeftClick;
 }
 
-// •`‰æˆ—
-void Mailbox::Draw()
+// å…¨ãƒã‚¹ãƒˆã®3Dãƒ¢ãƒ‡ãƒ«æç”»
+void Mailbox::Draw(const DeliveryManager& deliveryManager)
 {
-    // ƒ‚ƒfƒ‹‚ª‚È‚¢ê‡‚Í•`‰æ‚µ‚È‚¢
     if (modelHandle == -1)
     {
         return;
     }
 
-    // ”z’B‰Â”\‚È‚Íƒ|ƒXƒg‚ğ­‚µ–¾‚é‚­Æ‚ç‚·iƒvƒŒƒCƒ„[‚É•ª‚©‚è‚â‚·‚­‚·‚éj
-    if (canDeliver == true)
+    const std::vector<DeliveryPoint>& points = deliveryManager.GetDeliveryPoints();
+
+    for (size_t i = 0; i < points.size(); i++)
     {
-        SetLightPosition(
-            VGet(
-                position.x,
-                position.y + 1.5f,
-                position.z
-            )
-        );
+        MV1SetPosition(modelHandle, points[i].position);
+        MV1SetScale(modelHandle, VGet(scale, scale, scale));
+        MV1SetRotationXYZ(modelHandle, VGet(0.0f, points[i].angle, 0.0f));
 
-        SetLightDifColor(
-            GetColorF(
-                1.0f,
-                1.0f,
-                0.7f,
-                1.0f
-            )
-        );
-    }
-
-    // ƒ|ƒXƒg‚Ì3Dƒ‚ƒfƒ‹‚ğ•`‰æ‚·‚é
-    MV1DrawModel(
-        modelHandle
-    );
-}
-
-// UI•`‰æˆ—
-void Mailbox::DrawUI()
-{
-    // ”z’B‰Â”\‚Èó‘Ô‚Ìê‡A”z’B‘€ì‚ÌˆÄ“à‚ğ•\¦‚·‚é
-    if (canDeliver == true)
-    {
-        DrawString(
-            530,
-            410,
-            "Left Click : Deliver Newspaper",
-            GetColor(
-                255,
-                255,
-                0
-            )
-        );
-    }
-
-    // ”z’B’¼Œã‚Ìê‡AuDelivered!vƒƒbƒZ[ƒW‚ğ•\¦‚·‚é
-    if (messageTimer > 0)
-    {
-        DrawString(
-            590,
-            380,
-            "Delivered!",
-            GetColor(
-                100,
-                255,
-                100
-            )
-        );
+        MV1DrawModel(modelHandle);
     }
 }
 
-// ƒ|ƒXƒg‚ÌˆÊ’u‚ğæ“¾‚·‚é
-VECTOR Mailbox::GetPosition() const
+// UIæç”»å‡¦ç†ï¼ˆãƒ›ãƒ©ãƒ¼UIã¸ã®ãƒ—ãƒ­ãƒ³ãƒ—ãƒˆä¼é”ï¼‰
+void Mailbox::DrawUI(const DeliveryManager& deliveryManager)
 {
-    return position;
+    // é…é”å¯èƒ½ãªçŠ¶æ…‹ï¼ˆç…§æº–ãŒåˆã£ã¦ã„ã‚‹ï¼‰ãªã‚‰ãƒ—ãƒ­ãƒ³ãƒ—ãƒˆã‚’è¨­å®š
+    if (canDeliver)
+    {
+        HorrorUI::Instance().SetPrompt(PromptType::DeliverNewspaper);
+    }
 }
 
-// ”z’BÏ‚İ‚©‚Ç‚¤‚©‚ğæ“¾‚·‚é
-bool Mailbox::IsDelivered() const
+// ç¾åœ¨ç…§æº–ãŒåˆã£ã¦ã„ã‚‹ãƒã‚¹ãƒˆID
+int Mailbox::GetAimedMailboxId() const
 {
-    return delivered;
+    return aimedMailboxId;
 }
 
-// I—¹ˆ—
+// é…é”å¯èƒ½çŠ¶æ…‹ã‹å–å¾—ã™ã‚‹
+bool Mailbox::CanDeliver() const
+{
+    return canDeliver;
+}
+
+// çµ‚äº†å‡¦ç†
 void Mailbox::Finalize()
 {
-    // ƒ‚ƒfƒ‹‚ª‘¶İ‚·‚éê‡‚Ííœ‚·‚é
     if (modelHandle != -1)
     {
-        MV1DeleteModel(
-            modelHandle
-        );
-
+        MV1DeleteModel(modelHandle);
         modelHandle = -1;
     }
 }

@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -107,6 +107,8 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>C:\DxLib_VC\プロジェクトに追加すべきファイル_VC用;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <DisableSpecificWarnings>4828;4010;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -131,19 +133,25 @@
   <ItemGroup>
     <ClCompile Include="Bicycle.cpp" />
     <ClCompile Include="Camera.cpp" />
+    <ClCompile Include="DeliveryManager.cpp" />
     <ClCompile Include="Ground.cpp" />
+    <ClCompile Include="HorrorUI.cpp" />
     <ClCompile Include="Interaction.cpp" />
     <ClCompile Include="Mailbox.cpp" />
     <ClCompile Include="Main.cpp" />
+    <ClCompile Include="Minimap.cpp" />
     <ClCompile Include="Newspaper.cpp" />
     <ClCompile Include="Player.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Bicycle.h" />
     <ClInclude Include="Camera.h" />
+    <ClInclude Include="DeliveryManager.h" />
     <ClInclude Include="Ground.h" />
+    <ClInclude Include="HorrorUI.h" />
     <ClInclude Include="Interaction.h" />
     <ClInclude Include="Mailbox.h" />
+    <ClInclude Include="Minimap.h" />
     <ClInclude Include="Newspaper.h" />
     <ClInclude Include="Player.h" />
   </ItemGroup>

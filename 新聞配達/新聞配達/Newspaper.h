@@ -4,21 +4,21 @@
 
 class Player;
 
-// V•·‚ğŠÇ—‚·‚éƒNƒ‰ƒX
+// æ–°èã‚’ç®¡ç†ã™ã‚‹ã‚¯ãƒ©ã‚¹
 class Newspaper
 {
 public:
 
-    // ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+    // ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
     Newspaper();
 
-    // ƒfƒXƒgƒ‰ƒNƒ^
+    // ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
     ~Newspaper();
 
-    // ‰Šú‰»
+    // åˆæœŸåŒ–
     bool Initialize();
 
-    // XV
+    // æ›´æ–°
     void Update(
         Player& player,
         VECTOR bicyclePosition,
@@ -26,71 +26,74 @@ public:
         bool bicycleRiding
     );
 
-    // •`‰æ
+    // æç”»
     void Draw();
 
-    // UI•`‰æ
+    // UIæç”»
     void DrawUI();
 
-    // I—¹ˆ—
+    // çµ‚äº†å‡¦ç†
     void Finalize();
 
-    // ”z’Bˆ—iè‚¿ó‘Ô‚ğ‰ğœ‚·‚éj
+    // é…é”å‡¦ç†ï¼ˆæ‰‹æŒã¡çŠ¶æ…‹ã‚’è§£é™¤ã™ã‚‹ï¼‰
     void Deliver();
 
-    // V•·‚ğ‚Á‚Ä‚¢‚é‚©
+    // æ–°èã‚’æŒã£ã¦ã„ã‚‹ã‹
     bool IsHolding() const;
 
-    // c‚èV•·–‡”
+    // æ–°èã‚’å–ã‚Œã‚‹çŠ¶æ…‹ã‹
+    bool CanTake() const;
+
+    // æ®‹ã‚Šæ–°èæšæ•°
     int GetNewspaperCount() const;
 
 private:
 
-    // V•·ƒ‚ƒfƒ‹
+    // æ–°èãƒ¢ãƒ‡ãƒ«
     int modelHandle;
 
-    // ©“]Ô‚ÌˆÊ’u
+    // è‡ªè»¢è»Šã®ä½ç½®
     VECTOR bicyclePosition;
 
-    // ©“]Ô‚ÌŠp“x
+    // è‡ªè»¢è»Šã®è§’åº¦
     float bicycleAngle;
 
-    // ƒJƒS“à‚Å‚ÌŒÅ’èˆÊ’u
+    // ã‚«ã‚´å†…ã§ã®å›ºå®šä½ç½®
     VECTOR localPosition;
 
-    // ƒJƒS“à‚Å‚ÌŒÅ’èŠp“x
+    // ã‚«ã‚´å†…ã§ã®å›ºå®šè§’åº¦
     VECTOR localRotation;
 
-    // V•·‚ÌƒTƒCƒY
+    // æ–°èã®ã‚µã‚¤ã‚º
     float modelScale;
 
-    // V•·“¯m‚ÌŠÔŠu
+    // æ–°èåŒå£«ã®é–“éš”
     float stackInterval;
 
-    // c‚èV•·–‡”
+    // æ®‹ã‚Šæ–°èæšæ•°
     int newspaperCount;
 
-    // V•·‚ğè‚É‚Á‚Ä‚¢‚é‚©
+    // æ–°èã‚’æ‰‹ã«æŒã£ã¦ã„ã‚‹ã‹
     bool isHolding;
 
-    // V•·‚ğæ‚ê‚éó‘Ô‚©
+    // æ–°èã‚’å–ã‚Œã‚‹çŠ¶æ…‹ã‹
     bool canTake;
 
-    // ‘OƒtƒŒ[ƒ€‚Ì¶ƒNƒŠƒbƒNó‘Ô
+    // å‰ãƒ•ãƒ¬ãƒ¼ãƒ ã®å·¦ã‚¯ãƒªãƒƒã‚¯çŠ¶æ…‹
     bool oldLeftClick;
 
-    // ƒvƒŒƒCƒ„[ˆÊ’u
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ä½ç½®
     VECTOR playerPosition;
 
-    // ƒvƒŒƒCƒ„[‚ÌŒü‚«
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®å‘ã
     VECTOR playerForward;
 
-    // ƒJƒS‚ÌV•·‚Ìƒ[ƒ‹ƒhˆÊ’u‚ğæ“¾
+    // ã‚«ã‚´ã®æ–°èã®ãƒ¯ãƒ¼ãƒ«ãƒ‰ä½ç½®ã‚’å–å¾—
     VECTOR GetBasketNewspaperPosition() const;
 
-    // ƒJƒS‚ÌV•·‚ğ•`‰æ
+    // ã‚«ã‚´ã®æ–°èã‚’æç”»
     void DrawBasketNewspapers();
 
-    // è‚É‚Á‚Ä‚¢‚éV•·‚ğ•`‰æ
+    // æ‰‹ã«æŒã£ã¦ã„ã‚‹æ–°èã‚’æç”»
     void DrawHeldNewspaper();
 };

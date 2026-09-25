@@ -1,66 +1,59 @@
 #pragma once
 
 #include "DxLib.h"
+#include <vector>
 
-// ‘O•ûéŒ¾
+// å‰æ–¹å®£è¨€
 class Player;
 class Newspaper;
+class DeliveryManager;
 
-// ƒ[ƒ‹ƒ{ƒbƒNƒXi—X•Öƒ|ƒXƒgj‚ğŠÇ—‚·‚éƒNƒ‰ƒX
+// ãƒ¡ãƒ¼ãƒ«ãƒœãƒƒã‚¯ã‚¹ï¼ˆéƒµä¾¿ãƒã‚¹ãƒˆç¾¤ï¼‰ç®¡ç†ã‚¯ãƒ©ã‚¹
 class Mailbox
 {
 public:
 
-    // ƒRƒ“ƒXƒgƒ‰ƒNƒ^
+    // ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
     Mailbox();
 
-    // ƒfƒXƒgƒ‰ƒNƒ^
+    // ãƒ‡ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
     ~Mailbox();
 
-    // ‰Šú‰»ˆ—iƒ‚ƒfƒ‹“Ç‚İ‚İ‚â‰Šúİ’èj
+    // åˆæœŸåŒ–ï¼ˆãƒã‚¹ãƒˆ3Dãƒ¢ãƒ‡ãƒ«ã®èª­ã¿è¾¼ã¿ï¼‰
     bool Initialize();
 
-    // XVˆ—iƒvƒŒƒCƒ„[‚âV•·‚Ìó‘Ô‚ğ‚à‚Æ‚É”z’B”»’è‚ğs‚¤j
-    void Update(Player& player, Newspaper& newspaper);
+    // æ›´æ–°å‡¦ç†ï¼ˆãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®æ¥è¿‘ãƒ»ç…§æº–ãƒ»é…é”åˆ¤å®šï¼‰
+    void Update(Player& player, Newspaper& newspaper, DeliveryManager& deliveryManager);
 
-    // •`‰æˆ—iƒ|ƒXƒg‚Ì3Dƒ‚ƒfƒ‹‚ğ•`‰æ‚·‚éj
-    void Draw();
+    // æç”»å‡¦ç†ï¼ˆå…¨8ç®‡æ‰€ã®ãƒã‚¹ãƒˆ3Dãƒ¢ãƒ‡ãƒ«æç”»ï¼‰
+    void Draw(const DeliveryManager& deliveryManager);
 
-    // UI•`‰æˆ—i”z’BˆÄ“à‚â”z’BŠ®—¹ƒƒbƒZ[ƒW‚ğ•\¦‚·‚éj
-    void DrawUI();
+    // UIæç”»å‡¦ç†ï¼ˆã€ŒLeft Click : Deliver Newspaperã€ã®æ¡ˆå†…è¡¨ç¤ºï¼‰
+    void DrawUI(const DeliveryManager& deliveryManager);
 
-    // I—¹ˆ—iƒ‚ƒfƒ‹‚Ìƒƒ‚ƒŠ‰ğ•új
+    // çµ‚äº†å‡¦ç†
     void Finalize();
 
-    // ƒ|ƒXƒg‚ÌˆÊ’u‚ğæ“¾‚·‚é
-    VECTOR GetPosition() const;
+    // ç¾åœ¨ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒæ³¨è¦–ã—ã¦ã„ã‚‹ãƒã‚¹ãƒˆIDï¼ˆ0ãªã‚‰æ³¨è¦–ãªã—ï¼‰
+    int GetAimedMailboxId() const;
 
-    // ”z’BÏ‚İ‚©‚Ç‚¤‚©‚ğæ“¾‚·‚é
-    bool IsDelivered() const;
+    // é…é”å¯èƒ½çŠ¶æ…‹ã‹å–å¾—ã™ã‚‹
+    bool CanDeliver() const;
 
 private:
 
-    // ƒ[ƒ‹ƒ{ƒbƒNƒX‚Ì3Dƒ‚ƒfƒ‹ƒnƒ“ƒhƒ‹
+    // ãƒ¡ãƒ¼ãƒ«ãƒœãƒƒã‚¯ã‚¹3Dãƒ¢ãƒ‡ãƒ«ãƒãƒ³ãƒ‰ãƒ«
     int modelHandle;
 
-    // ƒ[ƒ‹ƒ{ƒbƒNƒX‚Ì”z’uˆÊ’u
-    VECTOR position;
-
-    // ƒ[ƒ‹ƒ{ƒbƒNƒX‚ÌŒü‚«iY²‰ñ“]Šp“xj
-    float angle;
-
-    // ƒ[ƒ‹ƒ{ƒbƒNƒX‚Ì•\¦ƒXƒP[ƒ‹
+    // è¡¨ç¤ºã‚¹ã‚±ãƒ¼ãƒ«
     float scale;
 
-    // ”z’B‰Â”\‚Èó‘Ô‚©‚Ç‚¤‚©i”ÍˆÍ“à‚©‚Â’‹’†j
+    // é…é”å¯èƒ½ãªçŠ¶æ…‹ã‹ï¼ˆæ¥è¿‘ã—ã¦ãƒã‚¹ãƒˆã‚’è¦‹ã¦ã„ã‚‹ï¼‰
     bool canDeliver;
 
-    // ‚·‚Å‚É”z’B‚ªŠ®—¹‚µ‚½‚©‚Ç‚¤‚©
-    bool delivered;
+    // ç¾åœ¨æ³¨è¦–ä¸­ã®ãƒã‚¹ãƒˆID (1ã€œ8, 0ã¯æ³¨è¦–ãªã—)
+    int aimedMailboxId;
 
-    // ‘OƒtƒŒ[ƒ€‚Ìƒ}ƒEƒX¶ƒNƒŠƒbƒNó‘Ô
+    // å‰ãƒ•ãƒ¬ãƒ¼ãƒ ã®ãƒã‚¦ã‚¹ã‚¯ãƒªãƒƒã‚¯çŠ¶æ…‹ï¼ˆã‚¨ãƒƒã‚¸ãƒˆãƒªã‚¬ãƒ¼æ¤œå‡ºç”¨ï¼‰
     bool oldLeftClick;
-
-    // ”z’BŠ®—¹ƒƒbƒZ[ƒWiDelivered!j‚ğ•\¦‚·‚éc‚èŠÔ
-    int messageTimer;
 };
