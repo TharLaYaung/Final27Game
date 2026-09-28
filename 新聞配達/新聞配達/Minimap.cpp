@@ -156,22 +156,43 @@ void Minimap::Draw(
     int clipMinY = cy - viewHalfHeight;
     int clipMaxY = cy + viewHalfHeight;
 
-    // 十字路・道路の基準線（プレイヤーを中心とした相対移動）
-    float roadOffsetX = -playerPos.x * mapScale;
-    float roadOffsetZ = playerPos.z * mapScale;
+    // 画面クリッピング領域設定（地図枠内に描画を限定）
+    SetDrawArea(clipMinX, clipMinY, clipMaxX, clipMaxY);
 
-    // 水平道路（東-西方向）
-    int roadY1 = cy + (int)roadOffsetZ;
-    if (roadY1 >= clipMinY && roadY1 <= clipMaxY)
-    {
-        DrawLine(clipMinX, roadY1, clipMaxX, roadY1, HorrorUI::COL_BORDER_DIM);
-    }
-    // 垂直道路（北-南方向）
-    int roadX1 = cx + (int)roadOffsetX;
-    if (roadX1 >= clipMinX && roadX1 <= clipMaxX)
-    {
-        DrawLine(roadX1, clipMinY, roadX1, clipMaxY, HorrorUI::COL_BORDER_DIM);
-    }
+    // ==========================================
+    // 2. 住宅街道路ネットワーク（レトロGPSナビ描画）
+    // ==========================================
+    auto WorldToMapX = [&](float wx) -> int {
+        return cx + (int)((wx - playerPos.x) * mapScale);
+    };
+    auto WorldToMapY = [&](float wz) -> int {
+        return cy - (int)((wz - playerPos.z) * mapScale);
+    };
+
+    auto DrawStreetLine = [&](float wx1, float wz1, float wx2, float wz2, unsigned int col) {
+        DrawLine(WorldToMapX(wx1), WorldToMapY(wz1), WorldToMapX(wx2), WorldToMapY(wz2), col);
+    };
+
+    // 道路線（控えめな暗灰色）
+    unsigned int roadCol = HorrorUI::COL_BORDER_DIM;
+
+    // 南大通り（Road F: Z = -30, X = -25 〜 +25）
+    DrawStreetLine(-25.0f, -30.0f, 25.0f, -30.0f, roadCol);
+
+    // 西通り（Road A: X = -25, Z = -30 〜 +15）
+    DrawStreetLine(-25.0f, -30.0f, -25.0f, 15.0f, roadCol);
+
+    // 東通り（Road D: X = +25, Z = -30 〜 +15）
+    DrawStreetLine(25.0f, -30.0f, 25.0f, 15.0f, roadCol);
+
+    // 中央横通り（Road E: Z = -10, X = -25 〜 +25）
+    DrawStreetLine(-25.0f, -10.0f, 25.0f, -10.0f, roadCol);
+
+    // 北横通り（Road B: Z = +15, X = -25 〜 +25）
+    DrawStreetLine(-25.0f, 15.0f, 25.0f, 15.0f, roadCol);
+
+    // 北路地行き止まり（Road C: X = 0, Z = +15 〜 +38）
+    DrawStreetLine(0.0f, 15.0f, 0.0f, 38.0f, roadCol);
 
     // レトロ端末風の微細な走査線（スキャンライン）演出
     if (ui.IsHorrorEffectsEnabled())
@@ -181,6 +202,9 @@ void Minimap::Draw(
         DrawLine(clipMinX, scanY, clipMaxX, scanY, HorrorUI::COL_BORDER);
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
+
+    // クリッピング領域を全画面へ復元
+    SetDrawArea(0, 0, 1280, 720);
 
     // ==========================================
     // 3. 自転車位置アイコン（徒歩時のみ表示）

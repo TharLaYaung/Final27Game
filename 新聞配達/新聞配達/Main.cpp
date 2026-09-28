@@ -9,6 +9,7 @@
 #include "Minimap.h"
 #include "HorrorUI.h"
 #include "Map.h"
+#include "NightEnvironment.h"
 
 // Windowsアプリケーションのエントリポイント
 int WINAPI WinMain(
@@ -55,9 +56,13 @@ int WINAPI WinMain(
     Mailbox mailbox;
     DeliveryManager deliveryManager;
     Minimap minimap;
+    NightEnvironment nightEnv;
 
     // ホラーUI総合管理システムの初期化（フォント生成など）
     HorrorUI::Instance().Initialize();
+
+    // 深夜環境・照明・フォグ管理システムの初期化
+    nightEnv.Initialize();
 
     // 自転車モデル初期化
     if (bicycle.Initialize() == false)
@@ -98,14 +103,17 @@ int WINAPI WinMain(
     // ミニマップ初期化
     minimap.Initialize();
 
-    // 60FPS制御用
+    // 60FPS制御用の時間記録
     LONGLONG prevTime = GetNowHiPerformanceCount();
 
-    // デバッグ表示トグルフラグ
-    bool showDebugHUD = false;
+    // デバッグキー前フレーム状態フラグ
+    bool oldF1Key = false;
+    bool oldF2Key = false;
     bool oldF3Key = false;
     bool oldF4Key = false;
     bool oldF5Key = false;
+    bool oldF6Key = false;
+    bool mapDebugEnabled = false;
 
     // メインゲームループ
     while (ProcessMessage() == 0)
@@ -124,17 +132,34 @@ int WINAPI WinMain(
         }
 
         // ==========================================
-        // デバッグ操作キー入力判定
+        // デバッグ操作キー入力判定（F1〜F6）
         // ==========================================
-        // F3キー: 開発用デバッグ数値HUDの表示/非表示切り替え
+
+        // F1キー: フォグON/OFF切り替え
+        bool curF1 = (CheckHitKey(KEY_INPUT_F1) != 0);
+        if (curF1 && !oldF1Key)
+        {
+            nightEnv.ToggleFog();
+        }
+        oldF1Key = curF1;
+
+        // F2キー: 環境プリセット順送り切り替え（NORMAL -> NIGHT_DELIVERY_STYLE -> EXTREME_DARK）
+        bool curF2 = (CheckHitKey(KEY_INPUT_F2) != 0);
+        if (curF2 && !oldF2Key)
+        {
+            nightEnv.CyclePreset();
+        }
+        oldF2Key = curF2;
+
+        // F3キー: 街灯ON/OFF切り替え
         bool curF3 = (CheckHitKey(KEY_INPUT_F3) != 0);
         if (curF3 && !oldF3Key)
         {
-            showDebugHUD = !showDebugHUD;
+            nightEnv.ToggleStreetLights();
         }
         oldF3Key = curF3;
 
-        // F4キー: ホラーUI効果（ノイズ・歪み・ビネット）のON/OFF比較
+        // F4キー: ホラー画面効果ON/OFF切り替え
         bool curF4 = (CheckHitKey(KEY_INPUT_F4) != 0);
         if (curF4 && !oldF4Key)
         {
@@ -142,14 +167,21 @@ int WINAPI WinMain(
         }
         oldF4Key = curF4;
 
-        // F5キー: テスト用UIグリッチ手動発生
+        // F5キー: テスト街灯明滅トリガー（ID: 3の街灯）
         bool curF5 = (CheckHitKey(KEY_INPUT_F5) != 0);
         if (curF5 && !oldF5Key)
         {
-            HorrorUI::Instance().TriggerUIGlitch(20);
-            minimap.TriggerMinimapGlitch(20);
+            nightEnv.TriggerStreetLightFlicker(3);
         }
         oldF5Key = curF5;
+
+        // F6キー: マップデバッグ表示ON/OFF切り替え（住宅・ポストID・当たり判定）
+        bool curF6 = (CheckHitKey(KEY_INPUT_F6) != 0);
+        if (curF6 && !oldF6Key)
+        {
+            mapDebugEnabled = !mapDebugEnabled;
+        }
+        oldF6Key = curF6;
 
         // 画面クリア
         ClearDrawScreen();
@@ -196,6 +228,9 @@ int WINAPI WinMain(
             bicycle.IsRiding()
         );
 
+        // 深夜環境の更新（自転車ヘッドライト追従・街灯明滅タイマー）
+        nightEnv.Update(bicycle);
+
         // 配達進行管理の更新
         deliveryManager.Update();
 
@@ -228,10 +263,16 @@ int WINAPI WinMain(
         // 3Dモデル・ワールド描画処理
         // ==========================================
 
+        // 深夜環境（フォグ・背景色・環境光・ライト設定）の適用
+        nightEnv.ApplyLightingAndFog();
+
         // 地面描画
         DrawGround();
 
         MapDraw();
+
+        // 街灯電柱・ランプ器具の描画
+        nightEnv.DrawStreetLights();
 
         // 自転車3Dモデル描画
         bicycle.Draw();
@@ -243,6 +284,12 @@ int WINAPI WinMain(
         mailbox.Draw(
             deliveryManager
         );
+
+        // F6マップデバッグ3D描画（当たり判定ワイヤー・住宅/ポストIDラベル）
+        if (mapDebugEnabled)
+        {
+            MapDrawDebug(deliveryManager.GetCurrentTargetId());
+        }
 
         // ==========================================
         // 2D UI・HUD描画処理（Chilla's Art風ホラーUI）
@@ -268,6 +315,14 @@ int WINAPI WinMain(
             newspaper
         );
 
+        // 画面右上ミニマップ直下：自転車ヘッドライト・バッテリーHUD
+        HorrorUI::Instance().DrawBicycleBattery(
+            bicycle.GetBatteryPercent(),
+            bicycle.IsHeadlightOn(),
+            bicycle.IsRiding(),
+            bicycle.IsDebugFastDrain()
+        );
+
         // 画面下部：新聞所持部数表示（PAPERS 08 [HOLDING]）
         HorrorUI::Instance().DrawPaperCargo(
             newspaper.GetNewspaperCount(),
@@ -281,25 +336,46 @@ int WINAPI WinMain(
         bool isAiming = bicycle.CanRide() || newspaper.CanTake() || mailbox.CanDeliver();
         HorrorUI::Instance().DrawCrosshair(isAiming);
 
-        // ==========================================
-        // 開発用デバッグ情報（F3キーでトグル表示）
-        // ==========================================
-        if (showDebugHUD)
-        {
-            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 160);
-            DrawBox(15, 540, 240, 650, HorrorUI::COL_BG, TRUE);
-            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        // デバッグ操作通知HUD（F1〜F5操作時に短時間表示）
+        nightEnv.DrawDebugHUD();
 
-            DrawFormatString(20, 545, HorrorUI::COL_TEXT_DIM, "[DEBUG HUD - F3]");
-            DrawFormatString(20, 565, HorrorUI::COL_TEXT, "Delivery : %d", deliveryManager.GetCurrentDelivery());
-            DrawFormatString(20, 585, HorrorUI::COL_TEXT, "Completed: %d / %d", deliveryManager.GetCompletedDeliveries(), deliveryManager.GetTotalDeliveries());
-            DrawFormatString(20, 605, HorrorUI::COL_TEXT, "Target ID: %d", deliveryManager.GetCurrentTargetId());
-            DrawFormatString(20, 625, HorrorUI::COL_TEXT, "Effect F4: %s", HorrorUI::Instance().IsHorrorEffectsEnabled() ? "ON" : "OFF");
+        // F6マップデバッグHUD（現在ターゲット・配達状況・各ID表示）
+        if (mapDebugEnabled)
+        {
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 210);
+            DrawBox(18, 170, 310, 248, GetColor(10, 16, 20), TRUE);
+            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+            DrawBox(18, 170, 310, 248, GetColor(80, 115, 100), FALSE);
+
+            DrawString(26, 176, "[ F6: MAP DEBUG ON ]", GetColor(255, 220, 100));
+
+            char dbgTarget[64];
+            int tid = deliveryManager.GetCurrentTargetId();
+            if (tid >= 0)
+            {
+                snprintf(dbgTarget, sizeof(dbgTarget), "CURRENT TARGET: HOUSE %d", tid);
+            }
+            else
+            {
+                snprintf(dbgTarget, sizeof(dbgTarget), "CURRENT TARGET: ALL COMPLETED");
+            }
+            DrawString(26, 198, dbgTarget, GetColor(200, 225, 255));
+
+            char dbgProg[64];
+            snprintf(dbgProg, sizeof(dbgProg), "DELIVERY: %02d / %02d HOUSES",
+                deliveryManager.GetCompletedDeliveries(), deliveryManager.GetTotalDeliveries());
+            DrawString(26, 220, dbgProg, GetColor(170, 195, 185));
         }
 
         // 裏画面の内容を表画面へ反映
         ScreenFlip();
     }
+
+    // マップシステムの終了処理
+    MapFinalize();
+
+    // 深夜環境システムの終了処理
+    nightEnv.Finalize();
 
     // ホラーUIシステムの終了処理
     HorrorUI::Instance().Finalize();

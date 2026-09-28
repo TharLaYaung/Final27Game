@@ -48,6 +48,9 @@ public:
     // 新聞所持数・ステータスの描画（画面下部: 例 PAPERS 07）
     void DrawPaperCargo(int paperCount, bool isHolding);
 
+    // 自転車ヘッドライト・バッテリーHUD描画（ミニマップ直下に配置）
+    void DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isRiding, bool isFastDrain);
+
     // アナログ端末風の枠付きパネル描画
     void DrawRetroPanel(int x1, int y1, int x2, int y2, unsigned int borderColor, unsigned int bgColor, int alpha = 200);
 

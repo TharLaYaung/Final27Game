@@ -1,11 +1,12 @@
 #include "DeliveryManager.h"
+#include "Map.h"
 #include <cmath>
 
 // コンストラクタ
 DeliveryManager::DeliveryManager()
 {
-    currentDelivery = 1;
-    totalDeliveries = 8;
+    currentDelivery = 0;
+    totalDeliveries = NEIGHBORHOOD_HOUSE_COUNT;
     completedDeliveries = 0;
     allDeliveriesComplete = false;
     state = DeliveryState::Active;
@@ -22,8 +23,8 @@ DeliveryManager::~DeliveryManager()
 // 初期化
 void DeliveryManager::Initialize()
 {
-    currentDelivery = 1;
-    totalDeliveries = 8;
+    currentDelivery = 0;
+    totalDeliveries = NEIGHBORHOOD_HOUSE_COUNT;
     completedDeliveries = 0;
     allDeliveriesComplete = false;
     state = DeliveryState::Active;
@@ -33,23 +34,17 @@ void DeliveryManager::Initialize()
 
     deliveryPoints.clear();
 
-    // 8箇所の配達先ポストを住宅街マップ内に配置
-    // ID 1: スタート地点正面（直線進んだ場所）
-    deliveryPoints.push_back({ 1, VGet(  0.0f, 0.0f,   6.0f), DX_PI_F * 0.75f, false });
-    // ID 2: 北東エリア
-    deliveryPoints.push_back({ 2, VGet(  6.0f, 0.0f,   9.0f), DX_PI_F * 0.50f, false });
-    // ID 3: 北西エリア
-    deliveryPoints.push_back({ 3, VGet( -7.0f, 0.0f,  13.0f), DX_PI_F * 1.00f, false });
-    // ID 4: 東エリア
-    deliveryPoints.push_back({ 4, VGet( 11.0f, 0.0f,   3.0f), DX_PI_F * 0.25f, false });
-    // ID 5: 南東エリア
-    deliveryPoints.push_back({ 5, VGet(  8.0f, 0.0f,  -7.0f), DX_PI_F * 0.10f, false });
-    // ID 6: 南エリア
-    deliveryPoints.push_back({ 6, VGet(  0.0f, 0.0f, -13.0f), DX_PI_F * 0.00f, false });
-    // ID 7: 南西エリア
-    deliveryPoints.push_back({ 7, VGet( -9.0f, 0.0f,  -9.0f), DX_PI_F * 1.75f, false });
-    // ID 8: 西エリア（最後の配達先）
-    deliveryPoints.push_back({ 8, VGet(-10.0f, 0.0f,   2.0f), DX_PI_F * 1.50f, false });
+    // マップデータ（Map.h）に定義された8棟の各ポスト位置・角度を連携登録
+    const std::vector<HouseData>& houses = MapGetHouses();
+    for (size_t i = 0; i < houses.size(); i++)
+    {
+        deliveryPoints.push_back({
+            houses[i].id,
+            houses[i].mailboxPosition,
+            houses[i].mailboxRotationY,
+            false
+        });
+    }
 }
 
 // 毎フレーム更新
@@ -72,8 +67,8 @@ void DeliveryManager::Update()
             }
             else
             {
-                // 次の配達先をアクティブ化
-                currentDelivery = completedDeliveries + 1;
+                // 次の配達先をアクティブ化（0〜7）
+                currentDelivery = completedDeliveries;
                 state = DeliveryState::Active;
             }
         }
@@ -144,25 +139,28 @@ bool DeliveryManager::IsAllDeliveriesComplete() const
     return allDeliveriesComplete;
 }
 
-// 現在の目的地のポストIDを取得
+// 現在の目的地のポストIDを取得（0〜7、未完了目標なしは-1）
 int DeliveryManager::GetCurrentTargetId() const
 {
-    if (state == DeliveryState::Active && !allDeliveriesComplete)
+    if (state == DeliveryState::Active && !allDeliveriesComplete && currentDelivery >= 0 && currentDelivery < totalDeliveries)
     {
         return currentDelivery;
     }
-    return 0; // アクティブな目標なし
+    return -1; // アクティブな目標なし
 }
 
 // 現在の目的地の座標を取得
 VECTOR DeliveryManager::GetCurrentTargetPosition() const
 {
     int targetId = GetCurrentTargetId();
-    for (size_t i = 0; i < deliveryPoints.size(); i++)
+    if (targetId >= 0)
     {
-        if (deliveryPoints[i].id == targetId)
+        for (size_t i = 0; i < deliveryPoints.size(); i++)
         {
-            return deliveryPoints[i].position;
+            if (deliveryPoints[i].id == targetId)
+            {
+                return deliveryPoints[i].position;
+            }
         }
     }
     return VGet(0.0f, 0.0f, 0.0f);
@@ -171,7 +169,7 @@ VECTOR DeliveryManager::GetCurrentTargetPosition() const
 // アクティブな目的地が存在するか
 bool DeliveryManager::HasActiveTarget() const
 {
-    return (state == DeliveryState::Active && !allDeliveriesComplete);
+    return (state == DeliveryState::Active && !allDeliveriesComplete && currentDelivery >= 0 && currentDelivery < totalDeliveries);
 }
 
 // 現在の配達状態を取得

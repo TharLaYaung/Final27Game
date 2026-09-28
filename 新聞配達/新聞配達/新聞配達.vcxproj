@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -142,6 +142,7 @@
     <ClCompile Include="Map.cpp" />
     <ClCompile Include="Minimap.cpp" />
     <ClCompile Include="Newspaper.cpp" />
+    <ClCompile Include="NightEnvironment.cpp" />
     <ClCompile Include="Player.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -155,6 +156,7 @@
     <ClInclude Include="Map.h" />
     <ClInclude Include="Minimap.h" />
     <ClInclude Include="Newspaper.h" />
+    <ClInclude Include="NightEnvironment.h" />
     <ClInclude Include="Player.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

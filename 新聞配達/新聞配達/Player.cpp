@@ -2,48 +2,48 @@
 #include <cmath>
 #include "Map.h"
 
-// �R���X�g���N�^
+// コンストラクタ
 Player::Player()
 {
-    // �v���C���[�̏����ʒu
+    // プレイヤーの初期位置（南通りスタート地点）
     position = VGet(
         0.0f,
         1.7f,
-        -5.0f
+        -30.0f
     );
 
-    // �ŏ��͐��ʂ�����
+    // 最初は正面を見る
     yaw = 0.0f;
 
-    // �ŏ��͐���������
+    // 最初は水平を見る
     pitch = 0.0f;
 
-    // �k���̈ړ����x
+    // 徒歩の移動速度
     moveSpeed = 0.08f;
 
-    // �}�E�X���x
+    // マウス感度
     mouseSensitivity = 0.003f;
 
-    // �ڂ̍���
+    // 目の高さ
     eyeHeight = 1.7f;
 
-    // �����蔻��T�C�Y
+    // 当たり判定サイズ
     collisionRadius = 0.4f;
 
-    // ���]�Ԃ̏����ʒu
+    // 自転車の初期位置
     bicyclePosition = VGet(
         0.0f,
         0.0f,
         0.0f
     );
 
-    // �ŏ��͎��]�ԂƂ̓����蔻����g��Ȃ�
+    // 最初は自転車との当たり判定を使わない
     bicycleCollisionEnabled = false;
 
-    // �}�E�X�J�[�\�����\���ɂ���
+    // マウスカーソルを非表示にする
     SetMouseDispFlag(FALSE);
 
-    // �}�E�X����ʒ����ֈړ�����
+    // マウスを画面中央へ移動する
     SetMousePoint(
         640,
         360
@@ -51,30 +51,30 @@ Player::Player()
 }
 
 
-// �v���C���[���X�V����
+// プレイヤーを更新する
 void Player::Update()
 {
-    // �}�E�X���_���X�V����
+    // マウス視点を更新する
     UpdateLook();
 
-    // �O�������v�Z����
+    // 前方向を計算する
     VECTOR forward = VGet(
         sinf(yaw),
         0.0f,
         cosf(yaw)
     );
 
-    // �E�������v�Z����
+    // 右方向を計算する
     VECTOR right = VGet(
         cosf(yaw),
         0.0f,
         -sinf(yaw)
     );
 
-    // ���̈ʒu
+    // 次の位置
     VECTOR nextPosition = position;
 
-    // W�L�[�őO�i����
+    // Wキーで前進する
     if (CheckHitKey(KEY_INPUT_W))
     {
         nextPosition.x +=
@@ -84,7 +84,7 @@ void Player::Update()
             forward.z * moveSpeed;
     }
 
-    // S�L�[�Ō�ނ���
+    // Sキーで後退する
     if (CheckHitKey(KEY_INPUT_S))
     {
         nextPosition.x -=
@@ -94,7 +94,7 @@ void Player::Update()
             forward.z * moveSpeed;
     }
 
-    // A�L�[�ō��ֈړ�����
+    // Aキーで左へ移動する
     if (CheckHitKey(KEY_INPUT_A))
     {
         nextPosition.x -=
@@ -104,7 +104,7 @@ void Player::Update()
             right.z * moveSpeed;
     }
 
-    // D�L�[�ŉE�ֈړ�����
+    // Dキーで右へ移動する
     if (CheckHitKey(KEY_INPUT_D))
     {
         nextPosition.x +=
@@ -114,56 +114,56 @@ void Player::Update()
             right.z * moveSpeed;
     }
 
-    // �ړ��ł���ꍇ
+    // 移動できる場合
     if (CanMove(nextPosition))
     {
-        // �v���C���[�̈ʒu���X�V����
+        // プレイヤーの位置を更新する
         position = nextPosition;
     }
 }
 
 
-// �}�E�X���_�����X�V����
+// マウス視点だけ更新する
 void Player::UpdateLook()
 {
-    // �}�E�X�̌��݈ʒu
+    // マウスの現在位置
     int mouseX;
     int mouseY;
 
-    // �}�E�X�ʒu���擾����
+    // マウス位置を取得する
     GetMousePoint(
         &mouseX,
         &mouseY
     );
 
-    // ��ʒ�������̈ړ��ʂ��擾����
+    // 画面中央からの移動量を取得する
     int moveX =
         mouseX - 640;
 
     int moveY =
         mouseY - 360;
 
-    // ���E�̎��_��ύX����
+    // 左右の視点を変更する
     yaw +=
         moveX * mouseSensitivity;
 
-    // �㉺�̎��_��ύX����
+    // 上下の視点を変更する
     pitch +=
         moveY * mouseSensitivity;
 
-    // ������������Ȃ��悤�ɂ���
+    // 上を向きすぎないようにする
     if (pitch < -1.4f)
     {
         pitch = -1.4f;
     }
 
-    // �������������Ȃ��悤�ɂ���
+    // 下を向きすぎないようにする
     if (pitch > 1.4f)
     {
         pitch = 1.4f;
     }
 
-    // �}�E�X����ʒ����֖߂�
+    // マウスを画面中央へ戻す
     SetMousePoint(
         640,
         360
@@ -171,21 +171,21 @@ void Player::UpdateLook()
 }
 
 
-// �J�������X�V����
+// カメラを更新する
 void Player::UpdateCamera()
 {
-    // �����������擾����
+    // 視線方向を取得する
     VECTOR forward =
         GetForward();
 
-    // �J����������ʒu���v�Z����
+    // カメラが見る位置を計算する
     VECTOR target =
         VAdd(
             position,
             forward
         );
 
-    // �J������ݒ肷��
+    // カメラを設定する
     SetCameraPositionAndTarget_UpVecY(
         position,
         target
@@ -193,29 +193,29 @@ void Player::UpdateCamera()
 }
 
 
-// �v���C���[�̌��݈ʒu���擾����
+// プレイヤーの現在位置を取得する
 VECTOR Player::GetPosition() const
 {
     return position;
 }
 
 
-// �v���C���[�����Ă���������擾����
+// プレイヤーが見ている方向を取得する
 VECTOR Player::GetForward() const
 {
-    // ��������
+    // 視線方向
     VECTOR forward;
 
-    // ���E����
+    // 左右方向
     forward.x =
         sinf(yaw) *
         cosf(pitch);
 
-    // �㉺����
+    // 上下方向
     forward.y =
         -sinf(pitch);
 
-    // �O�����
+    // 前後方向
     forward.z =
         cosf(yaw) *
         cosf(pitch);
@@ -224,90 +224,65 @@ VECTOR Player::GetForward() const
 }
 
 
-// �v���C���[�̈ʒu��ύX����
+// プレイヤーの位置を変更する
 void Player::SetPosition(VECTOR newPosition)
 {
-    // �V�����ʒu��ݒ肷��
+    // 新しい位置を設定する
     position = newPosition;
 }
 
 
-// ���]�Ԃ̈ʒu��ݒ肷��
+// 自転車の位置を設定する
 void Player::SetBicyclePosition(VECTOR newBicyclePosition)
 {
-    // ���]�Ԃ̌��݈ʒu��ۑ�����
+    // 自転車の現在位置を保存する
     bicyclePosition = newBicyclePosition;
 }
 
 
-// ���]�ԂƂ̓����蔻����g�����ݒ肷��
+// 自転車との当たり判定を使うか設定する
 void Player::SetBicycleCollisionEnabled(bool enabled)
 {
-    // �����蔻��̗L����Ԃ�ۑ�����
+    // 当たり判定の有効状態を保存する
     bicycleCollisionEnabled = enabled;
 }
 
 
-// �ړ��ł��邩�m�F����
+// 移動できるか確認する
 bool Player::CanMove(VECTOR nextPosition)
 {
-    // �ƂƂ̓����蔻��
+    // 家・壁との当たり判定
     if (MapCheckWallCollision(nextPosition, collisionRadius))
     {
         return false;
     }
 
-    // �e�X�g�p�̐Ԃ����͈̔�
-    float minX =
-        -1.0f - collisionRadius;
-
-    float maxX =
-        1.0f + collisionRadius;
-
-    float minZ =
-        5.0f - collisionRadius;
-
-    float maxZ =
-        7.0f + collisionRadius;
-
-    // �Ԃ����̒��ɓ���ꍇ
-    if (
-        nextPosition.x > minX &&
-        nextPosition.x < maxX &&
-        nextPosition.z > minZ &&
-        nextPosition.z < maxZ
-        )
-    {
-        // �ړ��ł��Ȃ�
-        return false;
-    }
-
-    // ���]�ԂƂ̓����蔻����g���ꍇ
+    // 自転車との当たり判定を使う場合
     if (bicycleCollisionEnabled == true)
     {
-        // X�����̋���
+        // X方向の距離
         float diffX =
             nextPosition.x - bicyclePosition.x;
 
-        // Z�����̋���
+        // Z方向の距離
         float diffZ =
             nextPosition.z - bicyclePosition.z;
 
-        // ���]�Ԃ܂ł̐��������̋���
+        // 自転車までの水平方向の距離
         float distance =
             sqrtf(
                 diffX * diffX +
                 diffZ * diffZ
             );
 
-        // ���]�Ԃɋ߂�����ꍇ
+        // 自転車に近すぎる場合
         if (distance < 0.8f)
         {
-            // ���]�Ԃ����蔲���Ȃ��悤�ɂ���
+            // 自転車をすり抜けないようにする
             return false;
         }
     }
 
-    // �ړ��ł���
+    // 移動できる
     return true;
 }

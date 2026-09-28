@@ -11,7 +11,7 @@ Mailbox::Mailbox()
     modelHandle = -1;
     scale = 2.2f;
     canDeliver = false;
-    aimedMailboxId = 0;
+    aimedMailboxId = -1;
     oldLeftClick = false;
 }
 
@@ -42,7 +42,7 @@ void Mailbox::Update(Player& player, Newspaper& newspaper, DeliveryManager& deli
         return;
     }
 
-    aimedMailboxId = 0;
+    aimedMailboxId = -1;
     canDeliver = false;
 
     // 左クリックのエッジトリガー検出（押した瞬間のみtrue）
@@ -92,7 +92,7 @@ void Mailbox::Update(Player& player, Newspaper& newspaper, DeliveryManager& deli
         // 配達受付中（通常状態）の場合のみ処理
         if (deliveryManager.GetState() == DeliveryState::Active)
         {
-            if (aimedMailboxId == deliveryManager.GetCurrentTargetId())
+            if (aimedMailboxId != -1 && aimedMailboxId == deliveryManager.GetCurrentTargetId())
             {
                 // 正しい現在の配達目標ポストへの配達
                 newspaper.Deliver();

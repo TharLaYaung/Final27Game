@@ -413,3 +413,137 @@ void HorrorUI::DrawPaperCargo(int paperCount, bool isHolding)
         DrawJitterString(posX + 115, posY + 2, "[HOLDING]", col, fontSmall);
     }
 }
+
+// 自転車ヘッドライト・バッテリーHUD描画（ミニマップ直下に配置）
+void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isRiding, bool isFastDrain)
+{
+    (void)isRiding;
+
+    // ミニマップ枠 (1045, 20)〜(1255, 215) の直下、Y=222〜270 に配置
+    int panelX1 = 1045;
+    int panelY1 = 222;
+    int panelX2 = 1255;
+    int panelY2 = 270;
+
+    // レトロ端末パネル外枠と背景の描画
+    DrawRetroPanel(panelX1, panelY1, panelX2, panelY2, COL_BORDER, COL_PANEL_BG, 190);
+
+    // 上段：ラベル・点灯状態・残量パーセント表示
+    int textY = panelY1 + 5;
+
+    // 「LIGHT」固定ラベル
+    DrawJitterString(panelX1 + 10, textY, "LIGHT", COL_TEXT_DIM, fontSmall);
+
+    // 点灯状態インジケータ
+    if (batteryPercent <= 0.0f)
+    {
+        // バッテリー完全枯渇時は点滅表示（DEAD）
+        bool blink = ((frameCount / 20) % 2) == 0;
+        unsigned int deadCol = blink ? COL_WARNING : GetColor(90, 30, 25);
+        DrawJitterString(panelX1 + 56, textY, "DEAD", deadCol, fontSmall);
+    }
+    else if (isLightOn)
+    {
+        // 点灯中
+        DrawJitterString(panelX1 + 56, textY, "ON", GetColor(210, 220, 210), fontSmall);
+    }
+    else
+    {
+        // 消灯中
+        DrawJitterString(panelX1 + 56, textY, "OFF", COL_TEXT_DIM, fontSmall);
+    }
+
+    // デバッグ高速消費インジケータ（F8有効時）
+    if (isFastDrain)
+    {
+        bool blink = ((frameCount / 15) % 2) == 0;
+        unsigned int debugCol = blink ? GetColor(230, 140, 50) : GetColor(140, 80, 25);
+        DrawJitterString(panelX1 + 104, textY, "[10x]", debugCol, fontSmall);
+    }
+
+    // バッテリー残量数値表示（例: 84% または 0%）
+    char pctStr[16];
+    int displayPct = (int)ceilf(batteryPercent);
+    if (displayPct < 0) displayPct = 0;
+    if (displayPct > 100) displayPct = 100;
+    snprintf(pctStr, sizeof(pctStr), "%3d%%", displayPct);
+
+    // 残量に応じた文字色（通常: オフホワイト、低残量: アンバー、危険: 赤）
+    unsigned int pctColor = COL_TEXT;
+    if (batteryPercent <= 0.0f)
+    {
+        pctColor = COL_WARNING;
+    }
+    else if (batteryPercent <= 20.0f)
+    {
+        bool blink = ((frameCount / 25) % 2) == 0;
+        pctColor = blink ? COL_WARNING : GetColor(190, 100, 70);
+    }
+    else if (batteryPercent <= 50.0f)
+    {
+        pctColor = GetColor(195, 160, 65);
+    }
+
+    DrawJitterString(panelX2 - 44, textY, pctStr, pctColor, fontSmall);
+
+    // 下段：アナログ10セグメント・バッテリー残量ゲージ
+    int barX1 = panelX1 + 10;
+    int barX2 = panelX2 - 10;
+    int barY1 = panelY1 + 25;
+    int barY2 = panelY1 + 38;
+
+    // ゲージ全体の黒背景と薄い枠線
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 180);
+    DrawBox(barX1, barY1, barX2, barY2, COL_BG, TRUE);
+    DrawBox(barX1, barY1, barX2, barY2, COL_BORDER_DIM, FALSE);
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+
+    // 10個の独立した長方形セルによるレトロ液晶メーター
+    int cellCount = 10;
+    int cellGap = 2;
+    int totalWidth = (barX2 - 2) - (barX1 + 2);
+    int cellWidth = (totalWidth - (cellCount - 1) * cellGap) / cellCount;
+    int startInnerX = barX1 + 2 + (totalWidth - (cellWidth * cellCount + (cellCount - 1) * cellGap)) / 2;
+
+    for (int i = 0; i < cellCount; i++)
+    {
+        int cx1 = startInnerX + i * (cellWidth + cellGap);
+        int cx2 = cx1 + cellWidth;
+        int cy1 = barY1 + 2;
+        int cy2 = barY2 - 2;
+
+        float cellThreshold = (i + 1) * 10.0f;
+        bool isCellFilled = (batteryPercent >= cellThreshold - 5.0f);
+
+        if (isCellFilled && batteryPercent > 0.0f)
+        {
+            // 残量に応じたセル点灯色
+            unsigned int cellColor = COL_TEXT;
+            if (batteryPercent <= 20.0f)
+            {
+                // 残量20%以下：赤色警告（5%以下で点滅）
+                bool blink = (batteryPercent <= 5.0f) && (((frameCount / 10) % 2) == 0);
+                cellColor = blink ? GetColor(80, 20, 15) : COL_WARNING;
+            }
+            else if (batteryPercent <= 50.0f)
+            {
+                // 残量21〜50%：くすんだ暖黄色（アンバー）
+                cellColor = GetColor(190, 155, 60);
+            }
+            else
+            {
+                // 残量51〜100%：褪せたオフホワイト
+                cellColor = GetColor(180, 190, 180);
+            }
+
+            DrawBox(cx1, cy1, cx2, cy2, cellColor, TRUE);
+        }
+        else
+        {
+            // 非点灯セル：極めて暗い背景スロット枠
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 90);
+            DrawBox(cx1, cy1, cx2, cy2, GetColor(30, 38, 34), TRUE);
+            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        }
+    }
+}
