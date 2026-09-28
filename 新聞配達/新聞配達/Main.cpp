@@ -8,6 +8,7 @@
 #include "DeliveryManager.h"
 #include "Minimap.h"
 #include "HorrorUI.h"
+#include "Map.h"
 
 // Windowsアプリケーションのエントリポイント
 int WINAPI WinMain(
@@ -43,6 +44,8 @@ int WINAPI WinMain(
         0.1f,
         1000.0f
     );
+
+    MapInit();
 
     // 各ゲームシステムのインスタンス生成
     Player player;
@@ -227,6 +230,8 @@ int WINAPI WinMain(
 
         // 地面描画
         DrawGround();
+
+        MapDraw();
 
         // 自転車3Dモデル描画
         bicycle.Draw();

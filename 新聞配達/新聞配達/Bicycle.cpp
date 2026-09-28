@@ -2,6 +2,7 @@
 #include "Player.h"
 #include "HorrorUI.h"
 #include <cmath>
+#include"Map.h"
 
 // コンストラクタ
 Bicycle::Bicycle()
@@ -364,9 +365,17 @@ bool Bicycle::CanRide() const
 // 自転車が移動できるか確認する
 bool Bicycle::CanMove(VECTOR nextPosition)
 {
+   
+
     // 自転車の当たり判定サイズ
     float bicycleRadius =
         0.8f;
+
+    // 家との当たり判定
+    if (MapCheckWallCollision(nextPosition, bicycleRadius))
+    {
+        return false;
+    }
 
     // 赤い箱の左側
     float minX =

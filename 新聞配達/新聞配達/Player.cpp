@@ -1,5 +1,6 @@
 #include "Player.h"
 #include <cmath>
+#include "Map.h"
 
 // コンストラクタ
 Player::Player()
@@ -250,6 +251,12 @@ void Player::SetBicycleCollisionEnabled(bool enabled)
 // 移動できるか確認する
 bool Player::CanMove(VECTOR nextPosition)
 {
+    // 家との当たり判定
+    if (MapCheckWallCollision(nextPosition, collisionRadius))
+    {
+        return false;
+    }
+
     // テスト用の赤い箱の範囲
     float minX =
         -1.0f - collisionRadius;
