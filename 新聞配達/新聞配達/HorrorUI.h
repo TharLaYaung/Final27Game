@@ -51,6 +51,15 @@ public:
     // 自転車ヘッドライト・バッテリーHUD描画（ミニマップ直下に配置）
     void DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isRiding, bool isFastDrain);
 
+    // 恐怖度メーターHUD描画（画面左上、時計直下に配置）
+    void DrawFearMeter(float fearPercent, bool inSafeLight);
+
+    // 最大恐怖演出時の画面歪曲・ブラックアウト描画
+    void DrawScareDistortion(float intensity);
+
+    // ゲームオーバー画面描画
+    void DrawGameOver(float fadeAlpha, bool isInteractive);
+
     // アナログ端末風の枠付きパネル描画
     void DrawRetroPanel(int x1, int y1, int x2, int y2, unsigned int borderColor, unsigned int bgColor, int alpha = 200);
 
@@ -139,4 +148,7 @@ private:
     int horrorIntensity;
     bool horrorEffectsEnabled;
     int frameCount;
+
+    // 恐怖度メーター描画用補間値
+    float displayedFearPercent;
 };

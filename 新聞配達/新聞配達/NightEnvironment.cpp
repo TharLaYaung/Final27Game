@@ -532,6 +532,20 @@ EnvironmentPreset NightEnvironment::GetCurrentPreset() const
     return currentPreset;
 }
 
+// 天候システムからのフォグおよび環境光の一括設定
+void NightEnvironment::SetWeatherFogAndLighting(float start, float end, int r, int g, int b, COLOR_F ambient)
+{
+    fogStart = start;
+    fogEnd = end;
+    fogColorR = r;
+    fogColorG = g;
+    fogColorB = b;
+    bgR = r;
+    bgG = g;
+    bgB = b;
+    ambientColor = ambient;
+}
+
 // 終了処理
 void NightEnvironment::Finalize()
 {

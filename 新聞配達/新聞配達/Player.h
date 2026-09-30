@@ -1,68 +1,143 @@
 #pragma once
 
+
+
 #include "DxLib.h"
 
-// �v���C���[���Ǘ�����N���X
+
+
+// プレイヤーを管理するクラス
+
 class Player
+
 {
+
 public:
 
-    // �R���X�g���N�^
+
+
+    // コンストラクタ
+
     Player();
 
-    // �v���C���[���X�V����
+
+
+    // プレイヤーを更新する
+
     void Update();
 
-    // �}�E�X���_�����X�V����
+
+
+    // マウス視点だけ更新する
+
     void UpdateLook();
 
-    // �J�������X�V����
+
+
+    // カメラを更新する
+
     void UpdateCamera();
 
-    // �v���C���[�̌��݈ʒu���擾����
+
+
+    // プレイヤーの現在位置を取得する
+
     VECTOR GetPosition() const;
 
-    // �v���C���[�����Ă���������擾����
+
+
+    // プレイヤーが見ている方向を取得する
+
     VECTOR GetForward() const;
 
-    // �v���C���[�̈ʒu��ύX����
+
+
+    // プレイヤーの位置を変更する
+
     void SetPosition(VECTOR newPosition);
 
-    // ���]�Ԃ̈ʒu��ݒ肷��
+    // 左右の視線角度を設定・取得する
+    void SetYaw(float newYaw) { yaw = newYaw; }
+    float GetYaw() const { return yaw; }
+
+    // 上下の視線角度を設定・取得する
+    void SetPitch(float newPitch) { pitch = newPitch; }
+    float GetPitch() const { return pitch; }
+
+
+
+    // 自転車の位置を設定する
+
     void SetBicyclePosition(VECTOR newBicyclePosition);
 
-    // ���]�ԂƂ̓����蔻����g�����ݒ肷��
+
+
+    // 自転車との当たり判定を使うか設定する
+
     void SetBicycleCollisionEnabled(bool enabled);
+
+
 
 private:
 
-    // �v���C���[�̌��݈ʒu
+
+
+    // プレイヤーの現在位置
+
     VECTOR position;
 
-    // ���E�̎��_�p�x
+
+
+    // 左右の視点角度
+
     float yaw;
 
-    // �㉺�̎��_�p�x
+
+
+    // 上下の視点角度
+
     float pitch;
 
-    // �k���̈ړ����x
+
+
+    // 徒歩の移動速度
+
     float moveSpeed;
 
-    // �}�E�X���x
+
+
+    // マウス感度
+
     float mouseSensitivity;
 
-    // �v���C���[�̖ڂ̍���
+
+
+    // プレイヤーの目の高さ
+
     float eyeHeight;
 
-    // �v���C���[�̓����蔻��T�C�Y
+
+
+    // プレイヤーの当たり判定サイズ
+
     float collisionRadius;
 
-    // ���]�Ԃ̈ʒu
+
+
+    // 自転車の位置
+
     VECTOR bicyclePosition;
 
-    // ���]�ԂƂ̓����蔻����g����
+
+
+    // 自転車との当たり判定を使うか
+
     bool bicycleCollisionEnabled;
 
-    // �w�肵���ʒu�ֈړ��ł��邩�m�F����
+
+
+    // 指定した位置へ移動できるか確認する
+
     bool CanMove(VECTOR nextPosition);
+
 };

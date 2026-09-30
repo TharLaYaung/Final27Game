@@ -10,6 +10,8 @@
 #include "HorrorUI.h"
 #include "Map.h"
 #include "NightEnvironment.h"
+#include "WeatherManager.h"
+#include "HorrorManager.h"
 
 // Windowsアプリケーションのエントリポイント
 int WINAPI WinMain(
@@ -57,12 +59,65 @@ int WINAPI WinMain(
     DeliveryManager deliveryManager;
     Minimap minimap;
     NightEnvironment nightEnv;
+    WeatherManager weatherManager;
+    HorrorManager horrorManager;
 
     // ホラーUI総合管理システムの初期化（フォント生成など）
     HorrorUI::Instance().Initialize();
 
     // 深夜環境・照明・フォグ管理システムの初期化
     nightEnv.Initialize();
+
+    // 動的ランダム天候管理システムの初期化
+    weatherManager.Initialize();
+
+    // 恐怖・怪異・ゲームオーバー管理システムの初期化
+    horrorManager.Initialize();
+
+    {
+        int h = MV1LoadModel("Data/Model/RunningCrawl.mv1");
+        if (h != -1)
+        {
+            FILE* fp = nullptr;
+            fopen_s(&fp, "face_check.txt", "w");
+            if (fp)
+            {
+                int fHead = MV1SearchFrame(h, "Jill_HiRes_Head_Geo");
+                int fEyes = MV1SearchFrame(h, "Jill_HiRes_Eyes_Geo");
+                int fHips = MV1SearchFrame(h, "Hips");
+
+                VECTOR posH = MV1GetFramePosition(h, fHead);
+                VECTOR posE = MV1GetFramePosition(h, fEyes);
+                VECTOR posHips = MV1GetFramePosition(h, fHips);
+
+                fprintf(fp, "Base Pose:\n");
+                fprintf(fp, "Hips: (%.2f, %.2f, %.2f)\n", posHips.x, posHips.y, posHips.z);
+                fprintf(fp, "Head: (%.2f, %.2f, %.2f)\n", posH.x, posH.y, posH.z);
+                fprintf(fp, "Eyes: (%.2f, %.2f, %.2f)\n", posE.x, posE.y, posE.z);
+
+                int a = MV1AttachAnim(h, 1, -1, FALSE);
+                MV1SetAttachAnimTime(h, a, 0.0f);
+                posH = MV1GetFramePosition(h, fHead);
+                posE = MV1GetFramePosition(h, fEyes);
+                posHips = MV1GetFramePosition(h, fHips);
+
+                fprintf(fp, "Anim at 0.0s:\n");
+                fprintf(fp, "Hips: (%.2f, %.2f, %.2f)\n", posHips.x, posHips.y, posHips.z);
+                fprintf(fp, "Head: (%.2f, %.2f, %.2f)\n", posH.x, posH.y, posH.z);
+                fprintf(fp, "Eyes: (%.2f, %.2f, %.2f)\n", posE.x, posE.y, posE.z);
+
+                MV1SetAttachAnimTime(h, a, 5.0f);
+                posH = MV1GetFramePosition(h, fHead);
+                posHips = MV1GetFramePosition(h, fHips);
+                fprintf(fp, "Anim at 5.0s:\n");
+                fprintf(fp, "Hips: (%.2f, %.2f, %.2f)\n", posHips.x, posHips.y, posHips.z);
+                fprintf(fp, "Head: (%.2f, %.2f, %.2f)\n", posH.x, posH.y, posH.z);
+
+                fclose(fp);
+            }
+            MV1DeleteModel(h);
+        }
+    }
 
     // 自転車モデル初期化
     if (bicycle.Initialize() == false)
@@ -113,6 +168,16 @@ int WINAPI WinMain(
     bool oldF4Key = false;
     bool oldF5Key = false;
     bool oldF6Key = false;
+    bool oldF7Key = false;
+    bool oldF9Key = false;
+    bool oldF10Key = false;
+    bool oldF11Key = false;
+    bool oldKey1 = false;
+    bool oldKey2 = false;
+    bool oldKey3 = false;
+    bool oldKey4 = false;
+    bool oldKey5 = false;
+    bool oldKey6 = false;
     bool mapDebugEnabled = false;
 
     // メインゲームループ
@@ -131,9 +196,7 @@ int WINAPI WinMain(
             break;
         }
 
-        // ==========================================
-        // デバッグ操作キー入力判定（F1〜F6）
-        // ==========================================
+        // デバッグ操作キー入力判定（F1〜F11および数字キー）
 
         // F1キー: フォグON/OFF切り替え
         bool curF1 = (CheckHitKey(KEY_INPUT_F1) != 0);
@@ -183,6 +246,86 @@ int WINAPI WinMain(
         }
         oldF6Key = curF6;
 
+        // F7キー: 天候順送り切り替え
+        bool curF7 = (CheckHitKey(KEY_INPUT_F7) != 0);
+        if (curF7 && !oldF7Key)
+        {
+            weatherManager.CycleWeather();
+        }
+        oldF7Key = curF7;
+
+        // F9キー: 自動天候変化ON/OFF切り替え
+        bool curF9 = (CheckHitKey(KEY_INPUT_F9) != 0);
+        if (curF9 && !oldF9Key)
+        {
+            weatherManager.ToggleAutoWeather();
+        }
+        oldF9Key = curF9;
+
+        // F10キー: 天候デバッグHUD表示ON/OFF切り替え
+        bool curF10 = (CheckHitKey(KEY_INPUT_F10) != 0);
+        if (curF10 && !oldF10Key)
+        {
+            weatherManager.ToggleDebugHUD();
+        }
+        oldF10Key = curF10;
+
+        // F11キー: 恐怖・怪異デバッグHUD表示ON/OFF切り替え
+        bool curF11 = (CheckHitKey(KEY_INPUT_F11) != 0);
+        if (curF11 && !oldF11Key)
+        {
+            horrorManager.ToggleDebugHUD();
+        }
+        oldF11Key = curF11;
+
+        // 数字キー1: 恐怖度25%設定
+        bool curK1 = (CheckHitKey(KEY_INPUT_1) != 0);
+        if (curK1 && !oldKey1)
+        {
+            horrorManager.DebugSetFear(0.25f);
+        }
+        oldKey1 = curK1;
+
+        // 数字キー2: 恐怖度50%設定
+        bool curK2 = (CheckHitKey(KEY_INPUT_2) != 0);
+        if (curK2 && !oldKey2)
+        {
+            horrorManager.DebugSetFear(0.50f);
+        }
+        oldKey2 = curK2;
+
+        // 数字キー3: 恐怖度75%設定
+        bool curK3 = (CheckHitKey(KEY_INPUT_3) != 0);
+        if (curK3 && !oldKey3)
+        {
+            horrorManager.DebugSetFear(0.75f);
+        }
+        oldKey3 = curK3;
+
+        // 数字キー4: 恐怖度95%設定
+        bool curK4 = (CheckHitKey(KEY_INPUT_4) != 0);
+        if (curK4 && !oldKey4)
+        {
+            horrorManager.DebugSetFear(0.95f);
+        }
+        oldKey4 = curK4;
+
+        // 数字キー5: 恐怖度100%ゲームオーバー即時トリガー
+        bool curK5 = (CheckHitKey(KEY_INPUT_5) != 0);
+        if (curK5 && !oldKey5)
+        {
+            horrorManager.DebugTriggerMaxFearGameOver(player);
+        }
+        oldKey5 = curK5;
+
+        // 数字キー6: 怪異モデル強制出現テスト（前方16m）
+        bool curK6 = (CheckHitKey(KEY_INPUT_6) != 0);
+        if (curK6 && !oldKey6)
+        {
+            horrorManager.DebugTriggerSpawn(player);
+        }
+        oldKey6 = curK6;
+
         // 画面クリア
         ClearDrawScreen();
 
@@ -203,22 +346,30 @@ int WINAPI WinMain(
             bicycle.IsRiding() == false
         );
 
-        // 徒歩時と乗車時の操作分岐
-        if (bicycle.IsRiding() == false)
+        // 徒歩時と乗車時の操作分岐（最大恐怖演出中およびゲームオーバー中は移動制限）
+        if (!horrorManager.IsControlRestricted())
         {
-            // 徒歩：移動＋マウス視線更新
-            player.Update();
+            if (bicycle.IsRiding() == false)
+            {
+                // 徒歩：移動＋マウス視線更新
+                player.Update();
+            }
+            else
+            {
+                // 乗車中：視線操作のみ
+                player.UpdateLook();
+            }
+
+            // 自転車更新
+            bicycle.Update(
+                player
+            );
         }
         else
         {
-            // 乗車中：視線操作のみ
+            // 演出中：視線操作のみ許容
             player.UpdateLook();
         }
-
-        // 自転車更新
-        bicycle.Update(
-            player
-        );
 
         // 新聞更新（カゴ座標追従および手持ち描画管理）
         newspaper.Update(
@@ -230,6 +381,12 @@ int WINAPI WinMain(
 
         // 深夜環境の更新（自転車ヘッドライト追従・街灯明滅タイマー）
         nightEnv.Update(bicycle);
+
+        // 動的ランダム天候管理システムの更新
+        weatherManager.Update(0.01666f, player, bicycle, nightEnv);
+
+        // 恐怖システム・怪異出現・ゲームオーバー管理システムの更新
+        horrorManager.Update(0.01666f, player, bicycle, nightEnv);
 
         // 配達進行管理の更新
         deliveryManager.Update();
@@ -284,6 +441,12 @@ int WINAPI WinMain(
         mailbox.Draw(
             deliveryManager
         );
+
+        // 天候パーティクル描画（雨粒・粉雪）
+        weatherManager.DrawParticles(bicycle, nightEnv);
+
+        // 3D怪異モデル描画（暗闇・フォグ・街灯演出と同期）
+        horrorManager.Draw3D();
 
         // F6マップデバッグ3D描画（当たり判定ワイヤー・住宅/ポストIDラベル）
         if (mapDebugEnabled)
@@ -367,6 +530,12 @@ int WINAPI WinMain(
             DrawString(26, 220, dbgProg, GetColor(170, 195, 185));
         }
 
+        // 天候デバッグHUD描画（F10で切り替え）
+        weatherManager.DrawDebugHUD();
+
+        // 恐怖度メーター・ゲームオーバー・演出描画
+        horrorManager.DrawUI();
+
         // 裏画面の内容を表画面へ反映
         ScreenFlip();
     }
@@ -376,6 +545,12 @@ int WINAPI WinMain(
 
     // 深夜環境システムの終了処理
     nightEnv.Finalize();
+
+    // 動的ランダム天候管理システムの終了処理
+    weatherManager.Finalize();
+
+    // 恐怖システム・怪異管理システムの終了処理
+    horrorManager.Finalize();
 
     // ホラーUIシステムの終了処理
     HorrorUI::Instance().Finalize();

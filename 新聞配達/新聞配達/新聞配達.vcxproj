@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
@@ -144,6 +144,9 @@
     <ClCompile Include="Newspaper.cpp" />
     <ClCompile Include="NightEnvironment.cpp" />
     <ClCompile Include="Player.cpp" />
+    <ClCompile Include="WeatherManager.cpp" />
+    <ClCompile Include="HorrorEntity.cpp" />
+    <ClCompile Include="HorrorManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Bicycle.h" />
@@ -158,6 +161,9 @@
     <ClInclude Include="Newspaper.h" />
     <ClInclude Include="NightEnvironment.h" />
     <ClInclude Include="Player.h" />
+    <ClInclude Include="WeatherManager.h" />
+    <ClInclude Include="HorrorEntity.h" />
+    <ClInclude Include="HorrorManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

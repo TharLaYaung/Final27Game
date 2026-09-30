@@ -43,6 +43,7 @@ HorrorUI::HorrorUI()
     horrorIntensity = 0;
     horrorEffectsEnabled = true;
     frameCount = 0;
+    displayedFearPercent = 0.0f;
 }
 
 // デストラクタ
@@ -546,4 +547,163 @@ void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isR
             SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
         }
     }
+}
+
+// 恐怖度メーターHUD描画（画面左上、時計直下に配置）
+void HorrorUI::DrawFearMeter(float fearPercent, bool inSafeLight)
+{
+    // 表示用恐怖度パーセントの滑らかな補間（急激なバーの跳ねを防止）
+    displayedFearPercent += (fearPercent - displayedFearPercent) * 0.12f;
+    if (displayedFearPercent < 0.0f) displayedFearPercent = 0.0f;
+    if (displayedFearPercent > 100.0f) displayedFearPercent = 100.0f;
+
+    int posX = 26;
+    int posY = 54;
+    int panelW = 120;
+    int panelH = 26;
+
+    // レトロ端末パネル背景
+    DrawRetroPanel(posX - 6, posY - 2, posX + panelW, posY + panelH, COL_BORDER_DIM, COL_BG, 160);
+
+    // 恐怖段階に応じた文字色・警告色の決定
+    unsigned int fearColor = COL_TEXT_DIM;
+    int jitterX = 0;
+    int jitterY = 0;
+
+    if (displayedFearPercent >= 80.0f)
+    {
+        // 狂乱・極限 (80%〜): 暗い赤色、位置の不安定なジッター
+        fearColor = GetColor(215, 45, 45);
+        if ((frameCount % 4) == 0)
+        {
+            jitterX = (rand() % 3) - 1;
+            jitterY = (rand() % 3) - 1;
+        }
+    }
+    else if (displayedFearPercent >= 60.0f)
+    {
+        // 恐慌 (60〜79%): 警告オレンジ赤
+        fearColor = GetColor(210, 85, 60);
+        if ((frameCount % 8) == 0)
+        {
+            jitterX = (rand() % 2) - 1;
+        }
+    }
+    else if (displayedFearPercent >= 40.0f)
+    {
+        // 恐怖 (40〜59%): くすんだアンバー
+        fearColor = GetColor(200, 145, 65);
+    }
+    else if (displayedFearPercent >= 20.0f)
+    {
+        // 警戒 (20〜39%): くすんだオリーブベージュ
+        fearColor = GetColor(165, 175, 135);
+    }
+    else
+    {
+        // 平穏 (0〜19%): 控えめな減衰グレー
+        fearColor = COL_TEXT_DIM;
+    }
+
+    // 恐怖度数値ラベル
+    char fearStr[32];
+    snprintf(fearStr, sizeof(fearStr), "FEAR  %02d%%", static_cast<int>(displayedFearPercent));
+    DrawJitterString(posX + 4 + jitterX, posY + 1 + jitterY, fearStr, fearColor, fontSmall);
+
+    // 安全光内フィードバック（控えめな緑系微小インジケータ）
+    if (inSafeLight)
+    {
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 180);
+        DrawString(posX + 78, posY + 1, "SAFE", GetColor(110, 175, 140));
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    }
+
+    // ゲージスロット背景枠
+    int barX = posX + 4;
+    int barY = posY + 16;
+    int barW = 108;
+    int barH = 5;
+
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 100);
+    DrawBox(barX, barY, barX + barW, barY + barH, GetColor(25, 32, 28), TRUE);
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    DrawBox(barX, barY, barX + barW, barY + barH, COL_BORDER_DIM, FALSE);
+
+    // ゲージ塗りつぶし
+    int fillW = static_cast<int>((displayedFearPercent / 100.0f) * static_cast<float>(barW - 2));
+    if (fillW > 0)
+    {
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 200);
+        DrawBox(barX + 1, barY + 1, barX + 1 + fillW, barY + barH - 1, fearColor, TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    }
+}
+
+// 最大恐怖演出時の画面歪曲・ブラックアウト描画
+void HorrorUI::DrawScareDistortion(float intensity)
+{
+    if (intensity <= 0.0f) return;
+
+    // 画面外周の激しい減光
+    int alpha = static_cast<int>(intensity * 240.0f);
+    if (alpha > 255) alpha = 255;
+
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha / 2);
+    DrawBox(0, 0, 1280, 720, GetColor(0, 0, 0), TRUE);
+
+    // 周辺ビネットの二重掛け
+    int steps = 10;
+    for (int i = 0; i < steps; ++i)
+    {
+        int inset = i * 20;
+        int stepAlpha = static_cast<int>(intensity * 40.0f * (1.0f - static_cast<float>(i) / steps));
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, stepAlpha);
+        DrawBox(0, inset, 1280, inset + 20, GetColor(0, 0, 0), TRUE);
+        DrawBox(0, 720 - inset - 20, 1280, 720 - inset, GetColor(0, 0, 0), TRUE);
+        DrawBox(inset, 0, inset + 20, 720, GetColor(0, 0, 0), TRUE);
+        DrawBox(1280 - inset - 20, 0, 1280 - inset, 720, GetColor(0, 0, 0), TRUE);
+    }
+
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+}
+
+// ゲームオーバー画面描画
+void HorrorUI::DrawGameOver(float fadeAlpha, bool isInteractive)
+{
+    // 暗黒フェード
+    int alpha = static_cast<int>(fadeAlpha * 255.0f);
+    if (alpha > 255) alpha = 255;
+    if (alpha > 0)
+    {
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
+        DrawBox(0, 0, 1280, 720, GetColor(3, 4, 6), TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    }
+
+    if (!isInteractive) return;
+
+    // 中央ダイアログパネル
+    int cx = 640;
+    int cy = 360;
+
+    DrawRetroPanel(cx - 240, cy - 100, cx + 240, cy + 100, COL_BORDER_DIM, COL_BG, 230);
+
+    // ゲームオーバータイトル（赤系）
+    if (fontLarge != -1)
+    {
+        DrawStringToHandle(cx - 110, cy - 65, "GAME OVER", GetColor(200, 50, 45), fontLarge);
+    }
+    else
+    {
+        DrawString(cx - 50, cy - 65, "GAME OVER", GetColor(200, 50, 45));
+    }
+
+    // ホラー演出テキスト
+    DrawString(cx - 105, cy - 10, "CONSUMED BY THE DARKNESS", COL_TEXT_DIM);
+
+    // 操作案内（リトライ・終了）
+    bool blink = ((frameCount / 30) % 2) == 0;
+    unsigned int promptCol = blink ? COL_TEXT : COL_TEXT_DIM;
+    DrawString(cx - 130, cy + 40, "PRESS [ R ] TO RETRY DELIVERY", promptCol);
+    DrawString(cx - 85, cy + 65, "PRESS [ ESC ] TO QUIT", COL_TEXT_DIM);
 }

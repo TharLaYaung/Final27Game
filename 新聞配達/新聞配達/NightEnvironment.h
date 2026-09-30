@@ -102,6 +102,21 @@ public:
     // 現在のプリセット取得
     EnvironmentPreset GetCurrentPreset() const;
 
+    // 天候システムからのフォグおよび環境光の一括設定
+    void SetWeatherFogAndLighting(float start, float end, int r, int g, int b, COLOR_F ambient);
+
+    // フォグ開始距離の取得
+    float GetFogStart() const { return fogStart; }
+
+    // フォグ終了距離の取得
+    float GetFogEnd() const { return fogEnd; }
+
+    // フォグ有効状態の取得
+    bool IsFogEnabled() const { return fogEnabled; }
+
+    // 街灯リストの取得
+    const std::vector<StreetLight>& GetStreetLights() const { return streetLights; }
+
 private:
     // プリセットごとの内部設定関数
     void ApplyPresetSettings();
