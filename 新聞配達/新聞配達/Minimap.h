@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "DxLib.h"
 
@@ -29,9 +29,7 @@ public:
         const Newspaper& newspaper
     );
 
-    // ==========================================
     // ホラー演出・グリッチAPI
-    // ==========================================
 
     // ミニマップの電波障害・干渉度設定 (0.0f〜1.0f)
     void SetMinimapInterference(float amount);

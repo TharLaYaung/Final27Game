@@ -55,17 +55,17 @@ HorrorUI::~HorrorUI()
 // 初期化（フォント生成）
 void HorrorUI::Initialize()
 {
-    // 等幅フォント "Consolas" を優先、無ければ "MS Gothic" や標準フォントへフォールバック
-    fontSmall = CreateFontToHandle("Consolas", 14, 1, DX_FONTTYPE_NORMAL);
+    // 日本語表示に最適化したフォント "MS Gothic" を生成
+    fontSmall = CreateFontToHandle("MS Gothic", 14, 1, DX_FONTTYPE_ANTIALIASING);
     if (fontSmall == -1) fontSmall = CreateFontToHandle("ＭＳ ゴシック", 14, 1, DX_FONTTYPE_NORMAL);
 
-    fontMedium = CreateFontToHandle("Consolas", 18, 2, DX_FONTTYPE_NORMAL);
+    fontMedium = CreateFontToHandle("MS Gothic", 18, 2, DX_FONTTYPE_ANTIALIASING);
     if (fontMedium == -1) fontMedium = CreateFontToHandle("ＭＳ ゴシック", 18, 2, DX_FONTTYPE_NORMAL);
 
-    fontLarge = CreateFontToHandle("Consolas", 26, 3, DX_FONTTYPE_NORMAL);
+    fontLarge = CreateFontToHandle("MS Gothic", 26, 3, DX_FONTTYPE_ANTIALIASING);
     if (fontLarge == -1) fontLarge = CreateFontToHandle("ＭＳ ゴシック", 26, 3, DX_FONTTYPE_NORMAL);
 
-    fontClock = CreateFontToHandle("Consolas", 22, 2, DX_FONTTYPE_NORMAL);
+    fontClock = CreateFontToHandle("MS Gothic", 22, 2, DX_FONTTYPE_ANTIALIASING);
     if (fontClock == -1) fontClock = CreateFontToHandle("ＭＳ ゴシック", 22, 2, DX_FONTTYPE_NORMAL);
 }
 
@@ -387,7 +387,7 @@ void HorrorUI::DrawClock()
     DrawJitterString(posX + 4, posY + 1, timeStr, COL_TEXT, fontClock);
 }
 
-// 新聞所持数・ステータスの描画（画面下部: 例 PAPERS 07）
+// 新聞所持数・ステータスの描画（画面下部: 例 PAPERS 08）
 void HorrorUI::DrawPaperCargo(int paperCount, bool isHolding)
 {
     char paperStr[32];
@@ -614,7 +614,7 @@ void HorrorUI::DrawFearMeter(float fearPercent, bool inSafeLight)
     if (inSafeLight)
     {
         SetDrawBlendMode(DX_BLENDMODE_ALPHA, 180);
-        DrawString(posX + 78, posY + 1, "SAFE", GetColor(110, 175, 140));
+        DrawString(posX + 76, posY + 1, "SAFE", GetColor(110, 175, 140));
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 
@@ -691,19 +691,19 @@ void HorrorUI::DrawGameOver(float fadeAlpha, bool isInteractive)
     // ゲームオーバータイトル（赤系）
     if (fontLarge != -1)
     {
-        DrawStringToHandle(cx - 110, cy - 65, "GAME OVER", GetColor(200, 50, 45), fontLarge);
+        DrawStringToHandle(cx - 80, cy - 65, "GAME OVER", GetColor(200, 50, 45), fontLarge);
     }
     else
     {
-        DrawString(cx - 50, cy - 65, "GAME OVER", GetColor(200, 50, 45));
+        DrawString(cx - 40, cy - 65, "GAME OVER", GetColor(200, 50, 45));
     }
 
     // ホラー演出テキスト
-    DrawString(cx - 105, cy - 10, "CONSUMED BY THE DARKNESS", COL_TEXT_DIM);
+    DrawString(cx - 105, cy - 10, "CONSUMED BY THE DARKNESS...", COL_TEXT_DIM);
 
     // 操作案内（リトライ・終了）
     bool blink = ((frameCount / 30) % 2) == 0;
     unsigned int promptCol = blink ? COL_TEXT : COL_TEXT_DIM;
-    DrawString(cx - 130, cy + 40, "PRESS [ R ] TO RETRY DELIVERY", promptCol);
-    DrawString(cx - 85, cy + 65, "PRESS [ ESC ] TO QUIT", COL_TEXT_DIM);
+    DrawString(cx - 90, cy + 40, "[ R ] RETRY DELIVERY", promptCol);
+    DrawString(cx - 50, cy + 65, "[ ESC ] QUIT", COL_TEXT_DIM);
 }

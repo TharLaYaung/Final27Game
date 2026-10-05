@@ -617,36 +617,36 @@ void WeatherManager::DrawDebugHUD()
     DrawString(26, 264, "[ WEATHER DEBUG (F10) ]", GetColor(255, 210, 80));
 
     char buf[128];
-    snprintf(buf, sizeof(buf), "CURRENT: %s", GetWeatherName(currentWeather));
+    snprintf(buf, sizeof(buf), "CURRENT:  %s", GetWeatherName(currentWeather));
     DrawString(26, 286, buf, GetColor(210, 230, 255));
 
     if (isTransitioning)
     {
-        snprintf(buf, sizeof(buf), "TARGET:  %s (%d%%)", GetWeatherName(targetWeather), static_cast<int>(transitionProgress * 100.0f));
+        snprintf(buf, sizeof(buf), "TARGET:   %s (%d%%)", GetWeatherName(targetWeather), static_cast<int>(transitionProgress * 100.0f));
         DrawString(26, 304, buf, GetColor(255, 180, 100));
     }
     else
     {
-        DrawString(26, 304, "TARGET:  STABLE", GetColor(140, 180, 160));
+        DrawString(26, 304, "TARGET:   STABLE", GetColor(140, 180, 160));
     }
 
     if (autoWeatherEnabled)
     {
-        snprintf(buf, sizeof(buf), "AUTO:    ON (Next in %.0fs)", weatherTimer);
+        snprintf(buf, sizeof(buf), "AUTO:     ON (Next in %.0fs)", weatherTimer);
     }
     else
     {
-        snprintf(buf, sizeof(buf), "AUTO:    OFF (Manual Only)");
+        snprintf(buf, sizeof(buf), "AUTO:     OFF (Manual Only)");
     }
     DrawString(26, 322, buf, GetColor(180, 205, 200));
 
-    snprintf(buf, sizeof(buf), "FOG:     %.1fm - %.1fm", currentParams.fogStart, currentParams.fogEnd);
+    snprintf(buf, sizeof(buf), "FOG:      %.1fm - %.1fm", currentParams.fogStart, currentParams.fogEnd);
     DrawString(26, 340, buf, GetColor(160, 190, 220));
 
-    snprintf(buf, sizeof(buf), "RAIN:    %d / %d", currentParams.targetRainCount, MAX_RAIN_COUNT);
+    snprintf(buf, sizeof(buf), "RAIN:     %d / %d", currentParams.targetRainCount, MAX_RAIN_COUNT);
     DrawString(26, 358, buf, GetColor(160, 190, 220));
 
-    snprintf(buf, sizeof(buf), "SNOW:    %d / %d", currentParams.targetSnowCount, MAX_SNOW_COUNT);
+    snprintf(buf, sizeof(buf), "SNOW:     %d / %d", currentParams.targetSnowCount, MAX_SNOW_COUNT);
     DrawString(26, 376, buf, GetColor(160, 190, 220));
 
     DrawString(26, 396, "[F7:Cycle] [F9:Auto] [F10:HUD]", GetColor(130, 150, 160));

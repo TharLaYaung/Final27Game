@@ -1,4 +1,4 @@
-// Ground.hを読み込む
+﻿// Ground.hを読み込む
 #include "Ground.h"
 
 // 道路矩形を描画するヘルパー関数
@@ -30,9 +30,7 @@ void DrawGround()
     DrawTriangle3D(gp1, gp2, gp3, groundBaseColor, TRUE);
     DrawTriangle3D(gp2, gp4, gp3, groundBaseColor, TRUE);
 
-    // ==========================================
     // 深夜アスファルト道路面描画（幅約6.0m・暗灰色）
-    // ==========================================
     unsigned int asphaltColor = GetColor(28, 32, 34);
 
     // 1. 南大通り・スタートエリア（Z = -30, X = -28 〜 +28）
@@ -53,9 +51,7 @@ void DrawGround()
     // 6. 北路地行き止まり・Road C（X = 0, Z = +15 〜 +40）
     DrawRoadQuad(-3.0f, 15.0f, 3.0f, 40.0f, asphaltColor);
 
-    // ==========================================
     // 道路白線・路肩境界線の描画（褪せた暗白緑色）
-    // ==========================================
     unsigned int curbLineColor = GetColor(50, 60, 56);
     float lineY = 0.015f;
 

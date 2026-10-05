@@ -1,4 +1,4 @@
-#include "Bicycle.h"
+﻿#include "Bicycle.h"
 #include "Player.h"
 #include "HorrorUI.h"
 #include "Map.h"
@@ -33,9 +33,7 @@ Bicycle::Bicycle()
     // 自転車の移動速度
     moveSpeed = 0.14f;
 
-    // ==========================================
     // ヘッドライト・バッテリー初期設定
-    // ==========================================
     // 深夜3時の暗闇で最初から灯りが点いている安心感を提供
     headlightOn = true;
     oldFKey = false;
@@ -125,9 +123,7 @@ void Bicycle::Update(Player& player)
         return;
     }
 
-    // ==========================================
     // デルタタイム計算（フレームレート非依存処理用）
-    // ==========================================
     LONGLONG now = GetNowHiPerformanceCount();
     float dt = 0.01666f;
     if (lastUpdateTime != 0)
@@ -138,9 +134,7 @@ void Bicycle::Update(Player& player)
     }
     lastUpdateTime = now;
 
-    // ==========================================
     // ヘッドライト・バッテリー操作入力判定
-    // ==========================================
     // Fキー: ヘッドライトON/OFFトグル（エッジ検出: 1回押しで1回だけ切り替え）
     bool currentFKey = (CheckHitKey(KEY_INPUT_F) != 0);
     if (currentFKey && !oldFKey)
@@ -160,9 +154,7 @@ void Bicycle::Update(Player& player)
     // バッテリー消費とライト挙動（減光・フリッカー・消灯）の更新
     UpdateBatteryAndLighting(dt);
 
-    // ==========================================
     // 自転車の乗降および移動処理
-    // ==========================================
     // Eキーの状態を取得する
     bool currentEKey =
         CheckHitKey(KEY_INPUT_E) != 0;
@@ -359,11 +351,8 @@ void Bicycle::Update(Player& player)
 // バッテリー消費とライト挙動の更新
 void Bicycle::UpdateBatteryAndLighting(float dt)
 {
-    // ==========================================
-    // 1. バッテリー消費処理（ヘッドライト点灯中のみ減少）
-    // ==========================================
-    // 連続10分間（600秒）で100%から0%へ達する基準消費速度
-    const float BASE_DRAIN_PER_SEC = 100.0f / 600.0f; // 約0.1667% / 秒
+    // バッテリー消費処理（ヘッドライト点灯中のみ減少、120秒で100%消費する高速消費速度）
+    const float BASE_DRAIN_PER_SEC = 100.0f / 120.0f; // 約0.833% / 秒
 
     if (headlightOn && batteryCurrent > 0.0f)
     {
@@ -393,9 +382,7 @@ void Bicycle::UpdateBatteryAndLighting(float dt)
         if (externalBlackoutTimer < 0.0f) externalBlackoutTimer = 0.0f;
     }
 
-    // ==========================================
     // 2. 残量に応じたライト輝度・フリッカー更新
-    // ==========================================
     if (!headlightOn || batteryCurrent <= 0.0f || externalBlackoutTimer > 0.0f)
     {
         headlightIntensity = 0.0f;
@@ -738,6 +725,35 @@ void Bicycle::Finalize()
 
         // ハンドルをリセットする
         modelHandle = -1;
+    }
+}
+
+// 自転車の状態を初期状態にリセットする
+void Bicycle::Reset()
+{
+    position = VGet(
+        1.8f,
+        0.18f,
+        -30.0f
+    );
+    angle = DX_PI_F;
+    isRiding = false;
+    canRide = false;
+    oldEKey = false;
+    headlightOn = true;
+    batteryCurrent = batteryMax;
+    batteryDrainMultiplier = 1.0f;
+    flickerMultiplier = 1.0f;
+    flickerTimer = 180;
+    flickerPhase = 0;
+    externalBlackoutTimer = 0.0f;
+    emptyWarningTimer = 0;
+    lastUpdateTime = GetNowHiPerformanceCount();
+
+    if (modelHandle != -1)
+    {
+        MV1SetPosition(modelHandle, position);
+        MV1SetRotationXYZ(modelHandle, VGet(0.0f, angle, 0.0f));
     }
 }
 

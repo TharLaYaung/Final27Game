@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "DxLib.h"
 
@@ -30,6 +30,9 @@ public:
     // 自転車モデルを削除する
     void Finalize();
 
+    // 自転車の状態を初期化・リセットする
+    void Reset();
+
     // 自転車に乗っているか取得する
     bool IsRiding() const;
 
@@ -42,9 +45,7 @@ public:
     // 自転車の向きを取得する
     float GetAngle() const;
 
-    // ==========================================
     // ヘッドライト・バッテリーAPI
-    // ==========================================
 
     // ヘッドライトが点灯しているか
     bool IsHeadlightOn() const;
@@ -116,9 +117,7 @@ private:
     // 自転車が移動できるか確認する
     bool CanMove(VECTOR nextPosition);
 
-    // ==========================================
     // ヘッドライト・バッテリー内部メンバ
-    // ==========================================
 
     // ヘッドライト点灯フラグ
     bool headlightOn;

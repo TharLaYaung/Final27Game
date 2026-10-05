@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "DxLib.h"
 #include <vector>
@@ -61,9 +61,7 @@ public:
     // 終了処理（ライトハンドルの破棄）
     void Finalize();
 
-    // ==========================================
     // プリセット・デバッグ制御
-    // ==========================================
 
     // プリセット適用
     void SetPreset(EnvironmentPreset preset);
@@ -80,9 +78,7 @@ public:
     // 指定街灯のテスト明滅トリガー (F5)
     void TriggerStreetLightFlicker(int id);
 
-    // ==========================================
     // 将来のホラーイベント拡張用API
-    // ==========================================
 
     // 特定の街灯を消灯
     void TurnOffStreetLight(int id);

@@ -584,3 +584,12 @@ void Newspaper::Deliver()
     // 手に持っている新聞を手放す
     isHolding = false;
 }
+
+// 新聞の状態を初期状態にリセットする
+void Newspaper::Reset()
+{
+    newspaperCount = 8;
+    isHolding = false;
+    canTake = false;
+    oldLeftClick = false;
+}

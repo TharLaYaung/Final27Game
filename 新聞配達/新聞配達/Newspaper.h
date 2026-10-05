@@ -35,6 +35,9 @@ public:
     // 終了処理
     void Finalize();
 
+    // 新聞の状態を初期状態にリセットする
+    void Reset();
+
     // 配達処理（手持ち状態を解除する）
     void Deliver();
 

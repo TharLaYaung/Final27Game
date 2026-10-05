@@ -11,7 +11,7 @@
 HorrorManager::HorrorManager()
     : fearLevel(0.0f)
     , inSafeLight(true)
-    , safeGraceTimer(2.5f)
+    , safeGraceTimer(0.8f)
     , gameState(HorrorGameState::Normal)
     , jumpscareState(JumpscareState::None)
     , scareTimer(0.0f)
@@ -35,7 +35,7 @@ bool HorrorManager::Initialize()
 {
     fearLevel = 0.0f;
     inSafeLight = true;
-    safeGraceTimer = 2.5f;
+    safeGraceTimer = 0.8f;
     gameState = HorrorGameState::Normal;
     jumpscareState = JumpscareState::None;
     scareTimer = 0.0f;
@@ -422,8 +422,8 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
         if (inSafeLight)
         {
             // 安全光内：猶予タイマーリセットおよび恐怖度の減少回復
-            safeGraceTimer = 2.5f;
-            fearLevel -= 0.07f * dt;
+            safeGraceTimer = 0.8f;
+            fearLevel -= 0.08f * dt;
             if (fearLevel < 0.0f)
             {
                 fearLevel = 0.0f;
@@ -431,22 +431,39 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
         }
         else
         {
-            // 暗闇内：猶予タイマー消費後に恐怖度が上昇
+            // 暗闇内：猶予タイマー（0.8秒）消費後に恐怖度が高速上昇（毎秒10%）
             if (safeGraceTimer > 0.0f)
             {
                 safeGraceTimer -= dt;
             }
             else
             {
-                fearLevel += 0.045f * dt;
+                fearLevel += 0.10f * dt;
             }
+        }
 
-            // 100%到達時にジャンプスケア演出へ移行
-            if (fearLevel >= 1.0f)
+        // 怪異が付近を徘徊・接近している場合の追加恐怖度上昇
+        if (entity.IsActive())
+        {
+            VECTOR playerPos = player.GetPosition();
+            VECTOR entityPos = entity.GetPosition();
+            float dx = playerPos.x - entityPos.x;
+            float dz = playerPos.z - entityPos.z;
+            float dist = std::sqrt(dx * dx + dz * dz);
+
+            if (dist < 18.0f)
             {
-                fearLevel = 1.0f;
-                TriggerMaxFearSequence(player);
+                // 至近距離ほど急速に恐怖度が加速
+                float proximityFactor = (1.0f - (dist / 18.0f));
+                fearLevel += (0.04f + 0.08f * proximityFactor) * dt;
             }
+        }
+
+        // 100%到達時にジャンプスケア演出へ移行
+        if (fearLevel >= 1.0f)
+        {
+            fearLevel = 1.0f;
+            TriggerMaxFearSequence(player);
         }
 
         // 怪異実体の更新および自動出現チェック
@@ -556,7 +573,7 @@ void HorrorManager::DrawUI()
         snprintf(buf, sizeof(buf), "FEAR:     %.1f%% [%s]", fearLevel * 100.0f, stageName);
         DrawString(26, 478, buf, GetColor(255, 180, 80));
 
-        snprintf(buf, sizeof(buf), "LIGHT:    %s (Grace: %.1fs)", inSafeLight ? "SAFE" : "DARKNESS", safeGraceTimer);
+        snprintf(buf, sizeof(buf), "LIGHT:    %s (Grace: %.1fs)", inSafeLight ? "SAFE LIGHT" : "DARK DANGER", safeGraceTimer);
         DrawString(26, 498, buf, inSafeLight ? GetColor(120, 210, 160) : GetColor(230, 110, 90));
 
         if (entity.IsActive())

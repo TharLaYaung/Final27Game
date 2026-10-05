@@ -147,6 +147,7 @@
     <ClCompile Include="WeatherManager.cpp" />
     <ClCompile Include="HorrorEntity.cpp" />
     <ClCompile Include="HorrorManager.cpp" />
+    <ClCompile Include="SceneManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Bicycle.h" />
@@ -164,6 +165,7 @@
     <ClInclude Include="WeatherManager.h" />
     <ClInclude Include="HorrorEntity.h" />
     <ClInclude Include="HorrorManager.h" />
+    <ClInclude Include="SceneManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

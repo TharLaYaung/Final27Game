@@ -105,9 +105,7 @@ void Minimap::Draw(
 {
     HorrorUI& ui = HorrorUI::Instance();
 
-    // ==========================================
-    // 1. GPS端末パネル外枠・背景
-    // ==========================================
+    // GPS端末パネル外枠・背景
     int jitterX = 0;
     int jitterY = 0;
 
@@ -140,9 +138,7 @@ void Minimap::Draw(
         return;
     }
 
-    // ==========================================
-    // 2. 街並み道路グリッドライン（控えめな暗灰色）
-    // ==========================================
+    // 街並み道路グリッドライン（控えめな暗灰色）
     VECTOR playerPos = player.GetPosition();
     VECTOR playerFwd = player.GetForward();
 
@@ -159,9 +155,7 @@ void Minimap::Draw(
     // 画面クリッピング領域設定（地図枠内に描画を限定）
     SetDrawArea(clipMinX, clipMinY, clipMaxX, clipMaxY);
 
-    // ==========================================
-    // 2. 住宅街道路ネットワーク（レトロGPSナビ描画）
-    // ==========================================
+    // 住宅街道路ネットワーク（レトロGPSナビ描画）
     auto WorldToMapX = [&](float wx) -> int {
         return cx + (int)((wx - playerPos.x) * mapScale);
     };
@@ -206,9 +200,7 @@ void Minimap::Draw(
     // クリッピング領域を全画面へ復元
     SetDrawArea(0, 0, 1280, 720);
 
-    // ==========================================
-    // 3. 自転車位置アイコン（徒歩時のみ表示）
-    // ==========================================
+    // 自転車位置アイコン（徒歩時のみ表示）
     if (bicycle.IsRiding() == false)
     {
         VECTOR bikePos = bicycle.GetPosition();
@@ -227,9 +219,7 @@ void Minimap::Draw(
         }
     }
 
-    // ==========================================
-    // 4. 配達先目標マーカー [X] および残距離
-    // ==========================================
+    // 配達先目標マーカー [X] および残距離
     int targetDistanceMeters = 0;
 
     if (deliveryManager.HasActiveTarget())
@@ -274,9 +264,7 @@ void Minimap::Draw(
         }
     }
 
-    // ==========================================
-    // 5. プレイヤー現在地アイコン（▲ キャレット）
-    // ==========================================
+    // プレイヤー現在地アイコン（▲ キャレット）
     // プレイヤーの視線ベクトル（正規化）
     float fwdLen = sqrtf(playerFwd.x * playerFwd.x + playerFwd.z * playerFwd.z);
     float normFwdX = 0.0f;
@@ -297,13 +285,11 @@ void Minimap::Draw(
 
     DrawTriangle(tipX, tipY, leftX, leftY, rightX, rightY, HorrorUI::COL_PLAYER, TRUE);
 
-    // ==========================================
-    // 6. 配達情報ステータス（下部バー）
-    // ==========================================
+    // 配達情報ステータス（下部バー）
     int textY1 = dividerY + 5;
     int textY2 = dividerY + 22;
 
-    // TARGET  xxx m
+    // 配達先距離（例 TARGET 125m）
     char targetStr[32];
     if (deliveryManager.HasActiveTarget())
     {
@@ -315,7 +301,7 @@ void Minimap::Draw(
     }
     ui.DrawJitterString(px1 + 10, textY1, targetStr, HorrorUI::COL_TEXT, ui.GetFontSmall());
 
-    // DELIVERY 03/08
+    // 配達進行状況（例 DELIVERY 03/08）
     char deliveryStr[32];
     if (!deliveryManager.IsAllDeliveriesComplete())
     {
@@ -333,9 +319,7 @@ void Minimap::Draw(
     }
     ui.DrawJitterString(px1 + 10, textY2, deliveryStr, HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
 
-    // ==========================================
-    // 7. 各種センターメッセージ演出（フェード付き）
-    // ==========================================
+    // 各種センターメッセージ演出（フェード付き）
 
     // 配達成功: DELIVERED
     if (deliveryManager.IsFeedbackActive())
@@ -351,13 +335,13 @@ void Minimap::Draw(
 
     if (feedbackAlpha > 0.01f)
     {
-        int msgX = 580;
+        int msgX = 575;
         int msgY = 320;
         int a = (int)(feedbackAlpha * 220.0f);
         SetDrawBlendMode(DX_BLENDMODE_ALPHA, a);
         DrawBox(msgX - 16, msgY - 6, msgX + 130, msgY + 28, HorrorUI::COL_BG, TRUE);
         DrawBox(msgX - 16, msgY - 6, msgX + 130, msgY + 28, HorrorUI::COL_BORDER, FALSE);
-        ui.DrawJitterString(msgX, msgY, "DELIVERED", HorrorUI::COL_TEXT, ui.GetFontMedium());
+        ui.DrawJitterString(msgX + 16, msgY, "DELIVERED", HorrorUI::COL_TEXT, ui.GetFontMedium());
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 
@@ -375,17 +359,17 @@ void Minimap::Draw(
 
     if (wrongAlpha > 0.01f)
     {
-        int msgX = 560;
+        int msgX = 540;
         int msgY = 320;
         int a = (int)(wrongAlpha * 220.0f);
         SetDrawBlendMode(DX_BLENDMODE_ALPHA, a);
-        DrawBox(msgX - 16, msgY - 6, msgX + 170, msgY + 28, HorrorUI::COL_BG, TRUE);
-        DrawBox(msgX - 16, msgY - 6, msgX + 170, msgY + 28, HorrorUI::COL_WARNING, FALSE);
-        ui.DrawJitterString(msgX, msgY, "WRONG ADDRESS", HorrorUI::COL_WARNING, ui.GetFontMedium());
+        DrawBox(msgX - 16, msgY - 6, msgX + 190, msgY + 28, HorrorUI::COL_BG, TRUE);
+        DrawBox(msgX - 16, msgY - 6, msgX + 190, msgY + 28, HorrorUI::COL_WARNING, FALSE);
+        ui.DrawJitterString(msgX + 8, msgY, "WRONG ADDRESS", HorrorUI::COL_WARNING, ui.GetFontMedium());
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 
-    // 全配達完了: DELIVERIES COMPLETE 08 / 08
+    // 全配達完了: DELIVERIES COMPLETE 08 / 08 HOUSES
     if (deliveryManager.IsAllDeliveriesComplete() && deliveryManager.GetAllCompleteTimer() > 0)
     {
         allCompleteAlpha += 0.08f;
@@ -405,8 +389,8 @@ void Minimap::Draw(
         SetDrawBlendMode(DX_BLENDMODE_ALPHA, a);
         DrawBox(msgX - 25, msgY - 10, msgX + 280, msgY + 60, HorrorUI::COL_BG, TRUE);
         DrawBox(msgX - 25, msgY - 10, msgX + 280, msgY + 60, HorrorUI::COL_BORDER, FALSE);
-        ui.DrawJitterString(msgX + 10, msgY + 2, "DELIVERIES COMPLETE", HorrorUI::COL_TEXT, ui.GetFontMedium());
-        ui.DrawJitterString(msgX + 85, msgY + 30, "08 / 08", HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
+        ui.DrawJitterString(msgX + 20, msgY + 2, "DELIVERIES COMPLETE", HorrorUI::COL_TEXT, ui.GetFontMedium());
+        ui.DrawJitterString(msgX + 65, msgY + 30, "08 / 08 HOUSES", HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 
@@ -421,9 +405,9 @@ void Minimap::Draw(
             int msgX = 525;
             int msgY = 380;
             SetDrawBlendMode(DX_BLENDMODE_ALPHA, 190);
-            DrawBox(msgX - 12, msgY - 4, msgX + 235, msgY + 22, HorrorUI::COL_BG, TRUE);
+            DrawBox(msgX - 12, msgY - 4, msgX + 245, msgY + 22, HorrorUI::COL_BG, TRUE);
             SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-            ui.DrawJitterString(msgX, msgY, "NO NEWSPAPERS REMAINING", HorrorUI::COL_WARNING, ui.GetFontSmall());
+            ui.DrawJitterString(msgX + 10, msgY, "NO NEWSPAPERS REMAINING", HorrorUI::COL_WARNING, ui.GetFontSmall());
         }
     }
 }

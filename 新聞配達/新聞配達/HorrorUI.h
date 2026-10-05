@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "DxLib.h"
 #include <string>
@@ -29,9 +29,7 @@ public:
     // 終了処理（フォントハンドルの破棄）
     void Finalize();
 
-    // ==========================================
     // 描画ヘルパー
-    // ==========================================
 
     // 画面周辺のダーク減光（ビネット）描画
     void DrawScreenVignette();
@@ -66,9 +64,7 @@ public:
     // ノイズ・ジッター付き文字列描画
     void DrawJitterString(int x, int y, const char* text, unsigned int color, int fontHandle = -1);
 
-    // ==========================================
     // プロンプト・ステート設定
-    // ==========================================
 
     // 現在フレームで要求されるプロンプトを設定
     void SetPrompt(PromptType type);
@@ -77,9 +73,7 @@ public:
     void SetGameTime(int hour, int minute);
     void GetGameTime(int& hour, int& minute) const;
 
-    // ==========================================
     // ホラー演出・グリッチAPI
-    // ==========================================
 
     // UIグリッチを1回トリガー
     void TriggerUIGlitch(int durationFrames = 15);
@@ -99,9 +93,7 @@ public:
     void ToggleHorrorEffects();
     bool IsHorrorEffectsEnabled() const;
 
-    // ==========================================
     // カラーパレット定数
-    // ==========================================
     static const unsigned int COL_BG;           // ほぼ黒・暗灰緑 (14, 18, 16)
     static const unsigned int COL_PANEL_BG;     // パネル背景 (18, 24, 20)
     static const unsigned int COL_BORDER;       // 端末フレーム枠 (65, 80, 72)
