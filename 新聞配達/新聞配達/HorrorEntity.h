@@ -6,6 +6,9 @@
 class HorrorEntity
 {
 public:
+    // モデル正面方向の補正オフセット（RunningCrawlモデルの正面軸は-Z）
+    static constexpr float MODEL_FORWARD_OFFSET = DX_PI_F;
+
     HorrorEntity();
     ~HorrorEntity();
 
@@ -27,9 +30,16 @@ public:
     // 強制消滅
     void Despawn();
 
+    // ジャンプスケア演出用の直接トランスフォーム設定
+    void SetDirectTransform(const VECTOR& pos, float yaw);
+
+    // アニメーション時間の強制進行
+    void AdvanceAnim(float dt, float speedMultiplier = 1.0f);
+
     // 状態取得
     bool IsActive() const { return isActive; }
     VECTOR GetPosition() const { return position; }
+    float GetYaw() const { return yawAngle; }
     float GetRemainingTime() const { return lifeTimer; }
     float GetScale() const { return scale; }
 

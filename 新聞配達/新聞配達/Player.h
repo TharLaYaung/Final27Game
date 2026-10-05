@@ -64,6 +64,10 @@ public:
     void SetPitch(float newPitch) { pitch = newPitch; }
     float GetPitch() const { return pitch; }
 
+    // カメラシェイクオフセットを設定・取得する
+    void SetCameraShakeOffset(const VECTOR& offset) { cameraShakeOffset = offset; }
+    VECTOR GetCameraShakeOffset() const { return cameraShakeOffset; }
+
 
 
     // 自転車の位置を設定する
@@ -133,6 +137,12 @@ private:
     // 自転車との当たり判定を使うか
 
     bool bicycleCollisionEnabled;
+
+
+
+    // カメラシェイク用オフセット座標
+
+    VECTOR cameraShakeOffset;
 
 
 

@@ -60,6 +60,20 @@ bool HorrorEntity::Initialize()
     return true;
 }
 
+// アニメーション再生時間の更新
+void HorrorEntity::AdvanceAnim(float dt, float speedMultiplier)
+{
+    if (animAttachIndex != -1 && animTotalTime > 0.0f)
+    {
+        animPlayTime += dt * 30.0f * speedMultiplier;
+        if (animPlayTime >= animTotalTime)
+        {
+            animPlayTime = std::fmod(animPlayTime, animTotalTime);
+        }
+        MV1SetAttachAnimTime(modelHandle, animAttachIndex, animPlayTime);
+    }
+}
+
 // 毎フレーム更新処理
 void HorrorEntity::Update(float dt, const VECTOR& playerPos)
 {
@@ -69,31 +83,28 @@ void HorrorEntity::Update(float dt, const VECTOR& playerPos)
     }
 
     // アニメーション再生時間の更新
-    if (animAttachIndex != -1 && animTotalTime > 0.0f)
-    {
-        animPlayTime += dt * 30.0f;
-        if (animPlayTime >= animTotalTime)
-        {
-            animPlayTime = std::fmod(animPlayTime, animTotalTime);
-        }
-        MV1SetAttachAnimTime(modelHandle, animAttachIndex, animPlayTime);
-    }
+    AdvanceAnim(dt, 1.0f);
 
-    // プレイヤー方向への旋回と追従接近移動
+    // プレイヤー方向への旋回と前進接近移動
     float dx = playerPos.x - position.x;
     float dz = playerPos.z - position.z;
     float dist = std::sqrt(dx * dx + dz * dz);
 
     if (dist > 0.01f)
     {
-        yawAngle = std::atan2(dx, dz);
-    }
+        // プレイヤーへの進行方向角（ラジアン）
+        float moveAngle = std::atan2(dx, dz);
 
-    if (speed > 0.0f && dist > 0.8f)
-    {
-        float step = speed * dt;
-        position.x += std::sin(yawAngle) * step;
-        position.z += std::cos(yawAngle) * step;
+        // モデルの視覚的正面（ローカル-Z）をプレイヤーへ向けるため180度補正
+        yawAngle = moveAngle + MODEL_FORWARD_OFFSET;
+
+        // 正面を向けた状態で前進移動
+        if (speed > 0.0f && dist > 0.8f)
+        {
+            float step = speed * dt;
+            position.x += std::sin(moveAngle) * step;
+            position.z += std::cos(moveAngle) * step;
+        }
     }
 
     // 生存時間カウントダウン
@@ -123,10 +134,19 @@ void HorrorEntity::Draw()
 void HorrorEntity::Spawn(const VECTOR& pos, float angle, float durationSeconds, float moveSpeed)
 {
     position = pos;
-    yawAngle = angle;
+    // 視覚的正面が移動方向を向くように初期角度を設定
+    yawAngle = angle + MODEL_FORWARD_OFFSET;
     lifeTimer = durationSeconds;
     speed = moveSpeed;
     animPlayTime = 0.0f;
+    isActive = true;
+}
+
+// ジャンプスケア演出用の直接トランスフォーム設定
+void HorrorEntity::SetDirectTransform(const VECTOR& pos, float yaw)
+{
+    position = pos;
+    yawAngle = yaw;
     isActive = true;
 }
 

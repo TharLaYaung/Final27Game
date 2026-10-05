@@ -13,8 +13,11 @@ HorrorManager::HorrorManager()
     , inSafeLight(true)
     , safeGraceTimer(2.5f)
     , gameState(HorrorGameState::Normal)
-    , stateTimer(0.0f)
+    , jumpscareState(JumpscareState::None)
+    , scareTimer(0.0f)
     , screenFadeAlpha(0.0f)
+    , scareCamPos(VGet(0.0f, 0.0f, 0.0f))
+    , scareCamForward(VGet(0.0f, 0.0f, 1.0f))
     , spawnCheckTimer(10.0f)
     , lastSpawnId(-1)
     , showDebugHUD(false)
@@ -34,8 +37,11 @@ bool HorrorManager::Initialize()
     inSafeLight = true;
     safeGraceTimer = 2.5f;
     gameState = HorrorGameState::Normal;
-    stateTimer = 0.0f;
+    jumpscareState = JumpscareState::None;
+    scareTimer = 0.0f;
     screenFadeAlpha = 0.0f;
+    scareCamPos = VGet(0.0f, 0.0f, 0.0f);
+    scareCamForward = VGet(0.0f, 0.0f, 1.0f);
     spawnCheckTimer = 10.0f;
     lastSpawnId = -1;
     showDebugHUD = false;
@@ -129,36 +135,179 @@ bool HorrorManager::CheckSafeLight(const Player& player, const Bicycle& bicycle,
     return false;
 }
 
-// 最大恐怖時のゲームオーバー演出開始
-void HorrorManager::TriggerMaxFearSequence(const Player& player)
+// 最大恐怖時のジャンプスケア演出開始
+void HorrorManager::TriggerMaxFearSequence(Player& player)
 {
     if (gameState != HorrorGameState::Normal)
     {
         return;
     }
 
-    gameState = HorrorGameState::MaxFearScare;
-    stateTimer = 3.5f;
+    fearLevel = 1.0f;
+    gameState = HorrorGameState::Jumpscare;
+    jumpscareState = JumpscareState::Pause;
+    scareTimer = 0.35f;
+    screenFadeAlpha = 0.0f;
 
-    // プレイヤーの視線正面の暗闇・霧の奥から怪異を出現させ、突進させる
-    VECTOR forward = player.GetForward();
-    forward.y = 0.0f;
-    float len = VSize(forward);
+    // プレイヤーの現在カメラ位置・視線方向を固定記録
+    scareCamPos = player.GetPosition();
+    scareCamForward = player.GetForward();
+
+    // 視線方向の正規化
+    float len = VSize(scareCamForward);
     if (len > 0.001f)
     {
-        forward = VScale(forward, 1.0f / len);
+        scareCamForward = VScale(scareCamForward, 1.0f / len);
     }
     else
     {
-        forward = VGet(0.0f, 0.0f, 1.0f);
+        scareCamForward = VGet(0.0f, 0.0f, 1.0f);
     }
+}
 
-    VECTOR playerPos = player.GetPosition();
-    VECTOR spawnPos = VAdd(playerPos, VScale(forward, 9.5f));
-    spawnPos.y = 0.0f;
+// ジャンプスケア演出の進行更新
+void HorrorManager::UpdateJumpscareSequence(float dt, Player& player)
+{
+    // 怪異モデル（RunningCrawl）の顔面・頭部ローカルオフセット
+    const float HEAD_HEIGHT_OFFSET = 0.47f;
+    const float HEAD_FORWARD_OFFSET = 0.56f;
+    const float START_DISTANCE = 4.20f;
+    const float IMPACT_DISTANCE = 0.45f;
 
-    float yaw = std::atan2(playerPos.x - spawnPos.x, playerPos.z - spawnPos.z);
-    entity.Spawn(spawnPos, yaw, 5.0f, 4.5f);
+    // 頭部目標位置を元に怪異モデルを配置し、視覚的正面をカメラに向けるラムダ
+    auto PlaceModelForHead = [&](const VECTOR& targetHead)
+    {
+        float dx = scareCamPos.x - targetHead.x;
+        float dz = scareCamPos.z - targetHead.z;
+        float angleToCam = std::atan2(dx, dz);
+        float yaw = angleToCam + HorrorEntity::MODEL_FORWARD_OFFSET;
+
+        VECTOR modelPos;
+        modelPos.x = targetHead.x - std::sin(angleToCam) * HEAD_FORWARD_OFFSET;
+        modelPos.y = targetHead.y - HEAD_HEIGHT_OFFSET;
+        modelPos.z = targetHead.z - std::cos(angleToCam) * HEAD_FORWARD_OFFSET;
+
+        entity.SetDirectTransform(modelPos, yaw);
+    };
+
+    switch (jumpscareState)
+    {
+    case JumpscareState::Pause:
+        // フェーズ1: 前兆微小硬直（暗転・静寂・操作不能化、0.35秒）
+        player.SetCameraShakeOffset(VGet(0.0f, 0.0f, 0.0f));
+        scareTimer -= dt;
+        if (scareTimer <= 0.0f)
+        {
+            jumpscareState = JumpscareState::Reveal;
+            scareTimer = 0.40f;
+            VECTOR headPos = VAdd(scareCamPos, VScale(scareCamForward, START_DISTANCE));
+            PlaceModelForHead(headPos);
+        }
+        break;
+
+    case JumpscareState::Reveal:
+        // フェーズ2: 前方暗闇に出現（0.40秒）
+        {
+            VECTOR headPos = VAdd(scareCamPos, VScale(scareCamForward, START_DISTANCE));
+            PlaceModelForHead(headPos);
+            entity.AdvanceAnim(dt, 1.5f);
+
+            // 前兆微小振動
+            float shakeX = ((rand() % 100) / 50.0f - 1.0f) * 0.015f;
+            float shakeY = ((rand() % 100) / 50.0f - 1.0f) * 0.015f;
+            player.SetCameraShakeOffset(VGet(shakeX, shakeY, 0.0f));
+
+            scareTimer -= dt;
+            if (scareTimer <= 0.0f)
+            {
+                jumpscareState = JumpscareState::Rush;
+                scareTimer = 0.42f;
+            }
+        }
+        break;
+
+    case JumpscareState::Rush:
+        // フェーズ3: カメラ正面への急加速突進（0.42秒、イーズイン加速）
+        {
+            const float RUSH_DURATION = 0.42f;
+            float t = 1.0f - (scareTimer / RUSH_DURATION);
+            if (t < 0.0f) t = 0.0f;
+            if (t > 1.0f) t = 1.0f;
+
+            // 加速カーブ（二次イーズイン）
+            float curve = t * t;
+            float dist = START_DISTANCE - curve * (START_DISTANCE - IMPACT_DISTANCE);
+
+            VECTOR headPos = VAdd(scareCamPos, VScale(scareCamForward, dist));
+            PlaceModelForHead(headPos);
+            entity.AdvanceAnim(dt, 2.5f);
+
+            // 突進加速に連動したカメラ揺れ増大
+            float shakeMag = 0.02f + curve * 0.08f;
+            float shakeX = ((rand() % 100) / 50.0f - 1.0f) * shakeMag;
+            float shakeY = ((rand() % 100) / 50.0f - 1.0f) * shakeMag;
+            player.SetCameraShakeOffset(VGet(shakeX, shakeY, 0.0f));
+
+            scareTimer -= dt;
+            if (scareTimer <= 0.0f)
+            {
+                jumpscareState = JumpscareState::Impact;
+                scareTimer = 0.28f;
+            }
+        }
+        break;
+
+    case JumpscareState::Impact:
+        // フェーズ4: 画面激突・顔面大迫力停止（0.28秒、激震）
+        {
+            VECTOR headPos = VAdd(scareCamPos, VScale(scareCamForward, IMPACT_DISTANCE));
+            PlaceModelForHead(headPos);
+            entity.AdvanceAnim(dt, 3.0f);
+
+            // 激突インパクト時の最大カメラ揺れ
+            float shakeX = ((rand() % 100) / 50.0f - 1.0f) * 0.14f;
+            float shakeY = ((rand() % 100) / 50.0f - 1.0f) * 0.14f;
+            player.SetCameraShakeOffset(VGet(shakeX, shakeY, 0.0f));
+
+            scareTimer -= dt;
+            if (scareTimer <= 0.0f)
+            {
+                jumpscareState = JumpscareState::FadeOut;
+                scareTimer = 0.40f;
+            }
+        }
+        break;
+
+    case JumpscareState::FadeOut:
+        // フェーズ5: 暗転フェードアウト（0.40秒）
+        {
+            VECTOR headPos = VAdd(scareCamPos, VScale(scareCamForward, IMPACT_DISTANCE));
+            PlaceModelForHead(headPos);
+
+            const float FADE_DURATION = 0.40f;
+            screenFadeAlpha = 1.0f - (scareTimer / FADE_DURATION);
+            if (screenFadeAlpha > 1.0f) screenFadeAlpha = 1.0f;
+
+            float dampen = (scareTimer > 0.0f) ? (scareTimer / FADE_DURATION) : 0.0f;
+            float shakeX = ((rand() % 100) / 50.0f - 1.0f) * 0.05f * dampen;
+            float shakeY = ((rand() % 100) / 50.0f - 1.0f) * 0.05f * dampen;
+            player.SetCameraShakeOffset(VGet(shakeX, shakeY, 0.0f));
+
+            scareTimer -= dt;
+            if (scareTimer <= 0.0f)
+            {
+                gameState = HorrorGameState::GameOver;
+                jumpscareState = JumpscareState::None;
+                screenFadeAlpha = 1.0f;
+                player.SetCameraShakeOffset(VGet(0.0f, 0.0f, 0.0f));
+                entity.Despawn();
+            }
+        }
+        break;
+
+    default:
+        break;
+    }
 }
 
 // 恐怖段階に応じた怪異の自動出現判定
@@ -292,7 +441,7 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
                 fearLevel += 0.045f * dt;
             }
 
-            // 100%到達時にゲームオーバー演出へ移行
+            // 100%到達時にジャンプスケア演出へ移行
             if (fearLevel >= 1.0f)
             {
                 fearLevel = 1.0f;
@@ -304,30 +453,10 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
         entity.Update(dt, player.GetPosition());
         UpdateAutoSpawns(dt, player);
     }
-    else if (gameState == HorrorGameState::MaxFearScare)
+    else if (gameState == HorrorGameState::Jumpscare)
     {
-        // 最大恐怖演出中：怪異突進と視覚歪曲
-        stateTimer -= dt;
-        entity.Update(dt, player.GetPosition());
-
-        if (stateTimer <= 0.0f)
-        {
-            gameState = HorrorGameState::GameOverFade;
-            stateTimer = 1.5f;
-        }
-    }
-    else if (gameState == HorrorGameState::GameOverFade)
-    {
-        // 暗転フェードアウト
-        stateTimer -= dt;
-        screenFadeAlpha = 1.0f - (stateTimer / 1.5f);
-        if (screenFadeAlpha > 1.0f) screenFadeAlpha = 1.0f;
-
-        if (stateTimer <= 0.0f)
-        {
-            gameState = HorrorGameState::GameOver;
-            screenFadeAlpha = 1.0f;
-        }
+        // ジャンプスケア演出の進行更新
+        UpdateJumpscareSequence(dt, player);
     }
     else if (gameState == HorrorGameState::GameOver)
     {
@@ -353,17 +482,45 @@ void HorrorManager::DrawUI()
     {
         HorrorUI::Instance().DrawFearMeter(fearLevel * 100.0f, inSafeLight);
     }
-    else if (gameState == HorrorGameState::MaxFearScare)
+    else if (gameState == HorrorGameState::Jumpscare)
     {
-        // 最大恐怖演出時の視覚歪曲エフェクト
-        float intensity = 1.0f - (stateTimer / 3.5f);
-        HorrorUI::Instance().DrawScareDistortion(intensity);
+        // ジャンプスケア各フェーズに応じた視覚エフェクト
+        switch (jumpscareState)
+        {
+        case JumpscareState::Pause:
+            HorrorUI::Instance().DrawScareDistortion(0.35f);
+            break;
+
+        case JumpscareState::Reveal:
+            HorrorUI::Instance().DrawScareDistortion(0.55f);
+            break;
+
+        case JumpscareState::Rush:
+            {
+                float progress = 1.0f - (scareTimer / 0.42f);
+                if (progress < 0.0f) progress = 0.0f;
+                if (progress > 1.0f) progress = 1.0f;
+                HorrorUI::Instance().DrawScareDistortion(0.60f + progress * 0.40f);
+            }
+            break;
+
+        case JumpscareState::Impact:
+            HorrorUI::Instance().DrawScareDistortion(1.0f);
+            // 激突時の一瞬の暗赤色フラッシュ
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 140);
+            DrawBox(0, 0, 1280, 720, GetColor(160, 20, 20), TRUE);
+            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+            break;
+
+        case JumpscareState::FadeOut:
+            HorrorUI::Instance().DrawGameOver(screenFadeAlpha, false);
+            break;
+
+        default:
+            break;
+        }
+
         HorrorUI::Instance().DrawFearMeter(100.0f, false);
-    }
-    else if (gameState == HorrorGameState::GameOverFade)
-    {
-        // 暗転フェード
-        HorrorUI::Instance().DrawGameOver(screenFadeAlpha, false);
     }
     else if (gameState == HorrorGameState::GameOver)
     {
@@ -418,7 +575,7 @@ void HorrorManager::DrawUI()
         }
 
         DrawString(26, 560, "KEYS: [1:25%] [2:50%] [3:75%] [4:95%]", GetColor(170, 190, 180));
-        DrawString(26, 578, "      [5:100% OVER] [6:SPAWN ENTITY]", GetColor(170, 190, 180));
+        DrawString(26, 578, "      [5/J:JUMPSCARE OVER] [6:SPAWN]", GetColor(170, 190, 180));
     }
 }
 
@@ -429,9 +586,13 @@ void HorrorManager::RetryGame(Player& player)
     inSafeLight = true;
     safeGraceTimer = 3.0f;
     gameState = HorrorGameState::Normal;
-    stateTimer = 0.0f;
+    jumpscareState = JumpscareState::None;
+    scareTimer = 0.0f;
     screenFadeAlpha = 0.0f;
     entity.Despawn();
+
+    // カメラシェイクのリセット
+    player.SetCameraShakeOffset(VGet(0.0f, 0.0f, 0.0f));
 
     // プレイヤー位置を南通りスタート地点へ復帰
     player.SetPosition(VGet(0.0f, 1.7f, -30.0f));
@@ -465,7 +626,7 @@ void HorrorManager::DebugTriggerSpawn(const Player& player)
 }
 
 // デバッグ用最大恐怖ゲームオーバー即時トリガー
-void HorrorManager::DebugTriggerMaxFearGameOver(const Player& player)
+void HorrorManager::DebugTriggerMaxFearGameOver(Player& player)
 {
     fearLevel = 1.0f;
     TriggerMaxFearSequence(player);

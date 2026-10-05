@@ -74,51 +74,6 @@ int WINAPI WinMain(
     // 恐怖・怪異・ゲームオーバー管理システムの初期化
     horrorManager.Initialize();
 
-    {
-        int h = MV1LoadModel("Data/Model/RunningCrawl.mv1");
-        if (h != -1)
-        {
-            FILE* fp = nullptr;
-            fopen_s(&fp, "face_check.txt", "w");
-            if (fp)
-            {
-                int fHead = MV1SearchFrame(h, "Jill_HiRes_Head_Geo");
-                int fEyes = MV1SearchFrame(h, "Jill_HiRes_Eyes_Geo");
-                int fHips = MV1SearchFrame(h, "Hips");
-
-                VECTOR posH = MV1GetFramePosition(h, fHead);
-                VECTOR posE = MV1GetFramePosition(h, fEyes);
-                VECTOR posHips = MV1GetFramePosition(h, fHips);
-
-                fprintf(fp, "Base Pose:\n");
-                fprintf(fp, "Hips: (%.2f, %.2f, %.2f)\n", posHips.x, posHips.y, posHips.z);
-                fprintf(fp, "Head: (%.2f, %.2f, %.2f)\n", posH.x, posH.y, posH.z);
-                fprintf(fp, "Eyes: (%.2f, %.2f, %.2f)\n", posE.x, posE.y, posE.z);
-
-                int a = MV1AttachAnim(h, 1, -1, FALSE);
-                MV1SetAttachAnimTime(h, a, 0.0f);
-                posH = MV1GetFramePosition(h, fHead);
-                posE = MV1GetFramePosition(h, fEyes);
-                posHips = MV1GetFramePosition(h, fHips);
-
-                fprintf(fp, "Anim at 0.0s:\n");
-                fprintf(fp, "Hips: (%.2f, %.2f, %.2f)\n", posHips.x, posHips.y, posHips.z);
-                fprintf(fp, "Head: (%.2f, %.2f, %.2f)\n", posH.x, posH.y, posH.z);
-                fprintf(fp, "Eyes: (%.2f, %.2f, %.2f)\n", posE.x, posE.y, posE.z);
-
-                MV1SetAttachAnimTime(h, a, 5.0f);
-                posH = MV1GetFramePosition(h, fHead);
-                posHips = MV1GetFramePosition(h, fHips);
-                fprintf(fp, "Anim at 5.0s:\n");
-                fprintf(fp, "Hips: (%.2f, %.2f, %.2f)\n", posHips.x, posHips.y, posHips.z);
-                fprintf(fp, "Head: (%.2f, %.2f, %.2f)\n", posH.x, posH.y, posH.z);
-
-                fclose(fp);
-            }
-            MV1DeleteModel(h);
-        }
-    }
-
     // 自転車モデル初期化
     if (bicycle.Initialize() == false)
     {
@@ -178,6 +133,7 @@ int WINAPI WinMain(
     bool oldKey4 = false;
     bool oldKey5 = false;
     bool oldKey6 = false;
+    bool oldKeyJ = false;
     bool mapDebugEnabled = false;
 
     // メインゲームループ
@@ -310,13 +266,21 @@ int WINAPI WinMain(
         }
         oldKey4 = curK4;
 
-        // 数字キー5: 恐怖度100%ゲームオーバー即時トリガー
+        // 数字キー5: 恐怖度100%ジャンプスケア即時トリガー
         bool curK5 = (CheckHitKey(KEY_INPUT_5) != 0);
         if (curK5 && !oldKey5)
         {
             horrorManager.DebugTriggerMaxFearGameOver(player);
         }
         oldKey5 = curK5;
+
+        // Jキー: カメラジャンプスケア即時テストトリガー
+        bool curKeyJ = (CheckHitKey(KEY_INPUT_J) != 0);
+        if (curKeyJ && !oldKeyJ)
+        {
+            horrorManager.DebugTriggerMaxFearGameOver(player);
+        }
+        oldKeyJ = curKeyJ;
 
         // 数字キー6: 怪異モデル強制出現テスト（前方16m）
         bool curK6 = (CheckHitKey(KEY_INPUT_6) != 0);
@@ -367,8 +331,7 @@ int WINAPI WinMain(
         }
         else
         {
-            // 演出中：視線操作のみ許容
-            player.UpdateLook();
+            // 演出中およびゲームオーバー中は視線操作も固定
         }
 
         // 新聞更新（カゴ座標追従および手持ち描画管理）
@@ -458,11 +421,14 @@ int WINAPI WinMain(
         // 2D UI・HUD描画処理（Chilla's Art風ホラーUI）
         // ==========================================
 
-        // 自転車・新聞・ポストのプロンプト要求伝達
-        bicycle.DrawUI();
-        newspaper.DrawUI();
-        mailbox.DrawUI(deliveryManager);
-        interaction.Draw();
+        // 自転車・新聞・ポストのプロンプト要求伝達（演出中およびゲームオーバー中は非表示）
+        if (!horrorManager.IsControlRestricted())
+        {
+            bicycle.DrawUI();
+            newspaper.DrawUI();
+            mailbox.DrawUI(deliveryManager);
+            interaction.Draw();
+        }
 
         // 画面周辺の減光ビネット効果
         HorrorUI::Instance().DrawScreenVignette();

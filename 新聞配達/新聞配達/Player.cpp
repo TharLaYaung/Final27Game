@@ -40,6 +40,13 @@ Player::Player()
     // 最初は自転車との当たり判定を使わない
     bicycleCollisionEnabled = false;
 
+    // カメラシェイクオフセット初期化
+    cameraShakeOffset = VGet(
+        0.0f,
+        0.0f,
+        0.0f
+    );
+
     // マウスカーソルを非表示にする
     SetMouseDispFlag(FALSE);
 
@@ -178,16 +185,23 @@ void Player::UpdateCamera()
     VECTOR forward =
         GetForward();
 
+    // カメラ位置（シェイクオフセットを加算）
+    VECTOR camPos =
+        VAdd(
+            position,
+            cameraShakeOffset
+        );
+
     // カメラが見る位置を計算する
     VECTOR target =
         VAdd(
-            position,
+            camPos,
             forward
         );
 
     // カメラを設定する
     SetCameraPositionAndTarget_UpVecY(
-        position,
+        camPos,
         target
     );
 }
