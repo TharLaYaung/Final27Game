@@ -11,13 +11,13 @@
 // コンストラクタ
 Minimap::Minimap()
 {
-    panelX1 = 1045;
-    panelY1 = 20;
-    panelX2 = 1255;
-    panelY2 = 215;
+    panelX1 = 26;
+    panelY1 = 52;
+    panelX2 = 236;
+    panelY2 = 247;
 
-    displayCenterX = 1150;
-    displayCenterY = 92;
+    displayCenterX = 131;
+    displayCenterY = 124;
     viewHalfWidth = 98;
     viewHalfHeight = 65;
     mapScale = 4.2f;

@@ -36,81 +36,81 @@ void MapInit()
     // 住宅0: 西通り（X = -25）の西側、東向き（配達先0）
     g_houses.push_back({
         0, 0,
-        VGet(-33.0f, 4.15f, 0.0f),
+        VGet(-32.0f, 0.0f, 0.0f),
         DX_PI_F * 0.5f,
-        VGet(-28.0f, 0.0f, 1.5f),
+        VGet(-25.5f, 0.0f, 1.5f),
         DX_PI_F * 0.5f,
-        true, 7.0f
+        true, 8.0f
     });
 
     // 住宅1: 北横通り（Z = +15）の北側、南向き（配達先1）
     g_houses.push_back({
         1, 1,
-        VGet(-12.0f, 4.15f, 23.0f),
+        VGet(-12.0f, 0.0f, 23.0f),
         DX_PI_F,
-        VGet(-10.5f, 0.0f, 18.0f),
+        VGet(-10.5f, 0.0f, 16.5f),
         DX_PI_F,
-        true, 7.0f
+        true, 8.0f
     });
 
     // 住宅2: 北路地行き止まり（X = 0, Z = +40）の奥、南向き（配達先2）
     g_houses.push_back({
         2, 2,
-        VGet(0.0f, 4.14f, 44.0f),
+        VGet(0.0f, 0.0f, 44.0f),
         DX_PI_F,
-        VGet(1.8f, 0.0f, 39.0f),
+        VGet(1.8f, 0.0f, 38.0f),
         DX_PI_F,
-        true, 7.0f
+        true, 8.0f
     });
 
     // 住宅3: 北横通り（Z = +15）の北東側、南向き（配達先3）
     g_houses.push_back({
         3, 3,
-        VGet(15.0f, 2.80f, 23.0f),
+        VGet(15.0f, 0.0f, 23.0f),
         DX_PI_F,
-        VGet(13.5f, 0.0f, 18.0f),
+        VGet(13.5f, 0.0f, 16.5f),
         DX_PI_F,
-        true, 7.0f
+        true, 8.0f
     });
 
     // 住宅4: 中央横通り（Z = -10）の北側、南向き（配達先4）
     g_houses.push_back({
         4, 1,
-        VGet(0.0f, 4.15f, -2.0f),
+        VGet(0.0f, 0.0f, -2.0f),
         DX_PI_F,
-        VGet(1.8f, 0.0f, -7.0f),
+        VGet(1.8f, 0.0f, -8.0f),
         DX_PI_F,
-        true, 7.0f
+        true, 8.0f
     });
 
     // 住宅5: 東通り（X = +25）の東側、西向き（配達先5）
     g_houses.push_back({
         5, 0,
-        VGet(33.0f, 4.15f, 0.0f),
+        VGet(32.0f, 0.0f, 0.0f),
         -DX_PI_F * 0.5f,
-        VGet(28.0f, 0.0f, 1.5f),
+        VGet(25.5f, 0.0f, 1.5f),
         -DX_PI_F * 0.5f,
-        true, 7.0f
+        true, 8.0f
     });
 
     // 住宅6: 東通り南端（X = +25, Z = -25）の東側、西向き（配達先6）
     g_houses.push_back({
         6, 3,
-        VGet(33.0f, 2.80f, -25.0f),
+        VGet(32.0f, 0.0f, -25.0f),
         -DX_PI_F * 0.5f,
-        VGet(28.0f, 0.0f, -23.5f),
+        VGet(25.5f, 0.0f, -23.5f),
         -DX_PI_F * 0.5f,
-        true, 7.0f
+        true, 8.0f
     });
 
     // 住宅7: 西通り南端（X = -25, Z = -25）の西側、東向き（配達先7）
     g_houses.push_back({
         7, 2,
-        VGet(-33.0f, 4.14f, -25.0f),
+        VGet(-32.0f, 0.0f, -25.0f),
         DX_PI_F * 0.5f,
-        VGet(-28.0f, 0.0f, -23.5f),
+        VGet(-25.5f, 0.0f, -23.5f),
         DX_PI_F * 0.5f,
-        true, 7.0f
+        true, 8.0f
     });
 
     // 各住宅モデルを複製し、配置・スケール・マテリアル・玄関灯を設定
@@ -124,8 +124,8 @@ void MapInit()
             // モデル複製（メモリ効率と独立描画の両立）
             g_houseHandles[i] = MV1DuplicateModel(baseHandle);
 
-            // モデル種別に応じたスケール（house1〜3は0.55倍、センチメートル単位のhouse4は0.008倍）
-            float s = (h.modelType == 3) ? 0.008f : 0.55f;
+            // モデルスケール設定（全住宅モデル共通で実寸大0.008倍）
+            float s = 0.008f;
             MV1SetScale(g_houseHandles[i], VGet(s, s, s));
 
             // ワールド座標・向き設定
@@ -138,8 +138,7 @@ void MapInit()
             {
                 MV1SetMaterialDifColor(g_houseHandles[i], m, GetColorF(1.0f, 1.0f, 1.0f, 1.0f));
                 MV1SetMaterialAmbColor(g_houseHandles[i], m, GetColorF(0.85f, 0.85f, 0.85f, 1.0f));
-                MV1SetMaterialEmiColor(g_houseHandles[i], m, GetColorF(0.22f, 0.24f, 0.28f, 1.0f));
-                MV1SetMaterialDrawAddColor(g_houseHandles[i], m, 35, 40, 48);
+                MV1SetMaterialEmiColor(g_houseHandles[i], m, GetColorF(0.18f, 0.20f, 0.22f, 1.0f));
             }
 
             // 高解像度テクスチャのバインド
@@ -169,7 +168,7 @@ void MapInit()
                 VECTOR fwd = VGet(sinf(angle), 0.0f, cosf(angle));
                 VECTOR right = VGet(cosf(angle), 0.0f, -sinf(angle));
 
-                VECTOR lampPos = VAdd(h.position, VScale(fwd, 2.2f));
+                VECTOR lampPos = VAdd(h.position, VScale(fwd, 4.2f));
                 lampPos = VAdd(lampPos, VScale(right, 1.2f));
                 lampPos.y = 2.4f;
 
@@ -212,7 +211,7 @@ void MapDraw()
             VECTOR fwd = VGet(sinf(angle), 0.0f, cosf(angle));
             VECTOR right = VGet(cosf(angle), 0.0f, -sinf(angle));
 
-            VECTOR lampPos = VAdd(g_houses[i].position, VScale(fwd, 2.2f));
+            VECTOR lampPos = VAdd(g_houses[i].position, VScale(fwd, 4.2f));
             lampPos = VAdd(lampPos, VScale(right, 1.2f));
             lampPos.y = 2.4f;
 

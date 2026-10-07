@@ -548,16 +548,16 @@ void HorrorManager::DrawUI()
     // デバッグHUD描画 (F11)
     if (showDebugHUD)
     {
-        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 215);
-        DrawBox(18, 430, 360, 600, GetColor(10, 14, 16), TRUE);
-        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-        DrawBox(18, 430, 360, 600, GetColor(120, 60, 60), FALSE);
+        HorrorUI::Instance().DrawRetroPanel(18, 430, 360, 600,
+            GetColor(90, 45, 45), HorrorUI::COL_PANEL_BG, 225);
 
-        DrawString(26, 436, "[ FEAR & ENTITY DEBUG (F11) ]", GetColor(255, 120, 100));
+        HorrorUI::Instance().DrawJitterString(26, 436, "[ FEAR & ENTITY DEBUG (F11) ]",
+            GetColor(235, 100, 85), HorrorUI::Instance().GetFontSmall());
 
         char buf[128];
         snprintf(buf, sizeof(buf), "MODEL:    Data/Model/RunningCrawl.mv1");
-        DrawString(26, 458, buf, GetColor(210, 220, 230));
+        HorrorUI::Instance().DrawJitterString(26, 458, buf,
+            HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
 
         const char* stageName = "CALM";
         switch (GetFearStage())
@@ -571,28 +571,36 @@ void HorrorManager::DrawUI()
         }
 
         snprintf(buf, sizeof(buf), "FEAR:     %.1f%% [%s]", fearLevel * 100.0f, stageName);
-        DrawString(26, 478, buf, GetColor(255, 180, 80));
+        HorrorUI::Instance().DrawJitterString(26, 478, buf,
+            GetColor(235, 150, 70), HorrorUI::Instance().GetFontSmall());
 
         snprintf(buf, sizeof(buf), "LIGHT:    %s (Grace: %.1fs)", inSafeLight ? "SAFE LIGHT" : "DARK DANGER", safeGraceTimer);
-        DrawString(26, 498, buf, inSafeLight ? GetColor(120, 210, 160) : GetColor(230, 110, 90));
+        HorrorUI::Instance().DrawJitterString(26, 498, buf,
+            inSafeLight ? GetColor(110, 195, 145) : GetColor(220, 85, 75), HorrorUI::Instance().GetFontSmall());
 
         if (entity.IsActive())
         {
             VECTOR ep = entity.GetPosition();
             snprintf(buf, sizeof(buf), "ENTITY:   ACTIVE (Life: %.1fs)", entity.GetRemainingTime());
-            DrawString(26, 518, buf, GetColor(255, 80, 80));
+            HorrorUI::Instance().DrawJitterString(26, 518, buf,
+                GetColor(240, 70, 70), HorrorUI::Instance().GetFontSmall());
             snprintf(buf, sizeof(buf), "POS:      (%.1f, %.1f)", ep.x, ep.z);
-            DrawString(26, 536, buf, GetColor(200, 200, 200));
+            HorrorUI::Instance().DrawJitterString(26, 536, buf,
+                HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
         }
         else
         {
-            DrawString(26, 518, "ENTITY:   INACTIVE", GetColor(140, 150, 150));
+            HorrorUI::Instance().DrawJitterString(26, 518, "ENTITY:   INACTIVE",
+                HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
             snprintf(buf, sizeof(buf), "NEXT CHK: %.1fs", spawnCheckTimer);
-            DrawString(26, 536, buf, GetColor(160, 180, 180));
+            HorrorUI::Instance().DrawJitterString(26, 536, buf,
+                HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
         }
 
-        DrawString(26, 560, "KEYS: [1:25%] [2:50%] [3:75%] [4:95%]", GetColor(170, 190, 180));
-        DrawString(26, 578, "      [5/J:JUMPSCARE OVER] [6:SPAWN]", GetColor(170, 190, 180));
+        HorrorUI::Instance().DrawJitterString(26, 560, "KEYS: [1:25%] [2:50%] [3:75%] [4:95%]",
+            GetColor(140, 160, 150), HorrorUI::Instance().GetFontSmall());
+        HorrorUI::Instance().DrawJitterString(26, 578, "      [5/J:JUMPSCARE OVER] [6:SPAWN]",
+            GetColor(140, 160, 150), HorrorUI::Instance().GetFontSmall());
     }
 }
 

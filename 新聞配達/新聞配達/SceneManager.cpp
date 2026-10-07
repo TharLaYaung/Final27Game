@@ -88,13 +88,30 @@ bool SceneManager::Initialize()
     // タイトル画面でマウス操作を可能にするためマウスカーソルを表示
     SetMouseDispFlag(TRUE);
 
-    // 日本のレトロホラーフォント生成
-    fontTitleKanji = CreateFontToHandle("MS Gothic", 56, 6, DX_FONTTYPE_ANTIALIASING_EDGE_8X8);
-    fontTitleEnglish = CreateFontToHandle("MS Gothic", 22, 3, DX_FONTTYPE_ANTIALIASING);
-    fontSubText = CreateFontToHandle("MS Gothic", 16, 2, DX_FONTTYPE_ANTIALIASING);
-    fontMenu = CreateFontToHandle("MS Gothic", 20, 2, DX_FONTTYPE_ANTIALIASING);
-    fontReportTitle = CreateFontToHandle("MS Gothic", 24, 3, DX_FONTTYPE_ANTIALIASING);
-    fontReportBody = CreateFontToHandle("MS Gothic", 18, 2, DX_FONTTYPE_ANTIALIASING);
+    // クリーピーホラーフォント生成
+    // 大見出しホラーロゴ（Chiller優先、フォールバックでMS Gothicエッジ）
+    fontTitleKanji = CreateFontToHandle("Chiller", 68, 4, DX_FONTTYPE_ANTIALIASING);
+    if (fontTitleKanji == -1) fontTitleKanji = CreateFontToHandle("MS Gothic", 56, 6, DX_FONTTYPE_ANTIALIASING_EDGE_8X8);
+
+    // サブタイトル
+    fontTitleEnglish = CreateFontToHandle("Chiller", 28, 2, DX_FONTTYPE_ANTIALIASING);
+    if (fontTitleEnglish == -1) fontTitleEnglish = CreateFontToHandle("MS Gothic", 22, 3, DX_FONTTYPE_NORMAL);
+
+    // 説明文・キャッチコピー（Chillerホラーフォント）
+    fontSubText = CreateFontToHandle("Chiller", 22, 2, DX_FONTTYPE_ANTIALIASING);
+    if (fontSubText == -1) fontSubText = CreateFontToHandle("MS Gothic", 16, 2, DX_FONTTYPE_NORMAL);
+
+    // ボタンメニュー用（Chillerホラーフォント）
+    fontMenu = CreateFontToHandle("Chiller", 26, 3, DX_FONTTYPE_ANTIALIASING);
+    if (fontMenu == -1) fontMenu = CreateFontToHandle("MS Gothic", 19, 2, DX_FONTTYPE_NORMAL);
+
+    // レポート見出し
+    fontReportTitle = CreateFontToHandle("Chiller", 34, 3, DX_FONTTYPE_ANTIALIASING);
+    if (fontReportTitle == -1) fontReportTitle = CreateFontToHandle("MS Gothic", 24, 3, DX_FONTTYPE_NORMAL);
+
+    // レポート本文（報告書タイプライター調）
+    fontReportBody = CreateFontToHandle("Consolas", 18, 2, DX_FONTTYPE_NORMAL);
+    if (fontReportBody == -1) fontReportBody = CreateFontToHandle("MS Gothic", 18, 2, DX_FONTTYPE_NORMAL);
 
     return true;
 }
@@ -196,36 +213,54 @@ void SceneManager::ResetGame(
     gameOverTimer = 0.0f;
 }
 
-// マウスホバー・クリック対応ボタン描画ヘルパー
+// マウスホバー・クリック対応ボタン描画ヘルパー（不気味なホラー端末スタイル）
 bool SceneManager::DrawButton(int x1, int y1, int x2, int y2, const char* label, unsigned int baseCol, unsigned int hoverCol, int fontHandle)
 {
     bool isHover = (mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2);
-    unsigned int borderCol = isHover ? GetColor(180, 220, 200) : HorrorUI::COL_BORDER;
-    unsigned int bgCol = isHover ? GetColor(36, 50, 42) : HorrorUI::COL_PANEL_BG;
-    int alpha = isHover ? 230 : 190;
+    unsigned int borderCol = isHover ? GetColor(160, 60, 50) : HorrorUI::COL_BORDER;
+    unsigned int bgCol = isHover ? GetColor(28, 14, 16) : HorrorUI::COL_PANEL_BG;
+    int alpha = isHover ? 235 : 190;
 
     HorrorUI::Instance().DrawRetroPanel(x1, y1, x2, y2, borderCol, bgCol, alpha);
 
     unsigned int textCol = isHover ? hoverCol : baseCol;
     int strW = 0;
+    int jx = 0;
+    int jy = 0;
+    if (isHover && (std::rand() % 12 == 0))
+    {
+        jx = (std::rand() % 3) - 1;
+        jy = (std::rand() % 3) - 1;
+    }
+
     if (fontHandle != -1)
     {
         strW = GetDrawStringWidthToHandle(label, (int)strlen(label), fontHandle);
-        int tx = (x1 + x2 - strW) / 2;
-        int ty = (y1 + y2 - 20) / 2;
+        int tx = (x1 + x2 - strW) / 2 + jx;
+        int ty = (y1 + y2 - 20) / 2 + jy;
+
+        // ホバー時の色収差シャドウ
+        if (isHover)
+        {
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 140);
+            DrawStringToHandle(tx + 1, ty, label, GetColor(180, 40, 35), fontHandle);
+            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        }
+
         DrawStringToHandle(tx, ty, label, textCol, fontHandle);
     }
     else
     {
         strW = GetDrawStringWidth(label, (int)strlen(label));
-        int tx = (x1 + x2 - strW) / 2;
-        int ty = (y1 + y2 - 16) / 2;
+        int tx = (x1 + x2 - strW) / 2 + jx;
+        int ty = (y1 + y2 - 16) / 2 + jy;
         DrawString(tx, ty, label, textCol);
     }
 
     if (isHover)
     {
-        DrawString(x1 + 12, (y1 + y2 - 16) / 2, ">", textCol);
+        DrawString(x1 + 10, (y1 + y2 - 16) / 2, ">", GetColor(210, 50, 45));
+        DrawString(x2 - 18, (y1 + y2 - 16) / 2, "<", GetColor(210, 50, 45));
     }
 
     return isHover && mouseClicked;
@@ -580,18 +615,26 @@ void SceneManager::Draw(
             bool isAiming = bicycle.CanRide() || newspaper.CanTake() || mailbox.CanDeliver();
             HorrorUI::Instance().DrawCrosshair(isAiming);
 
+            // 操作キー案内HUD描画（画面下部）
+            HorrorUI::Instance().DrawKeyGuide(
+                bicycle.IsRiding(),
+                newspaper.IsHolding(),
+                isAiming,
+                bicycle.IsHeadlightOn(),
+                mapDebugEnabled
+            );
+
             nightEnv.DrawDebugHUD();
             weatherManager.DrawDebugHUD();
             horrorManager.DrawUI();
 
             if (mapDebugEnabled)
             {
-                SetDrawBlendMode(DX_BLENDMODE_ALPHA, 210);
-                DrawBox(18, 170, 310, 248, GetColor(10, 16, 20), TRUE);
-                SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-                DrawBox(18, 170, 310, 248, GetColor(80, 115, 100), FALSE);
+                HorrorUI::Instance().DrawRetroPanel(18, 312, 310, 390,
+                    HorrorUI::COL_BORDER, HorrorUI::COL_PANEL_BG, 220);
 
-                DrawString(26, 176, "[ F6: MAP DEBUG ON ]", GetColor(255, 220, 100));
+                HorrorUI::Instance().DrawJitterString(26, 318, "[ F6: MAP DEBUG ON ]",
+                    GetColor(220, 180, 80), HorrorUI::Instance().GetFontSmall());
 
                 char dbgTarget[64];
                 int tid = deliveryManager.GetCurrentTargetId();
@@ -603,12 +646,14 @@ void SceneManager::Draw(
                 {
                     snprintf(dbgTarget, sizeof(dbgTarget), "CURRENT TARGET: ALL COMPLETED");
                 }
-                DrawString(26, 198, dbgTarget, GetColor(200, 225, 255));
+                HorrorUI::Instance().DrawJitterString(26, 340, dbgTarget,
+                    HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
 
                 char dbgProg[64];
                 snprintf(dbgProg, sizeof(dbgProg), "DELIVERY: %02d / %02d HOUSES",
                     deliveryManager.GetCompletedDeliveries(), deliveryManager.GetTotalDeliveries());
-                DrawString(26, 220, dbgProg, GetColor(170, 195, 185));
+                HorrorUI::Instance().DrawJitterString(26, 362, dbgProg,
+                    HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
             }
 
             DrawScanlinesAndNoise(12);
@@ -680,32 +725,42 @@ void SceneManager::DrawTitleScene(const NightEnvironment& nightEnv)
     DrawString(990, 28, timeBuf, GetColor(180, 195, 185));
 
     // タイトルロゴの描画（色収差ジッター付き）
-    int titleY = 175;
+    int titleY = 165;
     float jitterSine = std::sin(titleTimer * 8.0f);
     int jx = (std::rand() % 3 == 0) ? (int)(jitterSine * 2.0f) : 0;
 
-    // 赤・シアンの色収差シャドウ
+    const char* mainTitle = "NIGHT DELIVERY";
+    int logoW = (fontTitleKanji != -1) ? GetDrawStringWidthToHandle(mainTitle, (int)strlen(mainTitle), fontTitleKanji) : 260;
+    int logoX = cx - logoW / 2;
+
+    // 赤・シアンの色収差シャドウとメインホラーロゴ
     if (fontTitleKanji != -1)
     {
-        DrawStringToHandle(cx - 240 + jx, titleY, "NIGHT DELIVERY", GetColor(180, 45, 45), fontTitleKanji);
-        DrawStringToHandle(cx - 236 - jx, titleY, "NIGHT DELIVERY", GetColor(45, 160, 180), fontTitleKanji);
-        DrawStringToHandle(cx - 238, titleY, "NIGHT DELIVERY", GetColor(225, 230, 220), fontTitleKanji);
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 180);
+        DrawStringToHandle(logoX - 2 + jx, titleY, mainTitle, GetColor(190, 35, 30), fontTitleKanji);
+        DrawStringToHandle(logoX + 2 - jx, titleY, mainTitle, GetColor(35, 120, 140), fontTitleKanji);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        DrawStringToHandle(logoX, titleY, mainTitle, GetColor(230, 235, 225), fontTitleKanji);
     }
     else
     {
-        DrawString(cx - 70, titleY, "NIGHT DELIVERY", GetColor(225, 230, 220));
+        DrawString(cx - 70, titleY, mainTitle, GetColor(225, 230, 220));
     }
 
     // サブタイトル
+    const char* subTitle = "- SHINYA HAITATSU -";
     if (fontTitleEnglish != -1)
     {
-        DrawStringToHandle(cx - 150, titleY + 70, "- SHINYA HAITATSU -", GetColor(160, 175, 170), fontTitleEnglish);
+        int subW = GetDrawStringWidthToHandle(subTitle, (int)strlen(subTitle), fontTitleEnglish);
+        DrawStringToHandle(cx - subW / 2, titleY + 74, subTitle, GetColor(165, 80, 75), fontTitleEnglish);
     }
 
     // キャッチコピー
+    const char* tagline = "The silence of 3:00 AM, and the horrors in the alley.";
     if (fontSubText != -1)
     {
-        DrawStringToHandle(cx - 200, titleY + 105, "The silence of 3:00 AM, and the horrors in the alley.", GetColor(120, 135, 130), fontSubText);
+        int tagW = GetDrawStringWidthToHandle(tagline, (int)strlen(tagline), fontSubText);
+        DrawStringToHandle(cx - tagW / 2, titleY + 115, tagline, GetColor(125, 140, 135), fontSubText);
     }
 
     // メニューボックス（レトロCRTパネル）
@@ -726,9 +781,9 @@ void SceneManager::DrawTitleScene(const NightEnvironment& nightEnv)
     int helpY = 665;
     HorrorUI::Instance().DrawRetroPanel(26, helpY, 1254, helpY + 32,
         HorrorUI::COL_BORDER_DIM, HorrorUI::COL_BG, 180);
-    DrawString(42, helpY + 8,
-        "[ CONTROLS ]  WASD: Move  |  Mouse: Look  |  E: Ride / Dismount  |  LMB: Take / Deliver Paper  |  F: Headlight  |  ESC: Pause",
-        GetColor(150, 165, 160));
+    HorrorUI::Instance().DrawJitterString(42, helpY + 8,
+        "[ CONTROLS ]  WASD: Move  |  Mouse: Look  |  E: Ride / Dismount  |  LMB: Take / Deliver  |  F: Light  |  ESC: Pause",
+        GetColor(150, 165, 160), HorrorUI::Instance().GetFontKeyGuide());
 
     // CRT走査線・ノイズ
     DrawScanlinesAndNoise(24);
@@ -749,20 +804,21 @@ void SceneManager::DrawPauseMenu()
     int pw = 460;
     int ph = 350;
     HorrorUI::Instance().DrawRetroPanel(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2,
-        GetColor(85, 115, 105), GetColor(14, 20, 22), 240);
+        GetColor(75, 45, 45), GetColor(16, 12, 14), 240);
 
     // タイトル
+    const char* pauseTitle = "PAUSE MENU";
     if (fontReportTitle != -1)
     {
-        DrawStringToHandle(cx - 75, cy - ph / 2 + 20, "PAUSE MENU", GetColor(210, 230, 220), fontReportTitle);
+        int tw = GetDrawStringWidthToHandle(pauseTitle, (int)strlen(pauseTitle), fontReportTitle);
+        DrawStringToHandle(cx - tw / 2, cy - ph / 2 + 18, pauseTitle, GetColor(215, 175, 170), fontReportTitle);
     }
     else
     {
-        DrawString(cx - 45, cy - ph / 2 + 20, "PAUSE MENU", GetColor(210, 230, 220));
+        DrawString(cx - 45, cy - ph / 2 + 20, pauseTitle, GetColor(210, 230, 220));
     }
-    DrawString(cx + 85, cy - ph / 2 + 26, "PAUSED", GetColor(130, 160, 150));
 
-    DrawLine(cx - pw / 2 + 25, cy - ph / 2 + 55, cx + pw / 2 - 25, cy - ph / 2 + 55, GetColor(50, 75, 70));
+    DrawLine(cx - pw / 2 + 25, cy - ph / 2 + 55, cx + pw / 2 - 25, cy - ph / 2 + 55, GetColor(60, 35, 35));
 
     // ボタンの描画（マウスホバー＆キー選択両対応）
     bool sel0 = (pauseMenuSelection == 0);
@@ -791,7 +847,10 @@ void SceneManager::DrawPauseMenu()
     DrawString(cx - 198, arrowY[pauseMenuSelection], ">", GetColor(220, 240, 230));
 
     // ガイドテキスト
-    DrawString(cx - 175, cy + ph / 2 - 28, "[ CONTROLS ] Click with Mouse or use Arrow Keys / ENTER", GetColor(120, 140, 135));
+    const char* pauseGuide = "[ CONTROLS ] Click with Mouse or use Arrow Keys / ENTER";
+    int gw = GetDrawStringWidthToHandle(pauseGuide, (int)strlen(pauseGuide), HorrorUI::Instance().GetFontKeyGuide());
+    HorrorUI::Instance().DrawJitterString(cx - gw / 2, cy + ph / 2 - 28, pauseGuide,
+        GetColor(120, 140, 135), HorrorUI::Instance().GetFontKeyGuide());
 
     DrawScanlinesAndNoise(22);
 }
@@ -920,23 +979,42 @@ void SceneManager::DrawGameOverScene()
     int jx = (std::rand() % 5) - 2;
     int jy = (std::rand() % 3) - 1;
 
+    const char* overTitle = "GAME OVER";
     if (fontTitleKanji != -1)
     {
-        DrawStringToHandle(cx - 160 + jx, cy - 135 + jy, "GAME OVER", GetColor(210, 35, 30), fontTitleKanji);
+        int ow = GetDrawStringWidthToHandle(overTitle, (int)strlen(overTitle), fontTitleKanji);
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 160);
+        DrawStringToHandle(cx - ow / 2 + jx + 2, cy - 145 + jy, overTitle, GetColor(120, 10, 10), fontTitleKanji);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        DrawStringToHandle(cx - ow / 2 + jx, cy - 145 + jy, overTitle, GetColor(220, 30, 25), fontTitleKanji);
     }
     else
     {
-        DrawString(cx - 50, cy - 135, "GAME OVER", GetColor(210, 35, 30));
+        DrawString(cx - 50, cy - 135, overTitle, GetColor(210, 35, 30));
     }
 
+    const char* subOver = "CONSUMED BY DARKNESS";
     if (fontTitleEnglish != -1)
     {
-        DrawStringToHandle(cx - 120, cy - 75, "CONSUMED BY DARKNESS", GetColor(150, 40, 40), fontTitleEnglish);
+        int sw = GetDrawStringWidthToHandle(subOver, (int)strlen(subOver), fontTitleEnglish);
+        DrawStringToHandle(cx - sw / 2, cy - 80, subOver, GetColor(165, 45, 45), fontTitleEnglish);
     }
 
-    // ホラーテキスト
-    DrawString(cx - 105, cy - 40, "Consciousness faded into the dark...", GetColor(190, 110, 110));
-    DrawString(cx - 165, cy - 15, "The delivery courier went missing in the midnight streets.", GetColor(140, 110, 110));
+    // ホラーテキスト（フォントを適用して中央揃え）
+    const char* line1 = "Consciousness faded into the dark...";
+    const char* line2 = "The delivery courier went missing in the midnight streets.";
+    if (fontSubText != -1)
+    {
+        int l1w = GetDrawStringWidthToHandle(line1, (int)strlen(line1), fontSubText);
+        int l2w = GetDrawStringWidthToHandle(line2, (int)strlen(line2), fontSubText);
+        DrawStringToHandle(cx - l1w / 2, cy - 42, line1, GetColor(185, 120, 120), fontSubText);
+        DrawStringToHandle(cx - l2w / 2, cy - 18, line2, GetColor(150, 115, 115), fontSubText);
+    }
+    else
+    {
+        DrawString(cx - 105, cy - 40, line1, GetColor(190, 110, 110));
+        DrawString(cx - 165, cy - 15, line2, GetColor(140, 110, 110));
+    }
 
     // メニューボタン（マウスホバー＆キー選択両対応）
     DrawButton(cx - 180, cy + 25, cx + 180, cy + 65, "RETRY DELIVERY",

@@ -2,6 +2,7 @@
 #include "Player.h"
 #include "Bicycle.h"
 #include "NightEnvironment.h"
+#include "HorrorUI.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -609,25 +610,27 @@ void WeatherManager::DrawDebugHUD()
 {
     if (!showDebugHUD) return;
 
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 215);
-    DrawBox(18, 258, 350, 420, GetColor(8, 12, 16), TRUE);
-    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-    DrawBox(18, 258, 350, 420, GetColor(60, 110, 130), FALSE);
+    HorrorUI::Instance().DrawRetroPanel(18, 258, 350, 420,
+        HorrorUI::COL_BORDER, HorrorUI::COL_PANEL_BG, 220);
 
-    DrawString(26, 264, "[ WEATHER DEBUG (F10) ]", GetColor(255, 210, 80));
+    HorrorUI::Instance().DrawJitterString(26, 264, "[ WEATHER DEBUG (F10) ]",
+        GetColor(230, 190, 80), HorrorUI::Instance().GetFontSmall());
 
     char buf[128];
     snprintf(buf, sizeof(buf), "CURRENT:  %s", GetWeatherName(currentWeather));
-    DrawString(26, 286, buf, GetColor(210, 230, 255));
+    HorrorUI::Instance().DrawJitterString(26, 286, buf,
+        HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
 
     if (isTransitioning)
     {
         snprintf(buf, sizeof(buf), "TARGET:   %s (%d%%)", GetWeatherName(targetWeather), static_cast<int>(transitionProgress * 100.0f));
-        DrawString(26, 304, buf, GetColor(255, 180, 100));
+        HorrorUI::Instance().DrawJitterString(26, 304, buf,
+            GetColor(220, 140, 80), HorrorUI::Instance().GetFontSmall());
     }
     else
     {
-        DrawString(26, 304, "TARGET:   STABLE", GetColor(140, 180, 160));
+        HorrorUI::Instance().DrawJitterString(26, 304, "TARGET:   STABLE",
+            HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
     }
 
     if (autoWeatherEnabled)
@@ -638,18 +641,23 @@ void WeatherManager::DrawDebugHUD()
     {
         snprintf(buf, sizeof(buf), "AUTO:     OFF (Manual Only)");
     }
-    DrawString(26, 322, buf, GetColor(180, 205, 200));
+    HorrorUI::Instance().DrawJitterString(26, 322, buf,
+        HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
 
     snprintf(buf, sizeof(buf), "FOG:      %.1fm - %.1fm", currentParams.fogStart, currentParams.fogEnd);
-    DrawString(26, 340, buf, GetColor(160, 190, 220));
+    HorrorUI::Instance().DrawJitterString(26, 340, buf,
+        HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
 
     snprintf(buf, sizeof(buf), "RAIN:     %d / %d", currentParams.targetRainCount, MAX_RAIN_COUNT);
-    DrawString(26, 358, buf, GetColor(160, 190, 220));
+    HorrorUI::Instance().DrawJitterString(26, 358, buf,
+        HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
 
     snprintf(buf, sizeof(buf), "SNOW:     %d / %d", currentParams.targetSnowCount, MAX_SNOW_COUNT);
-    DrawString(26, 376, buf, GetColor(160, 190, 220));
+    HorrorUI::Instance().DrawJitterString(26, 376, buf,
+        HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
 
-    DrawString(26, 396, "[F7:Cycle] [F9:Auto] [F10:HUD]", GetColor(130, 150, 160));
+    HorrorUI::Instance().DrawJitterString(26, 396, "[F7:Cycle] [F9:Auto] [F10:HUD]",
+        GetColor(120, 145, 135), HorrorUI::Instance().GetFontSmall());
 }
 
 // 終了処理

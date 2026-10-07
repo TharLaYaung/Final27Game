@@ -1,5 +1,6 @@
 #include "NightEnvironment.h"
 #include "Bicycle.h"
+#include "HorrorUI.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -470,12 +471,10 @@ void NightEnvironment::DrawDebugHUD()
     // 一時通知メッセージ
     if (debugNotifyTimer > 0)
     {
-        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 200);
-        DrawBox(18, 120, 360, 160, GetColor(10, 14, 20), TRUE);
-        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-
-        DrawBox(18, 120, 360, 160, GetColor(50, 70, 90), FALSE);
-        DrawString(26, 130, debugMessage, GetColor(200, 220, 255));
+        HorrorUI::Instance().DrawRetroPanel(18, 120, 360, 160,
+            HorrorUI::COL_BORDER, HorrorUI::COL_PANEL_BG, 210);
+        HorrorUI::Instance().DrawJitterString(26, 132, debugMessage,
+            HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
     }
 }
 

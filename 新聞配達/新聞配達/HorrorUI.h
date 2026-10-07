@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "DxLib.h"
 #include <string>
@@ -45,6 +45,9 @@ public:
 
     // 新聞所持数・ステータスの描画（画面下部: 例 PAPERS 07）
     void DrawPaperCargo(int paperCount, bool isHolding);
+
+    // 操作キー案内HUD描画（ゲーム画面下部）
+    void DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDeliver, bool isHeadlightOn, bool isMapDebugOn);
 
     // 自転車ヘッドライト・バッテリーHUD描画（ミニマップ直下に配置）
     void DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isRiding, bool isFastDrain);
@@ -94,22 +97,25 @@ public:
     bool IsHorrorEffectsEnabled() const;
 
     // カラーパレット定数
-    static const unsigned int COL_BG;           // ほぼ黒・暗灰緑 (14, 18, 16)
-    static const unsigned int COL_PANEL_BG;     // パネル背景 (18, 24, 20)
-    static const unsigned int COL_BORDER;       // 端末フレーム枠 (65, 80, 72)
-    static const unsigned int COL_BORDER_DIM;   // 暗い枠線 (40, 50, 45)
-    static const unsigned int COL_TEXT;         // 汚れ感のあるオフホワイト (185, 195, 188)
-    static const unsigned int COL_TEXT_DIM;     // 控えめな減衰文字 (105, 115, 110)
-    static const unsigned int COL_WARNING;      // 警告・誤配 (175, 75, 65)
-    static const unsigned int COL_TARGET;       // 配達先目標 (190, 95, 50)
-    static const unsigned int COL_PLAYER;       // プレイヤー表示 (210, 215, 205)
-    static const unsigned int COL_BIKE;         // 自転車表示 (110, 165, 175)
+    static const unsigned int COL_BG;           // ほぼ黒・暗灰緑 (10, 14, 12)
+    static const unsigned int COL_PANEL_BG;     // パネル背景 (14, 18, 16)
+    static const unsigned int COL_BORDER;       // 端末フレーム枠 (55, 72, 64)
+    static const unsigned int COL_BORDER_DIM;   // 暗い枠線 (32, 42, 38)
+    static const unsigned int COL_TEXT;         // 汚れ感のある幽霊的オフホワイト (175, 188, 180)
+    static const unsigned int COL_TEXT_DIM;     // 控えめな減衰文字 (95, 108, 102)
+    static const unsigned int COL_WARNING;      // 血液・狂気の暗赤色 (185, 45, 40)
+    static const unsigned int COL_TARGET;       // 錆びたアンバーオレンジ (185, 90, 42)
+    static const unsigned int COL_PLAYER;       // プレイヤー表示 (200, 210, 202)
+    static const unsigned int COL_BIKE;         // 自転車表示 (90, 155, 165)
 
     // フォントハンドル取得
     int GetFontSmall() const { return fontSmall; }
     int GetFontMedium() const { return fontMedium; }
     int GetFontLarge() const { return fontLarge; }
     int GetFontClock() const { return fontClock; }
+    int GetFontTitleHorror() const { return fontTitleHorror; }
+    int GetFontKeyGuide() const { return fontKeyGuide; }
+    int GetFontKeyAction() const { return fontKeyAction; }
 
 private:
     HorrorUI();
@@ -122,6 +128,9 @@ private:
     int fontMedium;
     int fontLarge;
     int fontClock;
+    int fontTitleHorror;
+    int fontKeyGuide;
+    int fontKeyAction;
 
     // ゲーム内時計
     int clockHour;

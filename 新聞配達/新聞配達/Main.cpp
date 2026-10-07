@@ -22,6 +22,29 @@ int WINAPI WinMain(
     int nCmdShow
 )
 {
+    // 実行ファイルの場所からDataディレクトリを自動探索してカレントディレクトリを設定
+    char exePath[MAX_PATH];
+    GetModuleFileName(NULL, exePath, MAX_PATH);
+    char* lastSlash = strrchr(exePath, '\\');
+    if (lastSlash) *lastSlash = '\0';
+
+    char dataCheck[MAX_PATH];
+    snprintf(dataCheck, sizeof(dataCheck), "%s\\Data", exePath);
+    if (GetFileAttributes(dataCheck) != INVALID_FILE_ATTRIBUTES)
+    {
+        SetCurrentDirectory(exePath);
+    }
+    else
+    {
+        snprintf(dataCheck, sizeof(dataCheck), "%s\\..\\新聞配達\\Data", exePath);
+        if (GetFileAttributes(dataCheck) != INVALID_FILE_ATTRIBUTES)
+        {
+            char parentPath[MAX_PATH];
+            snprintf(parentPath, sizeof(parentPath), "%s\\..\\新聞配達", exePath);
+            SetCurrentDirectory(parentPath);
+        }
+    }
+
     // ウィンドウモードで起動
     ChangeWindowMode(TRUE);
 
