@@ -84,6 +84,9 @@
     <Filter Include="99-Shaders\Source">
       <UniqueIdentifier>{64d734d2-b390-40ea-93f4-55211cbce619}</UniqueIdentifier>
     </Filter>
+    <Filter Include="02-Engine\4-Rendering\Volumetric">
+      <UniqueIdentifier>{7d860afa-17ea-45bc-ab36-78cc7be399a7}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Engine\Core\Application.h">
@@ -185,56 +188,11 @@
     <ClInclude Include="src\Engine\Rendering\Lighting\SpotLight.h">
       <Filter>02-Engine\4-Rendering\Lighting</Filter>
     </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\IModelResource.h">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\Model.h">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\ModelImpl.h">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\ModelInstance.h">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\ModelLoader.h">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\ModelResourceAccess.h">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\Camera.h">
-      <Filter>02-Engine\4-Rendering\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\FPSCameraController.h">
-      <Filter>02-Engine\4-Rendering\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\ICameraBackend.h">
-      <Filter>02-Engine\4-Rendering\Camera</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\FogSettings.h">
-      <Filter>02-Engine\4-Rendering\Fog</Filter>
-    </ClInclude>
     <ClInclude Include="src\Engine\Rendering\Lighting\AmbientLight.h">
       <Filter>02-Engine\4-Rendering\Lighting</Filter>
     </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\Shader.h">
-      <Filter>02-Engine\4-Rendering\Shader</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\IShaderResource.h">
-      <Filter>02-Engine\4-Rendering\Shader</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\ShaderImpl.h">
-      <Filter>02-Engine\4-Rendering\Shader</Filter>
-    </ClInclude>
     <ClInclude Include="src\Platform\DxLib\DxShaderResource.h">
       <Filter>01-Platform\A-DxLib</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\ShaderLoader.h">
-      <Filter>02-Engine\4-Rendering\Shader</Filter>
-    </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\ShaderResourceAccess.h">
-      <Filter>02-Engine\4-Rendering\Shader</Filter>
     </ClInclude>
     <ClInclude Include="src\Engine\Rendering\Lighting\ShaderLightingData.h">
       <Filter>02-Engine\4-Rendering\Lighting</Filter>
@@ -242,8 +200,56 @@
     <ClInclude Include="src\Engine\Rendering\Fog\ShaderFogData.h">
       <Filter>02-Engine\4-Rendering\Fog</Filter>
     </ClInclude>
-    <ClInclude Include="src\Engine\Rendering\ShaderCameraData.h">
+    <ClInclude Include="src\Engine\Rendering\Volumetric\ShaderVolumetricData.h">
+      <Filter>02-Engine\4-Rendering\Volumetric</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Camera\Camera.h">
       <Filter>02-Engine\4-Rendering\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Camera\FPSCameraController.h">
+      <Filter>02-Engine\4-Rendering\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Camera\ICameraBackend.h">
+      <Filter>02-Engine\4-Rendering\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Camera\ShaderCameraData.h">
+      <Filter>02-Engine\4-Rendering\Camera</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Fog\FogSettings.h">
+      <Filter>02-Engine\4-Rendering\Fog</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Model\IModelResource.h">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Model\Model.h">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Model\ModelImpl.h">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Model\ModelInstance.h">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Model\ModelLoader.h">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Model\ModelResourceAccess.h">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Shader\IShaderResource.h">
+      <Filter>02-Engine\4-Rendering\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Shader\Shader.h">
+      <Filter>02-Engine\4-Rendering\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Shader\ShaderImpl.h">
+      <Filter>02-Engine\4-Rendering\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Shader\ShaderLoader.h">
+      <Filter>02-Engine\4-Rendering\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Rendering\Shader\ShaderResourceAccess.h">
+      <Filter>02-Engine\4-Rendering\Shader</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -319,35 +325,82 @@
     <ClCompile Include="src\Engine\Math\Matrix4Test.cpp">
       <Filter>02-Engine\0-Test</Filter>
     </ClCompile>
-    <ClCompile Include="src\Engine\Rendering\Model.cpp">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Engine\Rendering\ModelInstance.cpp">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Engine\Rendering\ModelLoader.cpp">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Engine\Rendering\ModelResourceAccess.cpp">
-      <Filter>02-Engine\4-Rendering\Model</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Engine\Rendering\Camera.cpp">
-      <Filter>02-Engine\4-Rendering\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Engine\Rendering\FPSCameraController.cpp">
-      <Filter>02-Engine\4-Rendering\Camera</Filter>
-    </ClCompile>
-    <ClCompile Include="src\Engine\Rendering\Shader.cpp">
-      <Filter>02-Engine\4-Rendering\Shader</Filter>
-    </ClCompile>
     <ClCompile Include="src\Platform\DxLib\DxShaderResource.cpp">
       <Filter>01-Platform\A-DxLib</Filter>
     </ClCompile>
-    <ClCompile Include="src\Engine\Rendering\ShaderLoader.cpp">
+    <ClCompile Include="src\Engine\Rendering\Camera\Camera.cpp">
+      <Filter>02-Engine\4-Rendering\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Rendering\Camera\FPSCameraController.cpp">
+      <Filter>02-Engine\4-Rendering\Camera</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Rendering\Model\Model.cpp">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Rendering\Model\ModelInstance.cpp">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Rendering\Model\ModelLoader.cpp">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Rendering\Model\ModelResourceAccess.cpp">
+      <Filter>02-Engine\4-Rendering\Model</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Rendering\Shader\Shader.cpp">
       <Filter>02-Engine\4-Rendering\Shader</Filter>
     </ClCompile>
-    <ClCompile Include="src\Engine\Rendering\ShaderResourceAccess.cpp">
+    <ClCompile Include="src\Engine\Rendering\Shader\ShaderLoader.cpp">
       <Filter>02-Engine\4-Rendering\Shader</Filter>
     </ClCompile>
+    <ClCompile Include="src\Engine\Rendering\Shader\ShaderResourceAccess.cpp">
+      <Filter>02-Engine\4-Rendering\Shader</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Engine\Rendering\Billboard\BillboardRenderData.h">
+      <Filter>02-Engine\4-Rendering\Billboard</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Effects\IVisualEffect.h">
+      <Filter>02-Engine\6-Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Effects\VisualEffectSystem.h">
+      <Filter>02-Engine\6-Effects</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Effects\Particle\Particle.h">
+      <Filter>02-Engine\6-Effects\Particle</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Engine\Effects\Particle\ParticleBurstEffect.h">
+      <Filter>02-Engine\6-Effects\Particle</Filter>
+    </ClInclude>
+    <ClCompile Include="src\Engine\Effects\VisualEffectSystem.cpp">
+      <Filter>02-Engine\6-Effects</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Engine\Effects\Particle\ParticleBurstEffect.cpp">
+      <Filter>02-Engine\6-Effects\Particle</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Platform\DxLib\DxBillboardRenderer.cpp">
+      <Filter>01-Platform\A-DxLib</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="02-Engine\6-Effects" />
+    <Filter Include="02-Engine\6-Effects\Particle" />
+    <Filter Include="02-Engine\4-Rendering\Billboard" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="src\Game\Effects\GameEffectRecipes.h" />
+    <ClCompile Include="src\Game\Effects\GameEffectRecipes.cpp" />
+    <ClInclude Include="src\Engine\Effects\Screen\LowHealthScreenEffect.h" />
+    <ClCompile Include="src\Engine\Effects\Screen\LowHealthScreenEffect.cpp" />
+    <ClInclude Include="src\Engine\Rendering\Texture\ITextureResource.h" />
+    <ClInclude Include="src\Engine\Rendering\Texture\Texture.h" />
+    <ClInclude Include="src\Engine\Rendering\Texture\TextureImpl.h" />
+    <ClInclude Include="src\Engine\Rendering\Texture\TextureLoader.h" />
+    <ClInclude Include="src\Engine\Rendering\Texture\TextureResourceAccess.h" />
+    <ClInclude Include="src\Platform\DxLib\DxTextureResource.h" />
+    <ClCompile Include="src\Engine\Rendering\Texture\Texture.cpp" />
+    <ClCompile Include="src\Engine\Rendering\Texture\TextureLoader.cpp" />
+    <ClCompile Include="src\Engine\Rendering\Texture\TextureResourceAccess.cpp" />
+    <ClCompile Include="src\Platform\DxLib\DxTextureResource.cpp" />
   </ItemGroup>
 </Project>

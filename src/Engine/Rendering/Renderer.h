@@ -1,42 +1,52 @@
 #pragma once
 
 #include <memory>
+#include <span>
+#include "Engine/Rendering/Billboard/BillboardRenderData.h"
 
-// forward declaration
+
+//=============================================================================
+// Forward declarations
+//=============================================================================
+
 class IModelResource;
-class ModelInstance;
 class IShaderResource;
+class ITextureResource;
+class ModelInstance;
+class Shader;
+
 struct Vector3;
 struct FogSettings;
 struct AmbientLight;
 struct PointLight;
 struct SpotLight;
+struct ShaderVolumetricData;
+
+struct LowHealthScreenEffectData
+{
+    float intensity = 0.0f;
+};
+
+
+//=============================================================================
+// IRendererBackend
+//=============================================================================
 
 class IRendererBackend
 {
 public:
     virtual ~IRendererBackend() = default;
 
+
+    //-------------------------------------------------------------------------
+    // Resource creation
+    //-------------------------------------------------------------------------
+
+    // EN: Creates a backend-specific model resource.
+    //
+    // JP: Backend 固有の Model Resource を生成する。
     virtual std::unique_ptr<IModelResource> CreateModelResource(
         const char* filePath) = 0;
-
-    virtual void Draw(
-        const ModelInstance& instance) = 0;
-
-    virtual void SetFog(
-        const FogSettings& settings) = 0;
-
-    virtual void SetClearColor(
-        const Vector3& color) = 0;
-
-    virtual void SetPointLight(
-        const PointLight& light) = 0;
-
-    virtual void SetSpotLight(
-        const SpotLight& light) = 0;
-
-    virtual void SetAmbientLight(
-        const AmbientLight& light) = 0;
 
     // EN: Creates a backend-specific shader resource.
     //
@@ -45,14 +55,118 @@ public:
         const char* vertexShaderPath,
         const char* pixelShaderPath) = 0;
 
+    // EN: Creates a backend-specific texture resource without exposing
+    //     native graphics handles to Engine or Game code.
+    //
+    // JP: Native Graphics Handle ???? Engine ???? Game ????????J??????A
+    //     Backend ???????? Texture Resource ?????????????????B
+    virtual std::unique_ptr<ITextureResource> CreateTextureResource(
+        const char* filePath) = 0;
+
+
+    //-------------------------------------------------------------------------
+    // Frame / render passes
+    //-------------------------------------------------------------------------
+
+    virtual void BeginSceneRender(
+        int width,
+        int height) = 0;
+
+    virtual void EndSceneRender(
+        int width,
+        int height) = 0;
+
+    virtual void BeginSceneDepthRender(
+        int width,
+        int height) = 0;
+
+    virtual void EndSceneDepthRender() = 0;
+
+    // EN: Executes the fullscreen volumetric-lighting composition pass
+    //     after scene color and linear scene depth are available.
+    //
+    // JP: Scene Color と Linear Scene Depth の生成後に、
+    //     Fullscreen Volumetric Lighting Composition Pass を実行する。
+    virtual void RenderVolumetricLighting(
+        int width,
+        int height) = 0;
+
+    virtual void DrawLowHealthOverlay(
+        const LowHealthScreenEffectData& data) = 0;
+
+
+    //-------------------------------------------------------------------------
+    // Camera
+    //-------------------------------------------------------------------------
+
     virtual void SetCameraPosition(
         const Vector3& position) = 0;
+
+    virtual void SetCameraForward(
+        const Vector3& forward) = 0;
+
+    virtual void SetCameraFieldOfView(
+        float verticalFovRadians) = 0;
+
+    virtual void SetCameraRight(
+        const Vector3& right) = 0;
+
+    virtual void SetCameraUp(
+        const Vector3& up) = 0;
+
+
+    //-------------------------------------------------------------------------
+    // Scene rendering state
+    //-------------------------------------------------------------------------
+
+    virtual void SetClearColor(
+        const Vector3& color) = 0;
+
+    virtual void SetFog(
+        const FogSettings& settings) = 0;
+
+    virtual void SetAmbientLight(
+        const AmbientLight& light) = 0;
+
+    virtual void SetPointLight(
+        const PointLight& light) = 0;
+
+    virtual void SetSpotLight(
+        const SpotLight& light) = 0;
+
+
+    //-------------------------------------------------------------------------
+    // Model drawing
+    //-------------------------------------------------------------------------
+
+    virtual void Draw(
+        const ModelInstance& instance) = 0;
+
+    virtual void Draw(
+        const ModelInstance& instance,
+        const Shader& shader) = 0;
+
+
+    virtual void DrawBillboards(
+        std::span<const BillboardRenderData> billboards,
+        const BillboardDrawSettings& settings) = 0;
+
+    //-------------------------------------------------------------------------
+    // Volumetric rendering
+    //-------------------------------------------------------------------------
+
+    virtual void SetVolumetricSettings(
+        const ShaderVolumetricData& settings) = 0;
+
+    //-------------------------------------------------------------------------
+    // Lifecycle
+    //-------------------------------------------------------------------------
 
     // EN: Releases backend-owned rendering resources before
     //     the graphics platform is shut down.
     //
-    // JP: Graphics Platform が終了する前に、Backend が所有する
-    //     Rendering Resource を解放する。
+    // JP: Graphics Platform が終了する前に、
+    //     Backend 所有の Rendering Resource を解放する。
     virtual void Shutdown() = 0;
 };
 
@@ -62,18 +176,68 @@ public:
     explicit Renderer(
         IRendererBackend& backend);
 
-    // EN: Draws one model instance using its resource and transform.
+
+    //-------------------------------------------------------------------------
+    // Render passes
+    //-------------------------------------------------------------------------
+
+    void BeginSceneRender(
+        int width,
+        int height);
+
+    void EndSceneRender(
+        int width,
+        int height);
+
+    void BeginSceneDepthRender(
+        int width,
+        int height);
+
+    void EndSceneDepthRender();
+
+    // EN: Runs the explicit fullscreen volumetric-lighting pass.
     //
-    // JP: Model Instance が保持する Resource と Transform を使用して
-    //     1 つの Model Instance を描画する。
-    void Draw(
-        const ModelInstance& instance);
+    // JP: 明示的な Fullscreen Volumetric Lighting Pass を実行する。
+    void RenderVolumetricLighting(
+        int width,
+        int height);
+
+    void DrawLowHealthOverlay(
+        const LowHealthScreenEffectData& data);
+
+
+    //-------------------------------------------------------------------------
+    // Camera shader data
+    //-------------------------------------------------------------------------
+
+    void SetCameraPosition(
+        const Vector3& position);
+
+    void SetCameraForward(
+        const Vector3& forward);
+
+    void SetCameraRight(
+        const Vector3& right);
+
+    void SetCameraUp(
+        const Vector3& up);
+
+    void SetCameraFieldOfView(
+        float verticalFovRadians);
+
+    
+    //-------------------------------------------------------------------------
+    // Scene rendering state
+    //-------------------------------------------------------------------------
+
+    void SetClearColor(
+        const Vector3& color);
 
     void SetFog(
         const FogSettings& settings);
 
-    void SetClearColor(
-        const Vector3& color);
+    void SetAmbientLight(
+        const AmbientLight& light);
 
     void SetPointLight(
         const PointLight& light);
@@ -81,11 +245,37 @@ public:
     void SetSpotLight(
         const SpotLight& light);
 
-    void SetAmbientLight(
-        const AmbientLight& light);
 
-    void SetCameraPosition(
-        const Vector3& position);
+    //-------------------------------------------------------------------------
+    // Model drawing
+    //-------------------------------------------------------------------------
+
+    // EN: Draws a model instance using its configured rendering state.
+    //
+    // JP: Model Instance に設定された Rendering State を使用して描画する。
+    void Draw(
+        const ModelInstance& instance);
+
+    // EN: Draws a model instance using an explicitly supplied shader
+    //     without changing the shader stored by the instance.
+    //
+    // JP: Model Instance が保持する Shader を変更せず、
+    //     明示的に指定された Shader を使用して描画する。
+    void Draw(
+        const ModelInstance& instance,
+        const Shader& shader);
+
+
+    void DrawBillboards(
+        std::span<const BillboardRenderData> billboards,
+        const BillboardDrawSettings& settings);
+
+    //-------------------------------------------------------------------------
+    // Volumetric rendering
+    //-------------------------------------------------------------------------
+
+    void SetVolumetricSettings(
+        const ShaderVolumetricData& settings);
 
 private:
     IRendererBackend& m_backend;

@@ -149,8 +149,54 @@ void Application::Render()
 {
     m_platform.BeginFrame();
 
-    // test
+    const ScreenSize size =
+        m_platform.GetScreenSize();
+
+
+    // ------------------------------------------------------------
+    // Scene color pass
+    // ------------------------------------------------------------
+
+    m_rendererBackend.BeginSceneRender(
+        size.width,
+        size.height);
+
     m_sceneManager.Render();
+
+    m_rendererBackend.EndSceneRender(
+        size.width,
+        size.height);
+
+
+    // ------------------------------------------------------------
+    // Scene depth pass
+    // ------------------------------------------------------------
+
+    m_rendererBackend.BeginSceneDepthRender(
+        size.width,
+        size.height);
+
+    m_sceneManager.RenderDepth();
+
+    m_rendererBackend.EndSceneDepthRender();
+
+    // ------------------------------------------------------------
+    // Volumetric lighting pass
+    // ------------------------------------------------------------
+    
+    // EN: Compose volumetric lighting only after both scene color and
+    //     linear scene depth have been produced.
+    //
+    // JP: Scene Color と Linear Scene Depth の両方が完成した後にのみ、
+    //     Volumetric Lighting を合成する。
+    m_rendererBackend.RenderVolumetricLighting(
+        size.width,
+        size.height);
+
+
+    // EN: Screen overlay is composed after volumetric lighting.
+    // JP: Overlay pass follows volumetric lighting.
+    m_sceneManager.RenderOverlay();
 
     m_platform.EndFrame();
 }

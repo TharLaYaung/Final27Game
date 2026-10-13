@@ -26,3 +26,12 @@
 # CMake build directories
 /build/
 /out/
+/cmake-build-*/
+
+# CMake files generated in the project root by an in-source configure
+/CMakeCache.txt
+/CMakeFiles/
+/cmake_install.cmake
+/CTestTestfile.cmake
+/compile_commands.json
+/install_manifest.txt

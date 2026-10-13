@@ -1,12 +1,15 @@
 #pragma once
 
+#include "Engine/Effects/VisualEffectSystem.h"
+#include "Engine/Effects/Screen/LowHealthScreenEffect.h"
+
 #include "Engine/Scene/IScene.h"
 
-#include "Engine/Rendering/ModelInstance.h"
+#include "Engine/Rendering/Model/ModelInstance.h"
 #include "Engine/Rendering/Renderer.h"
 
-#include "Engine/Rendering/Camera.h"
-#include "Engine/Rendering/FPSCameraController.h"
+#include "Engine/Rendering/Camera/Camera.h"
+#include "Engine/Rendering/Camera/FPSCameraController.h"
 
 #include "Engine/Math/Transform.h"
 #include "Game/Player/FPSController.h"
@@ -21,7 +24,7 @@
 
 #include "Engine/Physics/Character/CharacterController.h"
 
-#include "Engine/Rendering/FogSettings.h"
+#include "Engine/Rendering/Fog/FogSettings.h"
 #include "Engine/Rendering/Lighting/SpotLight.h"
 #include "Engine/Rendering/Lighting/AmbientLight.h"
 
@@ -33,6 +36,7 @@
 class Shader;
 
 class Model;
+class Texture;
 
 class IInput;
 class IDebugText;
@@ -40,6 +44,7 @@ class ICameraBackend;
 class IRendererBackend;
 
 class ResourceSystem;
+
 
 class TestScene final : public IScene
 {
@@ -57,6 +62,8 @@ public:
 
     void Update(float deltaTime) override;
     void Render() override;
+    void RenderDepth() override;
+    void RenderOverlay() override;
 
 private:
     // EN: TestScene observes input through the engine abstraction rather
@@ -102,7 +109,25 @@ private:
     std::shared_ptr<Model> m_testModel;
 
     Renderer m_renderer;
+
+    // EN: Scene ownership bounds VFX lifetime to this world's lifetime.
+    // JP: Scene の所有権によって VFX の寿命をこの World の寿命内に限定する。
+    VisualEffectSystem m_visualEffects;
+    LowHealthScreenEffect m_lowHealthEffect;
+    float m_testHealthRatio = 1.0f;
     ModelInstance m_testModelInstance;
+
+    // EN: Shared unit-cube resource used to build simple static test-room
+    //     geometry without duplicating GPU model resources.
+    //
+    // JP: GPU Model Resource を重複させず、簡単な Static Test Room を
+    //     構築するために共有する Unit Cube Resource。
+    std::shared_ptr<Model> m_testCubeModel;
+
+    ModelInstance m_floorInstance;
+    ModelInstance m_backWallInstance;
+    ModelInstance m_leftWallInstance;
+    ModelInstance m_rightWallInstance;
 
 private:
     FogSettings m_fog;
@@ -117,4 +142,21 @@ private:
 
 private:
     std::shared_ptr<Shader> m_testShader;
+
+    std::shared_ptr<Shader> m_sceneDepthShader;
+
+    // EN: Temporary Phase A validation keeps the loaded texture alive for
+    //     the scene and verifies ResourceSystem cache sharing on entry.
+    //
+    // JP: Phase A ???????????????[?????????????????????????????????? Texture ??????????????A
+    //     ResourceSystem ?????????? Cache ??L??????????????B
+    std::shared_ptr<Texture> m_testTexture;
+
+    // Dedicated streak texture for the Space-triggered Metal Spark test.
+    // Keep the Phase A cache-test texture separate from the effect asset.
+    std::shared_ptr<Texture> m_sparkTexture;
+
+    // EN: Dedicated irregular blood sprite used by the alpha-blended spray.
+    // JP: Alpha Blend Blood Spray texture resource.
+    std::shared_ptr<Texture> m_bloodTexture;
 };

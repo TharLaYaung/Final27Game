@@ -2,13 +2,19 @@
 
 #include "Engine/Debug/IDebugText.h"
 #include "Engine/Input/IInput.h"
+#include "Engine/Effects/Particle/ParticleBurstEffect.h"
+#include "Engine/Effects/Screen/LowHealthScreenEffect.h"
+#include "Game/Effects/GameEffectRecipes.h"
 #include "Engine/Physics/Collision/Intersection.h"
-#include "Engine/Rendering/ICameraBackend.h"
+#include "Engine/Rendering/Camera/ICameraBackend.h"
 
 #include "Engine/Resources/ResourceSystem.h"
 
-#include "Engine/Rendering/Model.h"
-#include "Engine/Rendering/Shader.h"
+#include "Engine/Rendering/Model/Model.h"
+#include "Engine/Rendering/Shader/Shader.h"
+#include "Engine/Rendering/Texture/Texture.h"
+#include "Engine/Rendering/Volumetric/ShaderVolumetricData.h"
+
 
 #include <DxLib.h>
 
@@ -112,6 +118,41 @@ TestScene::TestScene(
 void TestScene::OnEnter()
 {
     // ------------------------------------------------------------
+    // Texture resource test (Phase A)
+    // ------------------------------------------------------------
+    m_testTexture =
+        m_resourceSystem.LoadTexture(
+            "Assets/test.png");
+
+    assert(m_testTexture != nullptr);
+    assert(m_testTexture->IsValid());
+
+    const std::shared_ptr<Texture> cachedTexture =
+        m_resourceSystem.LoadTexture(
+            "Assets/test.png");
+
+    // EN: Identical normalized paths must reuse one shared resource.
+    //
+    // JP: ???????????????????????? Path ?????????? Shared Resource ??????????p????????B
+    assert(cachedTexture == m_testTexture);
+
+    m_sparkTexture =
+        m_resourceSystem.LoadTexture(
+            "Assets/Textures/MetalSpark.png");
+    assert(m_sparkTexture != nullptr);
+    assert(m_sparkTexture->IsValid());
+
+    m_bloodTexture =
+        m_resourceSystem.LoadTexture(
+            "Assets/Textures/BloodDroplet.png");
+    assert(m_bloodTexture != nullptr);
+    assert(m_bloodTexture->IsValid());
+
+    // EN: Start below the threshold so the overlay can be verified immediately.
+    // JP: Start the test health below the threshold.
+    m_testHealthRatio = 0.10f;
+
+    // ------------------------------------------------------------
     // shader test
     // ------------------------------------------------------------
     m_testShader =
@@ -121,6 +162,15 @@ void TestScene::OnEnter()
 
     assert(m_testShader != nullptr);
     assert(m_testShader->IsValid());
+
+
+    m_sceneDepthShader =
+        m_resourceSystem.LoadShader(
+            "Assets/Shaders/Source/SceneDepthVS.vso",
+            "Assets/Shaders/Source/SceneDepthPS.pso");
+
+    assert(m_sceneDepthShader != nullptr);
+    assert(m_sceneDepthShader->IsValid());
 
     m_testModelInstance.SetShader(
         m_testShader);
@@ -153,9 +203,13 @@ void TestScene::OnEnter()
     // ------------------------------------------------------------
     // Test Model
     // ------------------------------------------------------------
+    /*m_testModel =
+        m_resourceSystem.LoadModel(
+            "Assets/Models/test/SimpleModel.mqo");*/
+
     m_testModel =
         m_resourceSystem.LoadModel(
-            "Assets/Models/Bicycle.mv1");
+            "Assets/Models/bicycle.mv1");
 
     assert(m_testModel != nullptr);
     assert(m_testModel->IsValid());
@@ -172,7 +226,7 @@ void TestScene::OnEnter()
     transform.position =
         Vector3{
             0.0f,
-            0.0f,
+            2.0f,
             5.0f
     };
 
@@ -190,6 +244,142 @@ void TestScene::OnEnter()
             0.02f,
             0.02f
         };
+
+	// ------------------------------------------------------------
+    // Test Room Geometry
+    // ------------------------------------------------------------
+    
+    // EN: Load one unit cube and reuse it for the floor and walls.
+    //     Each ModelInstance owns only its transform/state while sharing
+    //     the same immutable model resource.
+    //
+    // JP: Unit Cube を 1 回だけ Load し、Floor と Wall で共有する。
+    //     各 ModelInstance は Transform / State のみを保持し、
+    //     同一の Model Resource を共有する。
+    m_testCubeModel =
+        m_resourceSystem.LoadModel(
+            "Assets/Models/TestCube.mqo");
+
+    assert(m_testCubeModel != nullptr);
+    assert(m_testCubeModel->IsValid());
+
+    m_floorInstance.SetModel(
+        m_testCubeModel);
+
+    m_backWallInstance.SetModel(
+        m_testCubeModel);
+
+    m_leftWallInstance.SetModel(
+        m_testCubeModel);
+
+    m_rightWallInstance.SetModel(
+        m_testCubeModel);
+
+
+    m_floorInstance.SetShader(
+        m_testShader);
+
+    m_backWallInstance.SetShader(
+        m_testShader);
+
+    m_leftWallInstance.SetShader(
+        m_testShader);
+
+    m_rightWallInstance.SetShader(
+        m_testShader);
+
+    {
+        Transform& transform =
+            m_floorInstance.GetTransform();
+
+        // EN: Thin unit cube scaled into a floor covering the
+        //     current flashlight test area.
+        //
+        // JP: Unit Cube を薄く引き伸ばし、現在の Flashlight Test Area を
+        //     覆う Floor として使用する。
+        transform.position =
+            Vector3{
+                0.0f,
+                -0.05f,
+                2.0f
+        };
+
+        transform.rotation =
+            Quaternion{};
+
+        transform.scale =
+            Vector3{
+                12.0f,
+                0.1f,
+                16.0f
+        };
+    }
+
+    {
+        Transform& transform =
+            m_backWallInstance.GetTransform();
+
+        transform.position =
+            Vector3{
+                0.0f,
+                2.5f,
+                9.95f
+        };
+
+        transform.rotation =
+            Quaternion{};
+
+        transform.scale =
+            Vector3{
+                12.0f,
+                5.0f,
+                0.1f
+        };
+    }
+
+    {
+        Transform& transform =
+            m_leftWallInstance.GetTransform();
+
+        transform.position =
+            Vector3{
+                -5.95f,
+                2.5f,
+                2.0f
+        };
+
+        transform.rotation =
+            Quaternion{};
+
+        transform.scale =
+            Vector3{
+                0.1f,
+                5.0f,
+                16.0f
+        };
+    }
+
+    {
+        Transform& transform =
+            m_rightWallInstance.GetTransform();
+
+        transform.position =
+            Vector3{
+                5.95f,
+                2.5f,
+                2.0f
+        };
+
+        transform.rotation =
+            Quaternion{};
+
+        transform.scale =
+            Vector3{
+                0.1f,
+                5.0f,
+                16.0f
+        };
+    }
 
 
     // ------------------------------------------------------------
@@ -285,6 +475,18 @@ void TestScene::OnEnter()
 
 
     // ------------------------------------------------------------
+    // volumetric data
+    // ------------------------------------------------------------
+    ShaderVolumetricData volumetric{};
+
+    volumetric.enabled = 1.0f;
+    volumetric.intensity = 4.0f;
+    volumetric.scattering = 0.35f;
+
+    m_renderer.SetVolumetricSettings(
+        volumetric);
+
+    // ------------------------------------------------------------
     // Fog
     // ------------------------------------------------------------
     m_fog.enabled = true;
@@ -345,7 +547,7 @@ void TestScene::OnEnter()
 
     m_flashlight.color =
         Vector3{
-            1.0f,
+            1.00f,
             0.95f,
             0.85f
     };
@@ -362,6 +564,7 @@ void TestScene::OnEnter()
 
 void TestScene::OnExit()
 {
+    m_visualEffects.Clear();
     m_collisionWorld.Clear();
 
     m_renderer.SetClearColor(
@@ -379,6 +582,18 @@ void TestScene::OnExit()
     m_testModelInstance.SetModel(nullptr);
     m_testModel.reset();
 
+    m_floorInstance.SetModel(nullptr);
+    m_backWallInstance.SetModel(nullptr);
+    m_leftWallInstance.SetModel(nullptr);
+    m_rightWallInstance.SetModel(nullptr);
+
+    m_floorInstance.SetShader(nullptr);
+    m_backWallInstance.SetShader(nullptr);
+    m_leftWallInstance.SetShader(nullptr);
+    m_rightWallInstance.SetShader(nullptr);
+
+    m_testCubeModel.reset();
+
     m_flashlight.enabled = false;
 
     m_renderer.SetSpotLight(
@@ -391,11 +606,33 @@ void TestScene::OnExit()
 
     m_testModelInstance.SetShader(nullptr);
     m_testShader.reset();
+    m_bloodTexture.reset();
+    m_sceneDepthShader.reset();
+
+    ShaderVolumetricData volumetric{};
+    volumetric.enabled = 0.0f;
+
+    m_renderer.SetVolumetricSettings(
+        volumetric);
 }
 
 void TestScene::Update(float deltaTime)
 {
     m_deltaTime = deltaTime;
+    m_visualEffects.Update(deltaTime);
+
+    // EN: H lowers test health and J restores it without adding a health system.
+    // JP: H lowers test health and J restores it.
+    if (m_input.IsKeyPressed(KeyCode::H))
+    {
+        m_testHealthRatio = (m_testHealthRatio > 0.10f) ? m_testHealthRatio - 0.10f : 0.0f;
+    }
+    if (m_input.IsKeyPressed(KeyCode::J))
+    {
+        m_testHealthRatio = (m_testHealthRatio < 0.90f) ? m_testHealthRatio + 0.10f : 1.0f;
+    }
+    m_lowHealthEffect.SetHealthRatio(m_testHealthRatio);
+    m_lowHealthEffect.Update(deltaTime);
 
 
     // ------------------------------------------------------------
@@ -458,30 +695,84 @@ void TestScene::Update(float deltaTime)
         m_playerTransform.position +
         eyeOffset;
 
+    // EN: Pressed is the input edge, so holding Space creates only one burst.
+    //     Spawn after camera follow so the effect uses this frame's position.
+    // JP: Pressed は押下の立ち上がりなので、Space を保持しても Burst は一つだけ。
+    //     Camera Follow 後に生成し、今フレームの位置を使用する。
+    if (m_input.IsKeyPressed(KeyCode::Space))
+    {
+        const Vector3 sparkPosition =
+            m_camera.GetTransform().position +
+            m_camera.GetForward() * 3.0f;
+        const Vector3 sparkNormal =
+            -m_camera.GetForward();
+
+        // EN: TestScene selects a game recipe; the engine effect stays generic.
+        // JP: TestScene ???? Game Recipe ???????I??????????AEngine Effect ????????p?????????????B
+        ParticleBurstDesc burst =
+            MakeMetalSparkBurst(
+                sparkPosition,
+                sparkNormal,
+                m_sparkTexture,
+                27u);
+        m_visualEffects.Add(std::make_unique<ParticleBurstEffect>(burst));
+    }
+
+    // EN: B is an edge-triggered gameplay input for the airborne blood spray.
+    //     The recipe uses alpha blending and never creates a surface decal.
+    if (m_input.IsKeyPressed(KeyCode::B))
+    {
+        const Vector3 bloodPosition =
+            m_camera.GetTransform().position +
+            m_camera.GetForward() * 3.0f;
+        const Vector3 bloodDirection =
+            -m_camera.GetForward();
+        ParticleBurstDesc bloodBurst =
+            MakeBloodSprayBurst(
+                bloodPosition,
+                bloodDirection,
+                m_bloodTexture,
+                73u);
+        m_visualEffects.Add(std::make_unique<ParticleBurstEffect>(bloodBurst));
+    }
+
     // ------------------------------------------------------------
     // spotlight update
     // ------------------------------------------------------------
-    const Transform& cameraTransform =
-        m_camera.GetTransform();
+    const Vector3 cameraPosition =
+        m_camera.GetTransform().position;
+    const Vector3 cameraForward =
+        m_camera.GetForward();
+    const Vector3 cameraRight =
+        m_camera.GetRight();
+    const Vector3 cameraUp =
+        m_camera.GetUp();
 
-    m_renderer.SetCameraPosition(
-        cameraTransform.position);
+    m_renderer.SetCameraPosition(cameraPosition);
+    m_renderer.SetCameraForward(cameraForward);
 
+    // EN: Keep this prototype's flashlight offset in camera-local space.
+    // JP: この試作の Flashlight Offset は Camera Local Space で指定する。
+    constexpr float kFlashlightOffsetRight = 0.05f;
+    constexpr float kFlashlightOffsetUp = -0.02f;
+    constexpr float kFlashlightOffsetForward = 0.05f;
+
+    // EN: Rebuild the offset from the camera basis every frame so the light
+    //     origin follows camera rotation as well as camera movement.
+    // JP: 毎フレーム Camera Basis から Offset を再構築し、Light Origin を
+    //     Camera の移動と回転の両方に追従させる。
     m_flashlight.position =
-        cameraTransform.position;
+        cameraPosition +
+        cameraRight * kFlashlightOffsetRight +
+        cameraUp * kFlashlightOffsetUp +
+        cameraForward * kFlashlightOffsetForward;
 
-    const Vector3 localForward{
-        0.0f,
-        0.0f,
-        1.0f
-    };
-
-    // EN: Attach the flashlight direction to the FPS camera forward direction.
-    //
-    // JP: Flashlight の方向を FPS Camera の Forward 方向に追従させる。
+    // EN: Change only the light origin in V1. Keep the beam axis parallel
+    //     to Camera Forward to assess the position offset independently.
+    // JP: V1 では Light Origin だけを変更する。Position Offset の影響を
+    //     単独で確認できるよう、Beam Axis は Camera Forward と平行に保つ。
     m_flashlight.direction =
-        cameraTransform.rotation.Rotate(
-            localForward);
+        cameraForward;
 
     m_renderer.SetSpotLight(
         m_flashlight);
@@ -590,29 +881,24 @@ void TestScene::Render()
         m_testModelInstance);
 
     // ------------------------------------------------------------
-    // World Axes
+    // Test room
     // ------------------------------------------------------------
 
-    // EN: Engine coordinate convention:
-    //     +X = Right, +Y = Up, +Z = Forward.
-    //
-    // JP: Engine の座標規約：
-    //     +X = Right, +Y = Up, +Z = Forward。
-    /*DrawLine3D(
-        VGet(0.0f, 0.0f, 0.0f),
-        VGet(3.0f, 0.0f, 0.0f),
-        GetColor(255, 0, 0));
+    m_renderer.Draw(
+        m_floorInstance);
 
-    DrawLine3D(
-        VGet(0.0f, 0.0f, 0.0f),
-        VGet(0.0f, 3.0f, 0.0f),
-        GetColor(0, 255, 0));
+    m_renderer.Draw(
+        m_backWallInstance);
 
-    DrawLine3D(
-        VGet(0.0f, 0.0f, 0.0f),
-        VGet(0.0f, 0.0f, 3.0f),
-        GetColor(0, 0, 255));*/
+    m_renderer.Draw(
+        m_leftWallInstance);
 
+    m_renderer.Draw(
+        m_rightWallInstance);
+
+    m_renderer.SetCameraRight(m_camera.GetRight());
+    m_renderer.SetCameraUp(m_camera.GetUp());
+    m_visualEffects.Render(m_renderer);
 
     // ------------------------------------------------------------
     // AABB Debug Rendering
@@ -642,8 +928,7 @@ void TestScene::Render()
     // ------------------------------------------------------------
     // Debug Text
     // ------------------------------------------------------------
-
-    const float fps =
+    /*const float fps =
         m_deltaTime > 0.0f
         ? 1.0f / m_deltaTime
         : 0.0f;
@@ -710,5 +995,84 @@ void TestScene::Render()
     m_debugText.Draw(
         20,
         120,
-        penetrationText.c_str());
+        penetrationText.c_str());*/
+
+}
+
+void TestScene::RenderOverlay()
+{
+    // EN: This pass runs after volumetric composition and owns no world VFX.
+    // JP: Overlay pass follows volumetric lighting.
+    m_lowHealthEffect.Render(m_renderer);
+}
+
+void TestScene::RenderDepth()
+{
+    // EN: Transparent VFX must not truncate volumetric rays like opaque walls.
+    // JP: 透明 VFX は不透明な壁のように Volumetric Ray を遮断してはならない。
+    if (!m_sceneDepthShader ||
+        !m_sceneDepthShader->IsValid())
+    {
+        return;
+    }
+
+
+    // EN: SetDrawScreen resets the camera when the depth target is bound.
+    //     Reapply the color-pass camera before drawing the same geometry.
+    //
+    // JP: 深度ターゲットへの切り替えでカメラ設定がリセットされるため、
+    //     同じ形状を描く前にカラーパスと同じカメラを再適用する。
+    m_cameraBackend.Apply(m_camera);
+
+    // EN: Ensure Renderer has the latest camera position and forward
+    //     before the depth pass draw.
+    //
+    // JP: Depth Pass 描画前に Renderer が最新の Camera Position と
+    //     Forward を保持していることを保証する。
+    m_renderer.SetCameraPosition(
+        m_camera.GetTransform().position);
+
+    m_renderer.SetCameraForward(
+        m_camera.GetForward());
+
+    m_renderer.SetCameraRight(
+        m_camera.GetRight());
+
+    m_renderer.SetCameraUp(
+        m_camera.GetUp());
+
+    m_renderer.SetCameraFieldOfView(
+        m_camera.GetFieldOfView());
+
+    // EN: Depth pass draws only opaque geometry that should
+    //     block volumetric light.
+    //
+    // JP: Depth Pass では Volumetric Light を遮る
+    //     Opaque Geometry のみを描画する。
+    m_renderer.Draw(
+        m_testModelInstance,
+        *m_sceneDepthShader);
+
+    // EN: The same opaque room geometry rendered in the color pass must
+    //     also participate in the scene-depth pass so it can terminate
+    //     volumetric rays correctly.
+    //
+    // JP: Color Pass で描画する同じ Opaque Room Geometry を
+    //     Scene Depth Pass にも参加させ、Volumetric Ray を
+    //     正しく遮断できるようにする。
+    m_renderer.Draw(
+        m_floorInstance,
+        *m_sceneDepthShader);
+
+    m_renderer.Draw(
+        m_backWallInstance,
+        *m_sceneDepthShader);
+
+    m_renderer.Draw(
+        m_leftWallInstance,
+        *m_sceneDepthShader);
+
+    m_renderer.Draw(
+        m_rightWallInstance,
+        *m_sceneDepthShader);
 }

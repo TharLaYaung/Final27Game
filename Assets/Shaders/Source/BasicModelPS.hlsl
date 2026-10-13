@@ -85,6 +85,19 @@ cbuffer CameraBuffer : register(b6)
     ShaderCameraData g_Camera;
 };
 
+struct ShaderVolumetricData
+{
+    float Enabled;
+    float Intensity;
+    float Scattering;
+    float Padding;
+};
+
+cbuffer VolumetricBuffer : register(b7)
+{
+    ShaderVolumetricData g_Volumetric;
+};
+
 
 Texture2D g_DiffuseMapTexture
     : register(t0);
@@ -125,6 +138,9 @@ PS_OUTPUT main(PS_INPUT input)
         const float distanceToLight =
             length(surfaceToLight);
 
+        const float safeSpotlightRange =
+            max(g_SpotLight.Range, 0.0001f);
+
         if (distanceToLight < g_SpotLight.Range)
         {
             const float3 lightDirection =
@@ -137,19 +153,49 @@ PS_OUTPUT main(PS_INPUT input)
                         normal,
                         lightDirection));
 
-            float distanceAttenuation =
+            // EN: Use exactly the same geometric distance attenuation as the
+            //     volumetric spotlight so surfaces and participating media respond
+            //     to one consistent light model.
+            //
+            // JP: Surface と Participating Medium が同一の Light Model に
+            //     反応するよう、Volumetric Spotlight と完全に同じ
+            //     Geometric Distance Attenuation を使用する。
+            const float normalizedLightDistance =
                 saturate(
-                    1.0f -
                     distanceToLight /
-                    max(
-                        g_SpotLight.Range,
-                        0.0001f));
+                    safeSpotlightRange);
 
-            distanceAttenuation *=
-                distanceAttenuation;
 
-            const float3 lightToSurface =
-                -lightDirection;
+            // EN: Soften inverse-square falloff near the light origin to avoid
+            //     the singularity while retaining inverse-square behavior farther away.
+            //
+            // JP: Light Origin 付近の特異点を防ぐため Inverse-Square Falloff を
+            //     Softening し、遠距離では Inverse-Square の挙動を維持する。
+            const float attenuationSofteningDistance = 0.5f;
+
+            const float softeningDistanceSquared = attenuationSofteningDistance * attenuationSofteningDistance;
+
+            const float distanceSquared = distanceToLight * distanceToLight;
+
+            const float inverseSquareFactor =
+                softeningDistanceSquared /
+                (
+                    distanceSquared +
+                    softeningDistanceSquared
+                );
+
+
+            // EN: Smoothly fade the finite spotlight to zero at Range.
+            //
+            // JP: 有限 SpotLight を Range で滑らかに 0 へ減衰させる。
+            float rangeCutoff = 1.0f - normalizedLightDistance;
+
+            rangeCutoff *= rangeCutoff;
+
+
+            const float distanceAttenuation = inverseSquareFactor * rangeCutoff;
+
+            const float3 lightToSurface = -lightDirection;
 
             const float coneCos =
                 dot(
