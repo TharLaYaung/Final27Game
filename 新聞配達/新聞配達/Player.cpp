@@ -47,6 +47,17 @@ Player::Player()
         0.0f
     );
 
+    // カメラロール初期化
+    cameraRoll = 0.0f;
+
+    // 目の高さオフセット初期化
+    eyeHeightOffset = 0.0f;
+
+    // 恐怖呼吸・揺れ初期化
+    cameraSwayOffset = VGet(0.0f, 0.0f, 0.0f);
+    cameraSwayPitch = 0.0f;
+    cameraSwayYaw = 0.0f;
+
     // マウスカーソルを非表示にする
     SetMouseDispFlag(FALSE);
 
@@ -181,28 +192,41 @@ void Player::UpdateLook()
 // カメラを更新する
 void Player::UpdateCamera()
 {
-    // 視線方向を取得する
-    VECTOR forward =
-        GetForward();
+    // 恐怖揺れを合成した実効視線角度
+    float effYaw = yaw + cameraSwayYaw;
+    float effPitch = pitch + cameraSwayPitch;
 
-    // カメラ位置（シェイクオフセットを加算）
-    VECTOR camPos =
-        VAdd(
-            position,
-            cameraShakeOffset
-        );
+    // 実効視線方向ベクトル
+    VECTOR forward;
+    forward.x = sinf(effYaw) * cosf(effPitch);
+    forward.y = -sinf(effPitch);
+    forward.z = cosf(effYaw) * cosf(effPitch);
+
+    // カメラ位置（シェイク・倒れ込み高さ・恐怖揺れオフセットを加算）
+    VECTOR camPos = VAdd(position, cameraShakeOffset);
+    camPos.y += eyeHeightOffset;
+    camPos = VAdd(camPos, cameraSwayOffset);
 
     // カメラが見る位置を計算する
-    VECTOR target =
-        VAdd(
-            camPos,
-            forward
-        );
+    VECTOR target = VAdd(camPos, forward);
 
-    // カメラを設定する
-    SetCameraPositionAndTarget_UpVecY(
+    // ロール角（首の傾き・地面倒れ込み）を反映したUpベクトル計算
+    VECTOR right = VGet(cosf(effYaw), 0.0f, -sinf(effYaw));
+    VECTOR up0 = VGet(sinf(effYaw) * sinf(effPitch), cosf(effPitch), cosf(effYaw) * sinf(effPitch));
+
+    float cosR = cosf(cameraRoll);
+    float sinR = sinf(cameraRoll);
+    VECTOR up = VGet(
+        cosR * up0.x + sinR * right.x,
+        cosR * up0.y + sinR * right.y,
+        cosR * up0.z + sinR * right.z
+    );
+
+    // カメラを設定する（傾き・高さ・揺れ反映）
+    SetCameraPositionAndTargetAndUpVec(
         camPos,
-        target
+        target,
+        up
     );
 }
 

@@ -13,6 +13,9 @@ HorrorEntity::HorrorEntity()
     , isActive(false)
     , lifeTimer(0.0f)
     , speed(0.0f)
+    , afterimageTimer(0.0f)
+    , afterimagePos(VGet(0.0f, 0.0f, 0.0f))
+    , afterimageYaw(0.0f)
 {
 }
 
@@ -77,6 +80,16 @@ void HorrorEntity::AdvanceAnim(float dt, float speedMultiplier)
 // 毎フレーム更新処理
 void HorrorEntity::Update(float dt, const VECTOR& playerPos)
 {
+    // 残像タイマーのカウントダウン
+    if (afterimageTimer > 0.0f)
+    {
+        afterimageTimer -= dt;
+        if (afterimageTimer < 0.0f)
+        {
+            afterimageTimer = 0.0f;
+        }
+    }
+
     if (!isActive || modelHandle == -1)
     {
         return;
@@ -115,19 +128,33 @@ void HorrorEntity::Update(float dt, const VECTOR& playerPos)
     }
 }
 
-// 3Dモデル描画処理
+// 3Dモデル描画処理（実体および消失時の薄い残像）
 void HorrorEntity::Draw()
 {
-    if (!isActive || modelHandle == -1)
+    if (modelHandle == -1)
     {
         return;
     }
 
-    MV1SetPosition(modelHandle, position);
-    MV1SetRotationXYZ(modelHandle, VGet(0.0f, yawAngle, 0.0f));
-    MV1SetScale(modelHandle, VGet(scale, scale, scale));
-
-    MV1DrawModel(modelHandle);
+    if (isActive)
+    {
+        MV1SetOpacityRate(modelHandle, 1.0f);
+        MV1SetPosition(modelHandle, position);
+        MV1SetRotationXYZ(modelHandle, VGet(0.0f, yawAngle, 0.0f));
+        MV1SetScale(modelHandle, VGet(scale, scale, scale));
+        MV1DrawModel(modelHandle);
+    }
+    else if (afterimageTimer > 0.0f)
+    {
+        // 消失直後0.1〜0.3秒間、薄い残像シルエットをフェードアウト描画
+        float fade = afterimageTimer / 0.25f;
+        MV1SetOpacityRate(modelHandle, fade * 0.45f);
+        MV1SetPosition(modelHandle, afterimagePos);
+        MV1SetRotationXYZ(modelHandle, VGet(0.0f, afterimageYaw, 0.0f));
+        MV1SetScale(modelHandle, VGet(scale, scale, scale));
+        MV1DrawModel(modelHandle);
+        MV1SetOpacityRate(modelHandle, 1.0f);
+    }
 }
 
 // 指定位置への出現
@@ -150,9 +177,27 @@ void HorrorEntity::SetDirectTransform(const VECTOR& pos, float yaw)
     isActive = true;
 }
 
-// 強制消滅
+// 特定のターゲット（カメラやプレイヤー）を正面に見据える
+void HorrorEntity::SetLookAtTarget(const VECTOR& targetPos)
+{
+    float dx = targetPos.x - position.x;
+    float dz = targetPos.z - position.z;
+    if (std::sqrt(dx * dx + dz * dz) > 0.001f)
+    {
+        float angleToTarget = std::atan2(dx, dz);
+        yawAngle = angleToTarget + MODEL_FORWARD_OFFSET;
+    }
+}
+
+// 強制消滅（残像情報を保持）
 void HorrorEntity::Despawn()
 {
+    if (isActive)
+    {
+        afterimageTimer = 0.25f;
+        afterimagePos = position;
+        afterimageYaw = yawAngle;
+    }
     isActive = false;
     lifeTimer = 0.0f;
     speed = 0.0f;

@@ -36,12 +36,16 @@ public:
     // アニメーション時間の強制進行
     void AdvanceAnim(float dt, float speedMultiplier = 1.0f);
 
+    // 特定のターゲット（カメラやプレイヤー）を正面に見据える
+    void SetLookAtTarget(const VECTOR& targetPos);
+
     // 状態取得
     bool IsActive() const { return isActive; }
     VECTOR GetPosition() const { return position; }
     float GetYaw() const { return yawAngle; }
     float GetRemainingTime() const { return lifeTimer; }
     float GetScale() const { return scale; }
+    float GetAfterimageTimer() const { return afterimageTimer; }
 
 private:
     // モデルハンドル
@@ -61,4 +65,9 @@ private:
     bool isActive;
     float lifeTimer;
     float speed;
+
+    // 残像（アフターイメージ）管理
+    float afterimageTimer;
+    VECTOR afterimagePos;
+    float afterimageYaw;
 };

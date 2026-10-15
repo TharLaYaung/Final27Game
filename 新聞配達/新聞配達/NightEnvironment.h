@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "DxLib.h"
 #include <vector>
@@ -78,6 +78,9 @@ public:
     // 指定街灯のテスト明滅トリガー (F5)
     void TriggerStreetLightFlicker(int id);
 
+    // 7日間環境・照明設定
+    void SetDayEnvironment(int day);
+
     // 将来のホラーイベント拡張用API
 
     // 特定の街灯を消灯
@@ -107,8 +110,16 @@ public:
     // フォグ終了距離の取得
     float GetFogEnd() const { return fogEnd; }
 
+    // フォグ色取得 (RGB)
+    int GetFogColorR() const { return fogColorR; }
+    int GetFogColorG() const { return fogColorG; }
+    int GetFogColorB() const { return fogColorB; }
+
     // フォグ有効状態の取得
     bool IsFogEnabled() const { return fogEnabled; }
+
+    // 自転車ヘッドライトの到達距離および減衰パラメータ設定（濃霧時の貫通防止）
+    void SetBicycleHeadlightParams(float range, float atten0 = 1.0f, float atten1 = 0.10f, float atten2 = 0.025f);
 
     // 街灯リストの取得
     const std::vector<StreetLight>& GetStreetLights() const { return streetLights; }

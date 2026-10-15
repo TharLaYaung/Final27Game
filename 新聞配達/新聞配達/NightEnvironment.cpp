@@ -11,20 +11,20 @@ NightEnvironment::NightEnvironment()
     currentPreset = EnvironmentPreset::NightDeliveryStyle;
 
     fogEnabled = true;
-    fogStart = 5.0f;
-    fogEnd = 22.0f;
-    fogColorR = 8;
-    fogColorG = 12;
-    fogColorB = 16;
+    fogStart = 4.0f;
+    fogEnd = 17.0f;
+    fogColorR = 7;
+    fogColorG = 9;
+    fogColorB = 13;
 
-    bgR = 8;
-    bgG = 12;
-    bgB = 16;
+    bgR = 7;
+    bgG = 9;
+    bgB = 13;
 
-    ambientColor = GetColorF(0.035f, 0.040f, 0.055f, 1.0f);
+    ambientColor = GetColorF(0.024f, 0.027f, 0.036f, 1.0f);
 
     bicycleLightHandle = -1;
-    bicycleLightRange = 14.0f;
+    bicycleLightRange = 12.0f;
     bicycleLightPower = 1.0f;
     bicycleLightColor = GetColorF(1.0f, 0.95f, 0.80f, 1.0f);
 
@@ -126,51 +126,61 @@ void NightEnvironment::ApplyPresetSettings()
     switch (currentPreset)
     {
     case EnvironmentPreset::Normal:
-        // 開発・通常視認用（緩やかなフォグ・適度な環境光）
-        fogStart = 10.0f;
-        fogEnd = 45.0f;
-        fogColorR = 20;
-        fogColorG = 24;
-        fogColorB = 32;
-        bgR = 20;
-        bgG = 24;
-        bgB = 32;
-        ambientColor = GetColorF(0.14f, 0.15f, 0.18f, 1.0f);
-        bicycleLightRange = 20.0f;
+        // 開発・通常視認用（全景を見通せない深夜基本フォグ: 8m〜28m）
+        fogStart = 8.0f;
+        fogEnd = 28.0f;
+        fogColorR = 7;
+        fogColorG = 10;
+        fogColorB = 14;
+        bgR = 7;
+        bgG = 10;
+        bgB = 14;
+        ambientColor = GetColorF(0.028f, 0.032f, 0.042f, 1.0f);
+        bicycleLightRange = 16.0f;
         break;
 
     case EnvironmentPreset::NightDeliveryStyle:
-        // 本番用デフォルト（例外配達風: 3:00 AMの孤立した闇・近接5m〜22mで徐々にシルエット化）
-        fogStart = 5.0f;
-        fogEnd = 22.0f;
-        fogColorR = 8;
-        fogColorG = 12;
-        fogColorB = 16;
-        bgR = 8;
-        bgG = 12;
-        bgB = 16;
-        ambientColor = GetColorF(0.035f, 0.040f, 0.055f, 1.0f);
-        bicycleLightRange = 14.0f;
+        // 本番用デフォルト（深夜の濃密な恐怖フォグ: 近接4mから濃霧が立ち込め17mで完全消失）
+        fogStart = 4.0f;
+        fogEnd = 17.0f;
+        fogColorR = 7;
+        fogColorG = 9;
+        fogColorB = 13;
+        bgR = 7;
+        bgG = 9;
+        bgB = 13;
+        ambientColor = GetColorF(0.024f, 0.027f, 0.036f, 1.0f);
+        bicycleLightRange = 12.0f;
         break;
 
     case EnvironmentPreset::ExtremeDark:
-        // 実験用（超近接3m〜15mの極限暗闇）
-        fogStart = 3.0f;
-        fogEnd = 15.0f;
-        fogColorR = 4;
-        fogColorG = 6;
-        fogColorB = 8;
-        bgR = 4;
-        bgG = 6;
-        bgB = 8;
-        ambientColor = GetColorF(0.012f, 0.015f, 0.020f, 1.0f);
-        bicycleLightRange = 10.0f;
+        // 実験・ホラーイベント用（超近接1.5m〜8.0mの極限暗闇フォグ）
+        fogStart = 1.5f;
+        fogEnd = 8.0f;
+        fogColorR = 5;
+        fogColorG = 7;
+        fogColorB = 10;
+        bgR = 5;
+        bgG = 7;
+        bgB = 10;
+        ambientColor = GetColorF(0.012f, 0.014f, 0.020f, 1.0f);
+        bicycleLightRange = 8.5f;
         break;
     }
 
     if (bicycleLightHandle != -1)
     {
-        SetLightRangeAttenHandle(bicycleLightHandle, bicycleLightRange, 1.0f, 0.06f, 0.015f);
+        SetLightRangeAttenHandle(bicycleLightHandle, bicycleLightRange, 1.0f, 0.10f, 0.025f);
+    }
+}
+
+// 自転車ヘッドライトの到達距離および減衰パラメータ設定（濃霧時の貫通防止）
+void NightEnvironment::SetBicycleHeadlightParams(float range, float atten0, float atten1, float atten2)
+{
+    bicycleLightRange = range;
+    if (bicycleLightHandle != -1)
+    {
+        SetLightRangeAttenHandle(bicycleLightHandle, bicycleLightRange, atten0, atten1, atten2);
     }
 }
 
@@ -280,6 +290,19 @@ void NightEnvironment::Update(const Bicycle& bicycle)
     if (debugNotifyTimer > 0)
     {
         debugNotifyTimer--;
+    }
+
+    // 03時台以降（丑三つ時）の街灯突発的明滅判定（稀に街灯が不気味に瞬く）
+    int timeLevel = HorrorUI::Instance().GetHorrorTimeLevel();
+    if (timeLevel >= 2 && (rand() % 850 == 0) && !streetLights.empty())
+    {
+        int targetIdx = rand() % static_cast<int>(streetLights.size());
+        if (streetLights[targetIdx].state == StreetLightState::Normal)
+        {
+            streetLights[targetIdx].state = StreetLightState::Flickering;
+            streetLights[targetIdx].flickerTimer = 1;
+            streetLights[targetIdx].flickerPhase = 1;
+        }
     }
 
     // 街灯の更新
@@ -475,6 +498,95 @@ void NightEnvironment::DrawDebugHUD()
             HorrorUI::COL_BORDER, HorrorUI::COL_PANEL_BG, 210);
         HorrorUI::Instance().DrawJitterString(26, 132, debugMessage,
             HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
+    }
+}
+
+// 7日間環境・照明設定
+void NightEnvironment::SetDayEnvironment(int day)
+{
+    if (day < 1) day = 1;
+    if (day > 7) day = 7;
+
+    // 全街灯を基本点灯状態に復元
+    for (size_t i = 0; i < streetLights.size(); i++)
+    {
+        streetLights[i].state = StreetLightState::Normal;
+        streetLights[i].currentIntensity = 1.0f;
+    }
+
+    // 日別の街灯損壊・明滅・停電状態
+    switch (day)
+    {
+    case 1:
+        // Day 1: ほぼ全街灯が正常稼働（5番街灯のみ奥地消灯）
+        TurnOffStreetLight(5);
+        break;
+
+    case 2:
+        // Day 2: 1基明滅、1基弱点灯
+        if (streetLights.size() > 1)
+        {
+            streetLights[1].state = StreetLightState::Weak;
+            streetLights[1].currentIntensity = 0.40f;
+        }
+        TriggerStreetLightFlicker(3);
+        TurnOffStreetLight(5);
+        break;
+
+    case 3:
+        // Day 3: 2基明滅、2基消灯
+        TriggerStreetLightFlicker(2);
+        TriggerStreetLightFlicker(3);
+        TurnOffStreetLight(5);
+        TurnOffStreetLight(7);
+        break;
+
+    case 4:
+        // Day 4: 複数明滅、弱点灯化
+        if (streetLights.size() > 0)
+        {
+            streetLights[0].state = StreetLightState::Weak;
+            streetLights[0].currentIntensity = 0.50f;
+        }
+        TriggerStreetLightFlicker(2);
+        TriggerStreetLightFlicker(4);
+        TurnOffStreetLight(3);
+        TurnOffStreetLight(5);
+        TurnOffStreetLight(7);
+        break;
+
+    case 5:
+        // Day 5: 半数消灯、降雪寒冷下の明滅
+        TriggerStreetLightFlicker(1);
+        TurnOffStreetLight(2);
+        TurnOffStreetLight(3);
+        TriggerStreetLightFlicker(6);
+        TurnOffStreetLight(5);
+        TurnOffStreetLight(7);
+        break;
+
+    case 6:
+        // Day 6: 大半の街灯が球切れ・広範囲の暗闇
+        TurnOffStreetLight(1);
+        TurnOffStreetLight(2);
+        TriggerStreetLightFlicker(3);
+        TurnOffStreetLight(4);
+        TurnOffStreetLight(5);
+        TriggerStreetLightFlicker(6);
+        TurnOffStreetLight(7);
+        break;
+
+    case 7:
+    default:
+        // Day 7: 住宅街全域の壊滅的停電・唯一残る街灯も不吉に激しく明滅
+        TriggerStreetLightFlicker(1);
+        TurnOffStreetLight(2);
+        TurnOffStreetLight(3);
+        TriggerStreetLightFlicker(4);
+        TurnOffStreetLight(5);
+        TurnOffStreetLight(6);
+        TurnOffStreetLight(7);
+        break;
     }
 }
 

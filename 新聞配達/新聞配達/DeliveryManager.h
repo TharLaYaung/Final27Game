@@ -45,6 +45,12 @@ public:
     int GetCompletedDeliveries() const;
     bool IsAllDeliveriesComplete() const;
 
+    // 7日間ステージ進行API
+    void SetDay(int day);
+    int GetCurrentDay() const;
+    const char* GetDayName() const;
+    const char* GetDaySubtitle() const;
+
     // 現在の目的地の取得
     int GetCurrentTargetId() const;
     VECTOR GetCurrentTargetPosition() const;
@@ -60,9 +66,10 @@ public:
     const std::vector<DeliveryPoint>& GetDeliveryPoints() const;
 
 private:
-    int currentDelivery;            // 現在の配達番号 (1〜8)
-    int totalDeliveries;            // 全配達必要数 (8)
-    int completedDeliveries;        // 完了済み配達数 (0〜8)
+    int currentDay;                 // 現在の配達日 (1〜7)
+    int currentDelivery;            // 現在の配達番号インデックス (0〜totalDeliveries-1)
+    int totalDeliveries;            // 全配達必要数
+    int completedDeliveries;        // 完了済み配達数
     bool allDeliveriesComplete;     // 全配達完了フラグ
 
     DeliveryState state;            // 現在の配達状態
@@ -70,5 +77,6 @@ private:
     int wrongDeliveryTimer;         // 誤配送メッセージ表示タイマー（約120フレーム = 2秒）
     int allCompleteTimer;           // 全配達完了メッセージ表示タイマー
 
+    std::vector<int> dayTargetHouses;         // 本日の配達先ポストID巡回順リスト
     std::vector<DeliveryPoint> deliveryPoints; // 8箇所の配達先リスト
 };

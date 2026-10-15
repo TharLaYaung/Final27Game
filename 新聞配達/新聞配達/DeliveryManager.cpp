@@ -5,8 +5,9 @@
 // コンストラクタ
 DeliveryManager::DeliveryManager()
 {
+    currentDay = 1;
     currentDelivery = 0;
-    totalDeliveries = NEIGHBORHOOD_HOUSE_COUNT;
+    totalDeliveries = 3;
     completedDeliveries = 0;
     allDeliveriesComplete = false;
     state = DeliveryState::Active;
@@ -23,15 +24,6 @@ DeliveryManager::~DeliveryManager()
 // 初期化
 void DeliveryManager::Initialize()
 {
-    currentDelivery = 0;
-    totalDeliveries = NEIGHBORHOOD_HOUSE_COUNT;
-    completedDeliveries = 0;
-    allDeliveriesComplete = false;
-    state = DeliveryState::Active;
-    feedbackTimer = 0;
-    wrongDeliveryTimer = 0;
-    allCompleteTimer = 0;
-
     deliveryPoints.clear();
 
     // マップデータ（Map.h）に定義された8棟の各ポスト位置・角度を連携登録
@@ -45,6 +37,9 @@ void DeliveryManager::Initialize()
             false
         });
     }
+
+    // 初日（Day 1）の配達スケジュール設定
+    SetDay(1);
 }
 
 // 毎フレーム更新
@@ -139,12 +134,108 @@ bool DeliveryManager::IsAllDeliveriesComplete() const
     return allDeliveriesComplete;
 }
 
+// 7日間ステージ設定
+void DeliveryManager::SetDay(int day)
+{
+    if (day < 1) day = 1;
+    if (day > 7) day = 7;
+    currentDay = day;
+
+    dayTargetHouses.clear();
+    switch (currentDay)
+    {
+    case 1:
+        // Day 1（月曜・チュートリアル夜）: 3軒
+        dayTargetHouses = { 0, 1, 3 };
+        break;
+    case 2:
+        // Day 2（火曜・小雨と明滅）: 4軒
+        dayTargetHouses = { 0, 2, 4, 5 };
+        break;
+    case 3:
+        // Day 3（水曜・立ち込める濃霧）: 5軒
+        dayTargetHouses = { 1, 3, 5, 6, 7 };
+        break;
+    case 4:
+        // Day 4（木曜・豪雨と停電）: 6軒
+        dayTargetHouses = { 0, 1, 2, 4, 6, 7 };
+        break;
+    case 5:
+        // Day 5（金曜・凍える降雪）: 6軒
+        dayTargetHouses = { 1, 2, 3, 5, 6, 7 };
+        break;
+    case 6:
+        // Day 6（土曜・猛吹雪と迫る影）: 7軒
+        dayTargetHouses = { 0, 1, 2, 3, 4, 5, 6 };
+        break;
+    case 7:
+    default:
+        // Day 7（日曜・最終夜・超濃霧と総力戦）: 全8軒
+        dayTargetHouses = { 0, 1, 2, 3, 4, 5, 6, 7 };
+        break;
+    }
+
+    totalDeliveries = static_cast<int>(dayTargetHouses.size());
+    completedDeliveries = 0;
+    currentDelivery = 0;
+    allDeliveriesComplete = false;
+    state = DeliveryState::Active;
+    feedbackTimer = 0;
+    wrongDeliveryTimer = 0;
+    allCompleteTimer = 0;
+
+    // 配達先完了状態のリセット
+    for (size_t i = 0; i < deliveryPoints.size(); ++i)
+    {
+        deliveryPoints[i].isCompleted = false;
+    }
+}
+
+// 現在の日数取得
+int DeliveryManager::GetCurrentDay() const
+{
+    return currentDay;
+}
+
+// 日数名文字列取得
+const char* DeliveryManager::GetDayName() const
+{
+    switch (currentDay)
+    {
+    case 1: return "DAY 1 - MONDAY";
+    case 2: return "DAY 2 - TUESDAY";
+    case 3: return "DAY 3 - WEDNESDAY";
+    case 4: return "DAY 4 - THURSDAY";
+    case 5: return "DAY 5 - FRIDAY";
+    case 6: return "DAY 6 - SATURDAY";
+    case 7: return "DAY 7 - SUNDAY (FINAL)";
+    default: return "DAY 1 - MONDAY";
+    }
+}
+
+// 日別サブタイトル取得
+const char* DeliveryManager::GetDaySubtitle() const
+{
+    switch (currentDay)
+    {
+    case 1: return "The First Night - Orientation";
+    case 2: return "Cold Rain & Flickering Lights";
+    case 3: return "Creeping Mist & Distant Whispers";
+    case 4: return "Midnight Blackouts & Torrential Rain";
+    case 5: return "Freezing Sleet & Darkened Streets";
+    case 6: return "The Blizzard & Stalking Shadows";
+    case 7: return "Final Night - The Supernatural Nightmare";
+    default: return "The First Night - Orientation";
+    }
+}
+
 // 現在の目的地のポストIDを取得（0〜7、未完了目標なしは-1）
 int DeliveryManager::GetCurrentTargetId() const
 {
-    if (state == DeliveryState::Active && !allDeliveriesComplete && currentDelivery >= 0 && currentDelivery < totalDeliveries)
+    if (state == DeliveryState::Active && !allDeliveriesComplete &&
+        currentDelivery >= 0 && currentDelivery < static_cast<int>(dayTargetHouses.size()))
     {
-        return currentDelivery;
+        return dayTargetHouses[currentDelivery];
     }
     return -1; // アクティブな目標なし
 }
@@ -169,7 +260,8 @@ VECTOR DeliveryManager::GetCurrentTargetPosition() const
 // アクティブな目的地が存在するか
 bool DeliveryManager::HasActiveTarget() const
 {
-    return (state == DeliveryState::Active && !allDeliveriesComplete && currentDelivery >= 0 && currentDelivery < totalDeliveries);
+    return (state == DeliveryState::Active && !allDeliveriesComplete &&
+        currentDelivery >= 0 && currentDelivery < static_cast<int>(dayTargetHouses.size()));
 }
 
 // 現在の配達状態を取得

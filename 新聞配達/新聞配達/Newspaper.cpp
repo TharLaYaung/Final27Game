@@ -586,9 +586,9 @@ void Newspaper::Deliver()
 }
 
 // 新聞の状態を初期状態にリセットする
-void Newspaper::Reset()
+void Newspaper::Reset(int count)
 {
-    newspaperCount = 8;
+    newspaperCount = count;
     isHolding = false;
     canTake = false;
     oldLeftClick = false;

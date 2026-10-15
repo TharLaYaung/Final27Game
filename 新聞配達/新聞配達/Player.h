@@ -68,19 +68,27 @@ public:
     void SetCameraShakeOffset(const VECTOR& offset) { cameraShakeOffset = offset; }
     VECTOR GetCameraShakeOffset() const { return cameraShakeOffset; }
 
+    // カメラロール角度（傾き）を設定・取得する（ラジアン）
+    void SetCameraRoll(float roll) { cameraRoll = roll; }
+    float GetCameraRoll() const { return cameraRoll; }
 
+    // 目の高さオフセットを設定・取得する（死亡倒れ込み用）
+    void SetEyeHeightOffset(float offset) { eyeHeightOffset = offset; }
+    float GetEyeHeightOffset() const { return eyeHeightOffset; }
+
+    // 恐怖呼吸・揺れオフセットを設定する
+    void SetSwayOffset(const VECTOR& offset, float pitchOff = 0.0f, float yawOff = 0.0f)
+    {
+        cameraSwayOffset = offset;
+        cameraSwayPitch = pitchOff;
+        cameraSwayYaw = yawOff;
+    }
 
     // 自転車の位置を設定する
-
     void SetBicyclePosition(VECTOR newBicyclePosition);
 
-
-
     // 自転車との当たり判定を使うか設定する
-
     void SetBicycleCollisionEnabled(bool enabled);
-
-
 
 private:
 
@@ -141,13 +149,21 @@ private:
 
 
     // カメラシェイク用オフセット座標
-
     VECTOR cameraShakeOffset;
 
+    // カメラロール角度（ラジアン）
+    float cameraRoll;
 
+    // 目の高さオフセット（倒れ込み演出用）
+    float eyeHeightOffset;
+
+    // 恐怖呼吸・揺れ用オフセット座標
+    VECTOR cameraSwayOffset;
+
+    // 恐怖揺れ視線ピッチ・ヨー微小オフセット
+    float cameraSwayPitch;
+    float cameraSwayYaw;
 
     // 指定した位置へ移動できるか確認する
-
     bool CanMove(VECTOR nextPosition);
-
 };

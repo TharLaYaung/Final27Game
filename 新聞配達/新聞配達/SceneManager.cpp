@@ -24,6 +24,8 @@ SceneManager::SceneManager()
     , transitionTimer(0.0f)
     , transitionDuration(0.8f)
     , transitionAlpha(0.0f)
+    , currentDay(1)
+    , titleSelectedDay(1)
     , isPaused(false)
     , pauseMenuSelection(0)
     , titleTimer(0.0f)
@@ -65,6 +67,8 @@ bool SceneManager::Initialize()
     transitionDuration = 0.8f;
     transitionAlpha = 0.0f;
 
+    currentDay = 1;
+    titleSelectedDay = 1;
     isPaused = false;
     pauseMenuSelection = 0;
 
@@ -133,6 +137,9 @@ void SceneManager::SetPaused(bool paused)
     isPaused = paused;
     pauseMenuSelection = 0;
 
+    // ポーズ中はゲーム内時刻の進行を一時停止
+    HorrorUI::Instance().SetTimePaused(paused);
+
     if (isPaused)
     {
         // ポーズ中はマウスカーソルを表示してメニュー選択可能にする
@@ -166,7 +173,15 @@ void SceneManager::StartTransition(SceneType target, float duration)
     }
 }
 
-// ゲーム状態の全リセット
+// 7日間進行管理
+void SceneManager::SetCurrentDay(int day)
+{
+    if (day < 1) day = 1;
+    if (day > 7) day = 7;
+    currentDay = day;
+}
+
+// ゲーム状態の全リセット（日別開始・リトライ・タイトル復帰用）
 void SceneManager::ResetGame(
     Player& player,
     Bicycle& bicycle,
@@ -174,35 +189,51 @@ void SceneManager::ResetGame(
     DeliveryManager& deliveryManager,
     NightEnvironment& nightEnv,
     WeatherManager& weatherManager,
-    HorrorManager& horrorManager
+    HorrorManager& horrorManager,
+    int day
 )
 {
-    // プレイヤー位置・視線のリセット
+    if (day < 1) day = 1;
+    if (day > 7) day = 7;
+    currentDay = day;
+
+    // プレイヤー位置・視線・カメラ傾きのリセット
     player.SetPosition(VGet(0.0f, 1.7f, -30.0f));
     player.SetYaw(0.0f);
     player.SetPitch(0.0f);
+    player.SetCameraRoll(0.0f);
+    player.SetEyeHeightOffset(0.0f);
+    player.SetSwayOffset(VGet(0.0f, 0.0f, 0.0f), 0.0f, 0.0f);
     player.SetCameraShakeOffset(VGet(0.0f, 0.0f, 0.0f));
 
-    // 自転車のリセット
+    // 配達状況の日別セットアップ
+    deliveryManager.SetDay(currentDay);
+
+    // 自転車のリセットと日別バッテリー消費倍率
     bicycle.Reset();
+    float batteryMultipliers[7] = { 1.0f, 1.10f, 1.25f, 1.40f, 1.60f, 1.80f, 2.00f };
+    bicycle.SetBatteryDrainMultiplier(batteryMultipliers[currentDay - 1]);
 
-    // 新聞のリセット
-    newspaper.Reset();
+    // 新聞のリセット（本日の必要部数）
+    newspaper.Reset(deliveryManager.GetTotalDeliveries());
 
-    // 配達状況のリセット
-    deliveryManager.Initialize();
-
-    // 深夜環境プリセットのリセット
+    // 深夜環境・街灯損壊プリセット
     nightEnv.SetPreset(EnvironmentPreset::NightDeliveryStyle);
+    nightEnv.SetDayEnvironment(currentDay);
 
-    // 動的天候のリセット
+    // 動的天候の日別セットアップ
     weatherManager.Initialize();
+    weatherManager.SetDayWeather(currentDay, nightEnv);
 
-    // 恐怖・怪異システムのリセット
+    // 恐怖・怪異システムの日別難易度設定
     horrorManager.Initialize();
+    horrorManager.SetDayDifficulty(currentDay);
 
-    // UI時計を午前3時00分にリセット
-    HorrorUI::Instance().SetGameTime(3, 0);
+    // ホラーUIの日数・告知バナー・ゲーム開始時刻（午前1時）設定
+    HorrorUI::Instance().SetCurrentDay(currentDay);
+    HorrorUI::Instance().SetGameTime(1, 0);
+    HorrorUI::Instance().SetTimePaused(false);
+    HorrorUI::Instance().TriggerDayBanner();
 
     // ポーズ解除
     isPaused = false;
@@ -378,13 +409,26 @@ void SceneManager::Update(
             nightEnv.Update(bicycle);
             weatherManager.Update(dt, player, bicycle, nightEnv);
 
+            // 日別ステージ選択ボタン判定（文字との重複防止のため外側に配置）
+            bool hitPrevDay = CheckButtonHit(cx - 210, 360, cx - 160, 405);
+            bool hitNextDay = CheckButtonHit(cx + 160, 360, cx + 210, 405);
+
+            if (hitPrevDay)
+            {
+                titleSelectedDay = (titleSelectedDay <= 1) ? 7 : titleSelectedDay - 1;
+            }
+            if (hitNextDay)
+            {
+                titleSelectedDay = (titleSelectedDay >= 7) ? 1 : titleSelectedDay + 1;
+            }
+
             // ボタン判定（配達開始・終了）
             bool hitStart = CheckButtonHit(cx - 180, 420, cx + 180, 465);
             bool hitQuit = CheckButtonHit(cx - 180, 480, cx + 180, 525);
 
             if ((hitStart || enterDown || spaceDown) && !IsTransitioning())
             {
-                ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager);
+                ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, titleSelectedDay);
                 StartTransition(SceneType::Game, 0.8f);
             }
 
@@ -430,13 +474,13 @@ void SceneManager::Update(
                 else if (hitRetry || (enterDown && pauseMenuSelection == 1))
                 {
                     SetPaused(false);
-                    ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager);
+                    ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
                     StartTransition(SceneType::Game, 0.6f);
                 }
                 else if (hitTitle || (enterDown && pauseMenuSelection == 2))
                 {
                     SetPaused(false);
-                    ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager);
+                    ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
                     StartTransition(SceneType::Title, 0.8f);
                 }
                 else if (hitQuit || (enterDown && pauseMenuSelection == 3))
@@ -481,21 +525,43 @@ void SceneManager::Update(
             // 夜明け環境の更新
             weatherManager.Update(dt, player, bicycle, nightEnv);
 
-            // ボタン判定（タイトルへ戻る・終了）
-            bool hitTitle = CheckButtonHit(cx - 180, cy + 155, cx + 180, cy + 195);
-            bool hitQuit = CheckButtonHit(cx - 180, cy + 205, cx + 180, cy + 245);
-
             if (clearTimer > 1.5f)
             {
-                if ((hitTitle || enterDown || spaceDown) && !IsTransitioning())
+                if (currentDay < 7)
                 {
-                    ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager);
-                    StartTransition(SceneType::Title, 1.0f);
-                }
+                    // 翌夜へ進むボタン（Day 1〜6）
+                    bool hitNextNight = CheckButtonHit(cx - 200, cy + 135, cx + 200, cy + 180);
+                    bool hitTitle = CheckButtonHit(cx - 200, cy + 190, cx + 200, cy + 230);
 
-                if ((hitQuit || escDown) && !IsTransitioning())
+                    if ((hitNextNight || enterDown || spaceDown) && !IsTransitioning())
+                    {
+                        currentDay++;
+                        ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
+                        StartTransition(SceneType::Game, 1.0f);
+                    }
+
+                    if (hitTitle && !IsTransitioning())
+                    {
+                        ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
+                        StartTransition(SceneType::Title, 1.0f);
+                    }
+                }
+                else
                 {
-                    outQuitRequested = true;
+                    // 最終日クリア・全7日生存達成エンディング（Day 7）
+                    bool hitTitle = CheckButtonHit(cx - 180, cy + 155, cx + 180, cy + 195);
+                    bool hitQuit = CheckButtonHit(cx - 180, cy + 205, cx + 180, cy + 245);
+
+                    if ((hitTitle || enterDown || spaceDown) && !IsTransitioning())
+                    {
+                        ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
+                        StartTransition(SceneType::Title, 1.0f);
+                    }
+
+                    if ((hitQuit || escDown) && !IsTransitioning())
+                    {
+                        outQuitRequested = true;
+                    }
                 }
             }
         }
@@ -513,13 +579,13 @@ void SceneManager::Update(
 
             if ((hitRetry || rDown) && !IsTransitioning())
             {
-                ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager);
+                ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
                 StartTransition(SceneType::Game, 0.8f);
             }
 
             if ((hitTitle || enterDown || spaceDown) && !IsTransitioning())
             {
-                ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager);
+                ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
                 StartTransition(SceneType::Title, 1.0f);
             }
 
@@ -557,6 +623,9 @@ void SceneManager::Draw(
             nightEnv.DrawStreetLights();
             weatherManager.DrawParticles(bicycle, nightEnv);
 
+            // 2D描画への影響を防ぐためフォグを無効化
+            SetFogEnable(FALSE);
+
             // 2Dタイトル画面オーバーレイ
             DrawTitleScene(nightEnv);
         }
@@ -579,6 +648,12 @@ void SceneManager::Draw(
             {
                 MapDrawDebug(deliveryManager.GetCurrentTargetId());
             }
+
+            // 2D描画・UI・ミニマップへの影響を防ぐためフォグを無効化
+            SetFogEnable(FALSE);
+
+            // 恐怖視覚エフェクト（二重像・焦点ボケ・冷色脱色）を3D画面へ適用
+            HorrorUI::Instance().DrawPostHorrorEffects();
 
             // 2D UI・HUD描画
             if (!horrorManager.IsControlRestricted())
@@ -630,10 +705,10 @@ void SceneManager::Draw(
 
             if (mapDebugEnabled)
             {
-                HorrorUI::Instance().DrawRetroPanel(18, 312, 310, 390,
+                HorrorUI::Instance().DrawRetroPanel(18, 334, 310, 412,
                     HorrorUI::COL_BORDER, HorrorUI::COL_PANEL_BG, 220);
 
-                HorrorUI::Instance().DrawJitterString(26, 318, "[ F6: MAP DEBUG ON ]",
+                HorrorUI::Instance().DrawJitterString(26, 340, "[ F6: MAP DEBUG ON ]",
                     GetColor(220, 180, 80), HorrorUI::Instance().GetFontSmall());
 
                 char dbgTarget[64];
@@ -646,22 +721,29 @@ void SceneManager::Draw(
                 {
                     snprintf(dbgTarget, sizeof(dbgTarget), "CURRENT TARGET: ALL COMPLETED");
                 }
-                HorrorUI::Instance().DrawJitterString(26, 340, dbgTarget,
+                HorrorUI::Instance().DrawJitterString(26, 362, dbgTarget,
                     HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
 
                 char dbgProg[64];
                 snprintf(dbgProg, sizeof(dbgProg), "DELIVERY: %02d / %02d HOUSES",
                     deliveryManager.GetCompletedDeliveries(), deliveryManager.GetTotalDeliveries());
-                HorrorUI::Instance().DrawJitterString(26, 362, dbgProg,
+                HorrorUI::Instance().DrawJitterString(26, 384, dbgProg,
                     HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
             }
+
+            // 夜開始告知バナーの描画
+            HorrorUI::Instance().DrawDayBanner(
+                deliveryManager.GetDayName(),
+                deliveryManager.GetDaySubtitle(),
+                deliveryManager.GetTotalDeliveries()
+            );
 
             DrawScanlinesAndNoise(12);
 
             // ポーズメニュー表示（最前面）
             if (isPaused)
             {
-                DrawPauseMenu();
+                DrawPauseMenu(deliveryManager);
             }
         }
         break;
@@ -683,14 +765,14 @@ void SceneManager::Draw(
             weatherManager.DrawParticles(bicycle, nightEnv);
 
             // 2D配達完了報告書画面オーバーレイ
-            DrawClearScene(deliveryManager);
+            DrawClearScene(deliveryManager, bicycle);
         }
         break;
 
     case SceneType::GameOver:
         {
             // ゲームオーバー専用画面
-            DrawGameOverScene();
+            DrawGameOverScene(deliveryManager);
         }
         break;
     }
@@ -718,10 +800,10 @@ void SceneManager::DrawTitleScene(const NightEnvironment& nightEnv)
     bool playBlink = (((int)(titleTimer * 2.0f)) % 2) == 0;
     unsigned int playCol = playBlink ? GetColor(110, 215, 160) : GetColor(60, 120, 90);
     DrawString(32, 28, "PLAY >", playCol);
-    DrawString(120, 28, "SP   -0:03:00", GetColor(180, 195, 185));
+    DrawString(120, 28, "SP   -0:01:00", GetColor(180, 195, 185));
 
     char timeBuf[64];
-    snprintf(timeBuf, sizeof(timeBuf), "1998.08.14  AM 03:00:%02d", ((int)titleTimer) % 60);
+    snprintf(timeBuf, sizeof(timeBuf), "1998.08.14  AM 01:00:%02d", ((int)titleTimer) % 60);
     DrawString(990, 28, timeBuf, GetColor(180, 195, 185));
 
     // タイトルロゴの描画（色収差ジッター付き）
@@ -756,7 +838,7 @@ void SceneManager::DrawTitleScene(const NightEnvironment& nightEnv)
     }
 
     // キャッチコピー
-    const char* tagline = "The silence of 3:00 AM, and the horrors in the alley.";
+    const char* tagline = "The silence of 1:00 AM, and the horrors in the alley.";
     if (fontSubText != -1)
     {
         int tagW = GetDrawStringWidthToHandle(tagline, (int)strlen(tagline), fontSubText);
@@ -764,17 +846,42 @@ void SceneManager::DrawTitleScene(const NightEnvironment& nightEnv)
     }
 
     // メニューボックス（レトロCRTパネル）
-    int menuY = 405;
+    int menuY = 350;
     int mw = 440;
-    int mh = 135;
+    int mh = 195;
     HorrorUI::Instance().DrawRetroPanel(cx - mw / 2, menuY, cx + mw / 2, menuY + mh,
         HorrorUI::COL_BORDER, HorrorUI::COL_PANEL_BG, 200);
 
+    // 日数選択バー (< DAY X - NAME >)
+    const char* dayTitles[7] = {
+        "DAY 1 - MON (3 Houses)",
+        "DAY 2 - TUE (4 Houses)",
+        "DAY 3 - WED (5 Houses)",
+        "DAY 4 - THU (6 Houses)",
+        "DAY 5 - FRI (6 Houses)",
+        "DAY 6 - SAT (7 Houses)",
+        "DAY 7 - SUN (8 Houses)"
+    };
+    const char* selDayStr = dayTitles[titleSelectedDay - 1];
+
+    DrawButton(cx - 210, 362, cx - 160, 404, "<", GetColor(180, 190, 185), GetColor(255, 255, 240), fontMenu);
+    DrawButton(cx + 160, 362, cx + 210, 404, ">", GetColor(180, 190, 185), GetColor(255, 255, 240), fontMenu);
+
+    if (fontMenu != -1)
+    {
+        int sw = GetDrawStringWidthToHandle(selDayStr, (int)strlen(selDayStr), fontMenu);
+        DrawStringToHandle(cx - sw / 2, 370, selDayStr, GetColor(240, 175, 120), fontMenu);
+    }
+    else
+    {
+        DrawString(cx - 70, 372, selDayStr, GetColor(240, 175, 120));
+    }
+
     // ボタンの描画（マウスホバー＆クリック対応）
-    DrawButton(cx - 180, 420, cx + 180, 465, "START DELIVERY",
+    DrawButton(cx - 180, 418, cx + 180, 463, "START DELIVERY",
         GetColor(210, 220, 215), GetColor(255, 255, 240), fontMenu);
 
-    DrawButton(cx - 180, 480, cx + 180, 525, "QUIT GAME",
+    DrawButton(cx - 180, 478, cx + 180, 523, "QUIT GAME",
         GetColor(150, 160, 155), GetColor(230, 235, 230), fontMenu);
 
     // 画面下部の操作ヘルプバー
@@ -782,7 +889,7 @@ void SceneManager::DrawTitleScene(const NightEnvironment& nightEnv)
     HorrorUI::Instance().DrawRetroPanel(26, helpY, 1254, helpY + 32,
         HorrorUI::COL_BORDER_DIM, HorrorUI::COL_BG, 180);
     HorrorUI::Instance().DrawJitterString(42, helpY + 8,
-        "[ CONTROLS ]  WASD: Move  |  Mouse: Look  |  E: Ride / Dismount  |  LMB: Take / Deliver  |  F: Light  |  ESC: Pause",
+        "[ CONTROLS ]  WASD: Move  |  Mouse: Look  |  E: Ride / Dismount  |  LMB: Take / Deliver  |  F: Light  |  ESC: Pause  |  < >: Select Day",
         GetColor(150, 165, 160), HorrorUI::Instance().GetFontKeyGuide());
 
     // CRT走査線・ノイズ
@@ -790,8 +897,10 @@ void SceneManager::DrawTitleScene(const NightEnvironment& nightEnv)
 }
 
 // ポーズメニュー描画
-void SceneManager::DrawPauseMenu()
+void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
 {
+    (void)deliveryManager;
+
     int cx = 640;
     int cy = 360;
 
@@ -806,8 +915,9 @@ void SceneManager::DrawPauseMenu()
     HorrorUI::Instance().DrawRetroPanel(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2,
         GetColor(75, 45, 45), GetColor(16, 12, 14), 240);
 
-    // タイトル
-    const char* pauseTitle = "PAUSE MENU";
+    // タイトル（現在の日数を明記）
+    char pauseTitle[64];
+    snprintf(pauseTitle, sizeof(pauseTitle), "PAUSE MENU - DAY %d / 7", currentDay);
     if (fontReportTitle != -1)
     {
         int tw = GetDrawStringWidthToHandle(pauseTitle, (int)strlen(pauseTitle), fontReportTitle);
@@ -815,7 +925,7 @@ void SceneManager::DrawPauseMenu()
     }
     else
     {
-        DrawString(cx - 45, cy - ph / 2 + 20, pauseTitle, GetColor(210, 230, 220));
+        DrawString(cx - 65, cy - ph / 2 + 20, pauseTitle, GetColor(210, 230, 220));
     }
 
     DrawLine(cx - pw / 2 + 25, cy - ph / 2 + 55, cx + pw / 2 - 25, cy - ph / 2 + 55, GetColor(60, 35, 35));
@@ -826,11 +936,14 @@ void SceneManager::DrawPauseMenu()
     bool sel2 = (pauseMenuSelection == 2);
     bool sel3 = (pauseMenuSelection == 3);
 
+    char retryLabel[32];
+    snprintf(retryLabel, sizeof(retryLabel), "RETRY DAY %d", currentDay);
+
     DrawButton(cx - 180, cy - 80, cx + 180, cy - 38, "RESUME GAME",
         sel0 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
-    DrawButton(cx - 180, cy - 26, cx + 180, cy + 16, "RETRY DELIVERY",
+    DrawButton(cx - 180, cy - 26, cx + 180, cy + 16, retryLabel,
         sel1 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
@@ -856,10 +969,8 @@ void SceneManager::DrawPauseMenu()
 }
 
 // クリアシーン描画
-void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager)
+void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager, const Bicycle& bicycle)
 {
-    (void)deliveryManager;
-
     int cx = 640;
     int cy = 360;
 
@@ -869,72 +980,122 @@ void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager)
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 
     // クリア報告パネル
-    int pw = 720;
+    int pw = 740;
     int ph = 500;
     HorrorUI::Instance().DrawRetroPanel(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2,
         GetColor(75, 110, 100), GetColor(12, 20, 24), 225);
 
     // ヘッダーバー
     int topY = cy - ph / 2 + 25;
+    char headerTitle[64];
+    snprintf(headerTitle, sizeof(headerTitle), "DELIVERY LOG REPORT - DAY %d / 7", currentDay);
     if (fontReportTitle != -1)
     {
-        DrawStringToHandle(cx - 145, topY, "DELIVERY LOG REPORT", GetColor(180, 230, 205), fontReportTitle);
+        int hw = GetDrawStringWidthToHandle(headerTitle, (int)strlen(headerTitle), fontReportTitle);
+        DrawStringToHandle(cx - hw / 2, topY, headerTitle, GetColor(180, 230, 205), fontReportTitle);
     }
-    DrawString(cx + 120, topY + 6, "REC ■  04:35 AM", GetColor(120, 160, 140));
+
+    char recTimeBuf[32];
+    int endHour = 1, endMin = 0;
+    HorrorUI::Instance().GetGameTime(endHour, endMin);
+    snprintf(recTimeBuf, sizeof(recTimeBuf), "REC ■ %02d:%02d AM", endHour, endMin);
+    DrawString(cx + 170, topY + 6, recTimeBuf, GetColor(120, 160, 140));
 
     DrawLine(cx - pw / 2 + 30, topY + 40, cx + pw / 2 - 30, topY + 40, GetColor(50, 80, 70));
 
     // タイプライター調テキスト表示（時間経過で順次フェードイン）
-    int lineY = topY + 60;
-    int lineGap = 32;
+    int lineY = topY + 58;
+    int lineGap = 30;
+
+    char sectorStr[128];
+    snprintf(sectorStr, sizeof(sectorStr), "■ SHIFT:        %s", deliveryManager.GetDayName());
+
+    char deliveryStr[128];
+    snprintf(deliveryStr, sizeof(deliveryStr), "■ DELIVERIES:   %02d / %02d Houses Successfully Delivered",
+        deliveryManager.GetCompletedDeliveries(), deliveryManager.GetTotalDeliveries());
+
+    char batteryStr[128];
+    snprintf(batteryStr, sizeof(batteryStr), "■ BIKE BATTERY: %.0f%% Remaining Capacity", bicycle.GetBatteryPercent());
 
     if (clearTimer > 0.3f)
     {
-        DrawStringToHandle(cx - 300, lineY, "■ SECTOR:       Midnight Residential Area (8 Houses)", GetColor(195, 205, 200), fontReportBody);
+        DrawStringToHandle(cx - 310, lineY, sectorStr, GetColor(195, 205, 200), fontReportBody);
     }
     if (clearTimer > 0.8f)
     {
-        DrawStringToHandle(cx - 300, lineY + lineGap, "■ DELIVERIES:   08 / 08 Houses Successfully Delivered", GetColor(120, 220, 160), fontReportBody);
+        DrawStringToHandle(cx - 310, lineY + lineGap, deliveryStr, GetColor(120, 220, 160), fontReportBody);
     }
     if (clearTimer > 1.3f)
     {
-        DrawStringToHandle(cx - 300, lineY + lineGap * 2, "■ ANOMALIES:    None Reported (Survived)", GetColor(200, 215, 200), fontReportBody);
+        DrawStringToHandle(cx - 310, lineY + lineGap * 2, batteryStr, GetColor(200, 215, 200), fontReportBody);
     }
     if (clearTimer > 1.8f)
     {
-        DrawStringToHandle(cx - 300, lineY + lineGap * 3, "\"The eastern sky begins to pale with the cold light of dawn...\"", GetColor(150, 185, 175), fontReportBody);
-        DrawStringToHandle(cx - 300, lineY + lineGap * 4, "\"Another night survived. Morning has finally come.\"", GetColor(170, 205, 195), fontReportBody);
+        if (currentDay < 7)
+        {
+            DrawStringToHandle(cx - 310, lineY + lineGap * 3, "\"The eastern sky begins to pale with cold light...\"", GetColor(150, 185, 175), fontReportBody);
+            DrawStringToHandle(cx - 310, lineY + lineGap * 4, "\"Another night survived. Rest well... Tomorrow will be harsher.\"", GetColor(170, 205, 195), fontReportBody);
+        }
+        else
+        {
+            DrawStringToHandle(cx - 310, lineY + lineGap * 3, "\"Morning sun finally breaks through the supernatural fog!\"", GetColor(230, 220, 130), fontReportBody);
+            DrawStringToHandle(cx - 310, lineY + lineGap * 4, "\"You delivered every paper and broke the curse. YOU SURVIVED THE WEEK!\"", GetColor(140, 240, 180), fontReportBody);
+        }
     }
 
     // 生還スタンプバナー
     if (clearTimer > 2.3f)
     {
-        int stampY = lineY + lineGap * 5 + 6;
-        int sw = 560;
-        int sh = 40;
+        int stampY = lineY + lineGap * 5 + 4;
+        int sw = 600;
+        int sh = 38;
         DrawBox(cx - sw / 2, stampY, cx + sw / 2, stampY + sh, GetColor(18, 45, 35), TRUE);
         DrawBox(cx - sw / 2, stampY, cx + sw / 2, stampY + sh, GetColor(90, 205, 150), FALSE);
 
-        DrawStringToHandle(cx - 200, stampY + 9, "★ ALL DELIVERIES COMPLETED - SURVIVED ★",
-            GetColor(110, 240, 180), fontReportBody);
+        char stampStr[64];
+        if (currentDay < 7)
+        {
+            snprintf(stampStr, sizeof(stampStr), "★ DAY %d SURVIVED - PROCEED TO DAY %d ★", currentDay, currentDay + 1);
+        }
+        else
+        {
+            snprintf(stampStr, sizeof(stampStr), "★ ALL 7 NIGHTS SURVIVED - VICTORY ★");
+        }
+        int stw = (fontReportBody != -1) ? GetDrawStringWidthToHandle(stampStr, (int)strlen(stampStr), fontReportBody) : 200;
+        DrawStringToHandle(cx - stw / 2, stampY + 8, stampStr, GetColor(110, 240, 180), fontReportBody);
     }
 
     // 案内ボタン（マウス選択＆キー対応）
     if (clearTimer > 2.8f)
     {
-        DrawButton(cx - 180, cy + 145, cx + 180, cy + 185, "RETURN TO TITLE",
-            GetColor(210, 225, 220), GetColor(255, 255, 240), fontMenu);
+        if (currentDay < 7)
+        {
+            char nextNightBtn[64];
+            snprintf(nextNightBtn, sizeof(nextNightBtn), "PROCEED TO DAY %d", currentDay + 1);
+            DrawButton(cx - 200, cy + 135, cx + 200, cy + 175, nextNightBtn,
+                GetColor(210, 245, 220), GetColor(255, 255, 240), fontMenu);
 
-        DrawButton(cx - 180, cy + 195, cx + 180, cy + 235, "QUIT GAME",
-            GetColor(140, 155, 150), GetColor(230, 235, 230), fontMenu);
+            DrawButton(cx - 200, cy + 185, cx + 200, cy + 225, "RETURN TO TITLE",
+                GetColor(150, 165, 160), GetColor(230, 235, 230), fontMenu);
+        }
+        else
+        {
+            DrawButton(cx - 180, cy + 145, cx + 180, cy + 185, "RETURN TO TITLE",
+                GetColor(210, 225, 220), GetColor(255, 255, 240), fontMenu);
+
+            DrawButton(cx - 180, cy + 195, cx + 180, cy + 235, "QUIT GAME",
+                GetColor(140, 155, 150), GetColor(230, 235, 230), fontMenu);
+        }
     }
 
     DrawScanlinesAndNoise(18);
 }
 
 // ゲームオーバーシーン描画
-void SceneManager::DrawGameOverScene()
+void SceneManager::DrawGameOverScene(const DeliveryManager& deliveryManager)
 {
+    (void)deliveryManager;
+
     int cx = 640;
     int cy = 360;
 
@@ -979,7 +1140,8 @@ void SceneManager::DrawGameOverScene()
     int jx = (std::rand() % 5) - 2;
     int jy = (std::rand() % 3) - 1;
 
-    const char* overTitle = "GAME OVER";
+    char overTitle[64];
+    snprintf(overTitle, sizeof(overTitle), "GAME OVER - DAY %d", currentDay);
     if (fontTitleKanji != -1)
     {
         int ow = GetDrawStringWidthToHandle(overTitle, (int)strlen(overTitle), fontTitleKanji);
@@ -990,7 +1152,7 @@ void SceneManager::DrawGameOverScene()
     }
     else
     {
-        DrawString(cx - 50, cy - 135, overTitle, GetColor(210, 35, 30));
+        DrawString(cx - 65, cy - 135, overTitle, GetColor(210, 35, 30));
     }
 
     const char* subOver = "CONSUMED BY DARKNESS";
@@ -1001,7 +1163,8 @@ void SceneManager::DrawGameOverScene()
     }
 
     // ホラーテキスト（フォントを適用して中央揃え）
-    const char* line1 = "Consciousness faded into the dark...";
+    char line1[64];
+    snprintf(line1, sizeof(line1), "Failed to survive Night %d of 7...", currentDay);
     const char* line2 = "The delivery courier went missing in the midnight streets.";
     if (fontSubText != -1)
     {
@@ -1017,16 +1180,18 @@ void SceneManager::DrawGameOverScene()
     }
 
     // メニューボタン（マウスホバー＆キー選択両対応）
-    DrawButton(cx - 180, cy + 25, cx + 180, cy + 65, "RETRY DELIVERY",
+    char retryLabel[32];
+    snprintf(retryLabel, sizeof(retryLabel), "RETRY DAY %d", currentDay);
+    DrawButton(cx - 180, cy + 25, cx + 180, cy + 65, retryLabel,
         GetColor(230, 210, 150), GetColor(255, 245, 190), fontMenu);
 
     DrawButton(cx - 180, cy + 75, cx + 180, cy + 115, "RETURN TO TITLE",
         GetColor(180, 170, 165), GetColor(240, 235, 230), fontMenu);
 
     DrawButton(cx - 180, cy + 125, cx + 180, cy + 165, "QUIT GAME",
-        GetColor(130, 125, 125), GetColor(210, 205, 205), fontMenu);
+        GetColor(140, 130, 125), GetColor(220, 215, 210), fontMenu);
 
-    DrawScanlinesAndNoise(30);
+    DrawScanlinesAndNoise(26);
 }
 
 // CRT走査線およびVHSノイズ共通描画
