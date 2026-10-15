@@ -12,12 +12,12 @@
 Minimap::Minimap()
 {
     panelX1 = 26;
-    panelY1 = 52;
+    panelY1 = 74;
     panelX2 = 236;
-    panelY2 = 247;
+    panelY2 = 269;
 
     displayCenterX = 131;
-    displayCenterY = 124;
+    displayCenterY = 146;
     viewHalfWidth = 98;
     viewHalfHeight = 65;
     mapScale = 4.2f;
@@ -128,7 +128,7 @@ void Minimap::Draw(
     ui.DrawRetroPanel(px1, py1, px2, py2, HorrorUI::COL_BORDER, HorrorUI::COL_BG, 185);
 
     // 下部情報バーとの区切り線
-    int dividerY = py2 - 42;
+    int dividerY = py2 - 46;
     DrawLine(px1 + 4, dividerY, px2 - 4, dividerY, HorrorUI::COL_BORDER_DIM);
 
     // 非アクティブ（停電・故障）時の画面表示
@@ -285,41 +285,47 @@ void Minimap::Draw(
 
     DrawTriangle(tipX, tipY, leftX, leftY, rightX, rightY, HorrorUI::COL_PLAYER, TRUE);
 
-    // 配達情報ステータス（下部バー）
+    // 配達情報ステータス（下部バー：十分な行間と左右分離配置で重なりを完全防止）
     int textY1 = dividerY + 5;
-    int textY2 = dividerY + 22;
+    int textY2 = dividerY + 24;
 
-    // 配達先距離（例 TARGET 125m）
-    char targetStr[32];
+    // 配達先距離（左側: TARGET、右側: 距離数値で分離）
+    ui.DrawJitterString(px1 + 10, textY1, "TARGET", HorrorUI::COL_TEXT, ui.GetFontSmall());
+    char distValStr[32];
     if (deliveryManager.HasActiveTarget())
     {
-        snprintf(targetStr, sizeof(targetStr), "TARGET    %3dm", targetDistanceMeters);
+        snprintf(distValStr, sizeof(distValStr), "%dm", targetDistanceMeters);
     }
     else
     {
-        snprintf(targetStr, sizeof(targetStr), "TARGET    ---");
+        snprintf(distValStr, sizeof(distValStr), "---");
     }
-    ui.DrawJitterString(px1 + 10, textY1, targetStr, HorrorUI::COL_TEXT, ui.GetFontSmall());
+    int distW = (ui.GetFontSmall() != -1) ? GetDrawStringWidthToHandle(distValStr, (int)strlen(distValStr), ui.GetFontSmall()) : 36;
+    ui.DrawJitterString(px2 - distW - 10, textY1, distValStr, HorrorUI::COL_TEXT, ui.GetFontSmall());
 
-    // 配達進行状況（例 DELIVERY 03/08）
-    char deliveryStr[32];
+    // 配達進行状況（左側: DELIVERY、右側: 完了数/必要数で分離）
+    ui.DrawJitterString(px1 + 10, textY2, "DELIVERY", HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
+    char progValStr[32];
     if (!deliveryManager.IsAllDeliveriesComplete())
     {
         snprintf(
-            deliveryStr,
-            sizeof(deliveryStr),
-            "DELIVERY  %02d/%02d",
+            progValStr,
+            sizeof(progValStr),
+            "%02d/%02d (D%d)",
             deliveryManager.GetCompletedDeliveries(),
-            deliveryManager.GetTotalDeliveries()
+            deliveryManager.GetTotalDeliveries(),
+            deliveryManager.GetCurrentDay()
         );
     }
     else
     {
-        snprintf(deliveryStr, sizeof(deliveryStr), "DELIVERY  COMPLETE");
+        snprintf(progValStr, sizeof(progValStr), "COMPLETE");
     }
-    ui.DrawJitterString(px1 + 10, textY2, deliveryStr, HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
+    int progW = (ui.GetFontSmall() != -1) ? GetDrawStringWidthToHandle(progValStr, (int)strlen(progValStr), ui.GetFontSmall()) : 65;
+    ui.DrawJitterString(px2 - progW - 10, textY2, progValStr, HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
 
-    // 各種センターメッセージ演出（フェード付き）
+    // 各種センターメッセージ演出（文字幅に応じた動的センタリング・枠自動フィッティング）
+    int screenCenterX = 640;
 
     // 配達成功: DELIVERED
     if (deliveryManager.IsFeedbackActive())
@@ -335,13 +341,16 @@ void Minimap::Draw(
 
     if (feedbackAlpha > 0.01f)
     {
-        int msgX = 575;
         int msgY = 320;
         int a = (int)(feedbackAlpha * 220.0f);
+        const char* msgStr = "DELIVERED";
+        int tw = (ui.GetFontMedium() != -1) ? GetDrawStringWidthToHandle(msgStr, (int)strlen(msgStr), ui.GetFontMedium()) : 120;
+        int bw = tw + 44;
+
         SetDrawBlendMode(DX_BLENDMODE_ALPHA, a);
-        DrawBox(msgX - 16, msgY - 6, msgX + 130, msgY + 28, HorrorUI::COL_BG, TRUE);
-        DrawBox(msgX - 16, msgY - 6, msgX + 130, msgY + 28, HorrorUI::COL_BORDER, FALSE);
-        ui.DrawJitterString(msgX + 16, msgY, "DELIVERED", HorrorUI::COL_TEXT, ui.GetFontMedium());
+        DrawBox(screenCenterX - bw / 2, msgY - 6, screenCenterX + bw / 2, msgY + 28, HorrorUI::COL_BG, TRUE);
+        DrawBox(screenCenterX - bw / 2, msgY - 6, screenCenterX + bw / 2, msgY + 28, HorrorUI::COL_BORDER, FALSE);
+        ui.DrawJitterString(screenCenterX - tw / 2, msgY, msgStr, HorrorUI::COL_TEXT, ui.GetFontMedium());
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 
@@ -359,17 +368,20 @@ void Minimap::Draw(
 
     if (wrongAlpha > 0.01f)
     {
-        int msgX = 540;
         int msgY = 320;
         int a = (int)(wrongAlpha * 220.0f);
+        const char* msgStr = "WRONG ADDRESS";
+        int tw = (ui.GetFontMedium() != -1) ? GetDrawStringWidthToHandle(msgStr, (int)strlen(msgStr), ui.GetFontMedium()) : 160;
+        int bw = tw + 44;
+
         SetDrawBlendMode(DX_BLENDMODE_ALPHA, a);
-        DrawBox(msgX - 16, msgY - 6, msgX + 190, msgY + 28, HorrorUI::COL_BG, TRUE);
-        DrawBox(msgX - 16, msgY - 6, msgX + 190, msgY + 28, HorrorUI::COL_WARNING, FALSE);
-        ui.DrawJitterString(msgX + 8, msgY, "WRONG ADDRESS", HorrorUI::COL_WARNING, ui.GetFontMedium());
+        DrawBox(screenCenterX - bw / 2, msgY - 6, screenCenterX + bw / 2, msgY + 28, HorrorUI::COL_BG, TRUE);
+        DrawBox(screenCenterX - bw / 2, msgY - 6, screenCenterX + bw / 2, msgY + 28, HorrorUI::COL_WARNING, FALSE);
+        ui.DrawJitterString(screenCenterX - tw / 2, msgY, msgStr, HorrorUI::COL_WARNING, ui.GetFontMedium());
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 
-    // 全配達完了: DELIVERIES COMPLETE 08 / 08 HOUSES
+    // 全配達完了: DELIVERIES COMPLETE
     if (deliveryManager.IsAllDeliveriesComplete() && deliveryManager.GetAllCompleteTimer() > 0)
     {
         allCompleteAlpha += 0.08f;
@@ -383,14 +395,22 @@ void Minimap::Draw(
 
     if (allCompleteAlpha > 0.01f)
     {
-        int msgX = 510;
         int msgY = 260;
         int a = (int)(allCompleteAlpha * 230.0f);
+        const char* titleMsg = "DELIVERIES COMPLETE";
+        char subMsg[64];
+        snprintf(subMsg, sizeof(subMsg), "%02d / %02d HOUSES",
+            deliveryManager.GetCompletedDeliveries(), deliveryManager.GetTotalDeliveries());
+
+        int tw1 = (ui.GetFontMedium() != -1) ? GetDrawStringWidthToHandle(titleMsg, (int)strlen(titleMsg), ui.GetFontMedium()) : 200;
+        int tw2 = (ui.GetFontSmall() != -1) ? GetDrawStringWidthToHandle(subMsg, (int)strlen(subMsg), ui.GetFontSmall()) : 120;
+        int bw = (tw1 > tw2 ? tw1 : tw2) + 50;
+
         SetDrawBlendMode(DX_BLENDMODE_ALPHA, a);
-        DrawBox(msgX - 25, msgY - 10, msgX + 280, msgY + 60, HorrorUI::COL_BG, TRUE);
-        DrawBox(msgX - 25, msgY - 10, msgX + 280, msgY + 60, HorrorUI::COL_BORDER, FALSE);
-        ui.DrawJitterString(msgX + 20, msgY + 2, "DELIVERIES COMPLETE", HorrorUI::COL_TEXT, ui.GetFontMedium());
-        ui.DrawJitterString(msgX + 65, msgY + 30, "08 / 08 HOUSES", HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
+        DrawBox(screenCenterX - bw / 2, msgY - 10, screenCenterX + bw / 2, msgY + 62, HorrorUI::COL_BG, TRUE);
+        DrawBox(screenCenterX - bw / 2, msgY - 10, screenCenterX + bw / 2, msgY + 62, HorrorUI::COL_BORDER, FALSE);
+        ui.DrawJitterString(screenCenterX - tw1 / 2, msgY + 2, titleMsg, HorrorUI::COL_TEXT, ui.GetFontMedium());
+        ui.DrawJitterString(screenCenterX - tw2 / 2, msgY + 32, subMsg, HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 
@@ -402,12 +422,15 @@ void Minimap::Draw(
         bool blink = ((animFrame / 30) % 2) == 0;
         if (blink)
         {
-            int msgX = 525;
             int msgY = 380;
+            const char* warnStr = "NO NEWSPAPERS REMAINING";
+            int tw = (ui.GetFontSmall() != -1) ? GetDrawStringWidthToHandle(warnStr, (int)strlen(warnStr), ui.GetFontSmall()) : 200;
+            int bw = tw + 40;
+
             SetDrawBlendMode(DX_BLENDMODE_ALPHA, 190);
-            DrawBox(msgX - 12, msgY - 4, msgX + 245, msgY + 22, HorrorUI::COL_BG, TRUE);
+            DrawBox(screenCenterX - bw / 2, msgY - 4, screenCenterX + bw / 2, msgY + 22, HorrorUI::COL_BG, TRUE);
             SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-            ui.DrawJitterString(msgX + 10, msgY, "NO NEWSPAPERS REMAINING", HorrorUI::COL_WARNING, ui.GetFontSmall());
+            ui.DrawJitterString(screenCenterX - tw / 2, msgY, warnStr, HorrorUI::COL_WARNING, ui.GetFontSmall());
         }
     }
 }

@@ -153,6 +153,7 @@ int WINAPI WinMain(
     bool oldF5Key = false;
     bool oldF6Key = false;
     bool oldF7Key = false;
+    bool oldF8Key = false;
     bool oldF9Key = false;
     bool oldF10Key = false;
     bool oldF11Key = false;
@@ -162,6 +163,10 @@ int WINAPI WinMain(
     bool oldKey4 = false;
     bool oldKey5 = false;
     bool oldKey6 = false;
+    bool oldKey7 = false;
+    bool oldKey8 = false;
+    bool oldKey9 = false;
+    bool oldKey0 = false;
     bool oldKeyJ = false;
     bool mapDebugEnabled = false;
 
@@ -259,6 +264,14 @@ int WINAPI WinMain(
             }
             oldF7Key = curF7;
 
+            // F8キー: 極限濃霧プリセット切り替え (fogStart 1.5m / fogEnd 8.0m)
+            bool curF8 = (CheckHitKey(KEY_INPUT_F8) != 0);
+            if (curF8 && !oldF8Key)
+            {
+                weatherManager.ToggleExtremeFog();
+            }
+            oldF8Key = curF8;
+
             // F9キー: 自動天候変化ON/OFF切り替え
             bool curF9 = (CheckHitKey(KEY_INPUT_F9) != 0);
             if (curF9 && !oldF9Key)
@@ -339,8 +352,40 @@ int WINAPI WinMain(
             }
             oldKey6 = curK6;
 
-            // ホラーUI状態更新（時計・プロンプトフェードなど）
-            HorrorUI::Instance().Update();
+            // 数字キー7: ゲーム内時刻を10分早送り（デバッグ操作）
+            bool curK7 = (CheckHitKey(KEY_INPUT_7) != 0);
+            if (curK7 && !oldKey7)
+            {
+                HorrorUI::Instance().AdvanceGameMinutes(10.0f);
+            }
+            oldKey7 = curK7;
+
+            // 数字キー8: ゲーム内時刻を1時間早送り（デバッグ操作）
+            bool curK8 = (CheckHitKey(KEY_INPUT_8) != 0);
+            if (curK8 && !oldKey8)
+            {
+                HorrorUI::Instance().AdvanceGameMinutes(60.0f);
+            }
+            oldKey8 = curK8;
+
+            // 数字キー9: 視界端（周辺視野）怪異出現テスト（デバッグ操作）
+            bool curK9 = (CheckHitKey(KEY_INPUT_9) != 0);
+            if (curK9 && !oldKey9)
+            {
+                horrorManager.DebugTriggerPeripheralScare(player);
+            }
+            oldKey9 = curK9;
+
+            // 数字キー0: 街灯怪異明滅・消灯イベントテスト（デバッグ操作）
+            bool curK0 = (CheckHitKey(KEY_INPUT_0) != 0);
+            if (curK0 && !oldKey0)
+            {
+                horrorManager.DebugTriggerStreetLightEvent(nightEnv, player);
+            }
+            oldKey0 = curK0;
+
+            // ホラーUI状態更新（デルタ秒対応: 時計・プロンプトフェードなど）
+            HorrorUI::Instance().Update(0.01666f);
 
             // 自転車位置をプレイヤーに伝達
             player.SetBicyclePosition(
@@ -386,8 +431,8 @@ int WINAPI WinMain(
             // 動的ランダム天候管理システムの更新
             weatherManager.Update(0.01666f, player, bicycle, nightEnv);
 
-            // 恐怖システム・怪異出現・ゲームオーバー管理システムの更新
-            horrorManager.Update(0.01666f, player, bicycle, nightEnv);
+            // 恐怖システム・怪異出現・ゲームオーバー管理システムの更新（配達進捗連携）
+            horrorManager.Update(0.01666f, player, bicycle, nightEnv, &deliveryManager);
 
             // 配達進行管理の更新
             deliveryManager.Update();

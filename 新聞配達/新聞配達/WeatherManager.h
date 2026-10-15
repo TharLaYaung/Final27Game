@@ -88,11 +88,23 @@ public:
     // 天候デバッグ表示のON/OFF切り替え（F10）
     void ToggleDebugHUD();
 
+    // 7日間天候設定
+    void SetDayWeather(int day, NightEnvironment& nightEnv);
+
     // 特定の天候へのスムーズ遷移開始（将来のホラーイベント用）
     void TransitionTo(WeatherType newWeather, float durationSeconds = 8.0f);
 
     // 超濃霧の強制開始（ホラー演出用ショートカット）
     void ForceThickFog(float durationSeconds = 6.0f);
+
+    // エクストリームフォグ（極限超濃霧テスト・F8キー）の切り替え
+    void ToggleExtremeFog();
+    bool IsExtremeFogActive() const { return isExtremeFogActive; }
+
+    // ホラーイベント用一時的フォグ圧縮制御 (targetFogEnd: 目標フォグ終端距離, duration: 継続秒数, recoverDuration: 復帰秒数)
+    void TriggerTemporaryFogOverride(float targetFogEnd, float durationSeconds = 4.0f, float recoverDurationSeconds = 5.0f);
+    void ClearFogOverride();
+    bool IsFogOverrideActive() const { return isFogOverrideActive; }
 
     // 現在および遷移先の天候状態取得
     WeatherType GetCurrentWeather() const { return currentWeather; }
@@ -101,6 +113,13 @@ public:
     bool IsDebugHUDVisible() const { return showDebugHUD; }
     float GetTransitionProgress() const { return transitionProgress; }
     const char* GetWeatherName(WeatherType type) const;
+
+    // 現在のフォグ情報取得
+    float GetCurrentFogStart() const { return currentParams.fogStart; }
+    float GetCurrentFogEnd() const { return currentParams.fogEnd; }
+    int GetCurrentFogR() const { return currentParams.fogR; }
+    int GetCurrentFogG() const { return currentParams.fogG; }
+    int GetCurrentFogB() const { return currentParams.fogB; }
 
     // 将来のサウンドアセット用ハンドルフック
     void SetRainSoundHandle(int handle) { rainSoundHandle = handle; }
@@ -145,6 +164,19 @@ private:
     bool autoWeatherEnabled;
     float weatherTimer;
     float nextWeatherDuration;
+
+    // エクストリームフォグ（F8デバッグ用）
+    bool isExtremeFogActive;
+    WeatherParameters preExtremeParams;
+
+    // ホラーイベント用一時的フォグ圧縮制御
+    bool isFogOverrideActive;
+    int overridePhase;              // 0: なし, 1: 圧縮中, 2: 維持中, 3: 復帰中
+    float overrideTargetFogEnd;
+    float overrideBaseFogEnd;
+    float overrideTimer;
+    float overrideDuration;
+    float overrideRecoverDuration;
 
     // デバッグ表示フラグ
     bool showDebugHUD;

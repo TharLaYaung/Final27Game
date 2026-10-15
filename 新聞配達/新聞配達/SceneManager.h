@@ -74,7 +74,7 @@ public:
     // シーン遷移の開始
     void StartTransition(SceneType target, float duration = 0.8f);
 
-    // ゲーム状態の全リセット（リトライ・タイトル復帰用）
+    // ゲーム状態の全リセット（日別開始・リトライ・タイトル復帰用）
     void ResetGame(
         Player& player,
         Bicycle& bicycle,
@@ -82,8 +82,13 @@ public:
         DeliveryManager& deliveryManager,
         NightEnvironment& nightEnv,
         WeatherManager& weatherManager,
-        HorrorManager& horrorManager
+        HorrorManager& horrorManager,
+        int day = 1
     );
+
+    // 7日間ステージ進行
+    int GetCurrentDay() const { return currentDay; }
+    void SetCurrentDay(int day);
 
     // 現在のシーン取得
     SceneType GetCurrentScene() const { return currentScene; }
@@ -104,6 +109,10 @@ private:
     float transitionTimer;
     float transitionDuration;
     float transitionAlpha;
+
+    // 7日間進行管理
+    int currentDay;             // 現在挑戦中の日数 (1〜7)
+    int titleSelectedDay;       // タイトル画面で選択中の開始日数 (1〜7)
 
     // ポーズメニュー状態
     bool isPaused;
@@ -147,13 +156,13 @@ private:
     void DrawTitleScene(const NightEnvironment& nightEnv);
 
     // クリアシーン描画
-    void DrawClearScene(const DeliveryManager& deliveryManager);
+    void DrawClearScene(const DeliveryManager& deliveryManager, const Bicycle& bicycle);
 
     // ゲームオーバーシーン描画
-    void DrawGameOverScene();
+    void DrawGameOverScene(const DeliveryManager& deliveryManager);
 
     // ポーズメニュー描画
-    void DrawPauseMenu();
+    void DrawPauseMenu(const DeliveryManager& deliveryManager);
 
     // CRT走査線およびVHSノイズ共通描画
     void DrawScanlinesAndNoise(int alpha = 20);

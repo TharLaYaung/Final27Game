@@ -23,16 +23,20 @@ public:
     // 初期化（フォント生成など）
     void Initialize();
 
-    // 毎フレーム更新（フェード、ノイズ、ゲーム内時計など）
-    void Update();
+    // 毎フレーム更新（フェード、ノイズ、ゲーム内時計など、デルタ秒対応）
+    void Update(float dt = 0.01666f);
 
     // 終了処理（フォントハンドルの破棄）
     void Finalize();
 
-    // 描画ヘルパー
-
     // 画面周辺のダーク減光（ビネット）描画
     void DrawScreenVignette();
+
+    // 恐怖視覚エフェクト（二重像・焦点ボケ・冷色脱色）の描画
+    void DrawPostHorrorEffects();
+
+    // ホラー視覚エフェクトパラメータ設定
+    void SetHorrorVisualParams(float fear, float deathClose = 0.0f, float deathBlink = 1.0f, float doubleVision = 0.0f, float desat = 0.0f, float focusBlur = 0.0f);
 
     // 画面中央の最小限レティクル（照準）描画
     void DrawCrosshair(bool isTargetingInteractable);
@@ -40,8 +44,11 @@ public:
     // インタラクト案内のフェード描画
     void DrawInteractionPrompt();
 
-    // ゲーム内時計の描画（画面左上: 例 03:17 AM）
+    // ゲーム内時計・日数HUDの描画（画面左上: 例 DAY 1 / 7, 01:00 AM）
     void DrawClock();
+
+    // 夜開始時のステージ告知バナー描画（画面上部中央フェード）
+    void DrawDayBanner(const char* dayName, const char* subtitle, int quota);
 
     // 新聞所持数・ステータスの描画（画面下部: 例 PAPERS 07）
     void DrawPaperCargo(int paperCount, bool isHolding);
@@ -72,9 +79,26 @@ public:
     // 現在フレームで要求されるプロンプトを設定
     void SetPrompt(PromptType type);
 
-    // ゲーム内時計の設定
+    // 7日間システム設定
+    void SetCurrentDay(int day);
+    int GetCurrentDay() const;
+    void TriggerDayBanner(float duration = 4.5f);
+
+    // ゲーム内時計の設定・進行制御
     void SetGameTime(int hour, int minute);
     void GetGameTime(int& hour, int& minute) const;
+    int GetGameHour() const { return clockHour; }
+    int GetGameMinute() const { return clockMinute; }
+    float GetTotalGameMinutes() const { return totalGameMinutes; }
+    float GetTimeScale() const { return gameMinutesPerRealSecond; }
+    void SetTimeScale(float scale) { gameMinutesPerRealSecond = scale; }
+    void AdvanceGameMinutes(float minutes);
+    void SetTimePaused(bool paused) { isTimePaused = paused; }
+    bool IsTimePaused() const { return isTimePaused; }
+
+    // ゲーム内時刻に基づくホラー深度レベル取得 (0: 01時台, 1: 02時台, 2: 03時台, 3: 04時台以降)
+    int GetHorrorTimeLevel() const;
+    const char* GetHorrorTimeLevelName() const;
 
     // ホラー演出・グリッチAPI
 
@@ -133,9 +157,11 @@ private:
     int fontKeyAction;
 
     // ゲーム内時計
-    int clockHour;
-    int clockMinute;
-    int clockSecondTimer;
+    int clockHour;                      // 現在の時 (1〜)
+    int clockMinute;                    // 現在の分 (0〜59)
+    float totalGameMinutes;             // 01:00 AMからの通算経過ゲーム分数
+    float gameMinutesPerRealSecond;     // 実時間1秒あたりのゲーム進行分数（初期値1.0f = 1分/秒）
+    bool isTimePaused;                  // ゲーム内時刻の進行停止フラグ
 
     // プロンプト管理とフェード制御
     PromptType currentPrompt;
@@ -152,4 +178,18 @@ private:
 
     // 恐怖度メーター描画用補間値
     float displayedFearPercent;
+
+    // 7日間システム状態
+    int currentDay;
+    float dayBannerTimer;
+    float dayBannerMax;
+
+    // 恐怖視覚エフェクト制御変数
+    int ghostScreenGraph;
+    float currentFearParam;
+    float deathClosingProgress;
+    float deathBlinkFactor;
+    float doubleVisionAmount;
+    float desaturationAmount;
+    float focusBlurAmount;
 };

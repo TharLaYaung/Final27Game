@@ -32,9 +32,12 @@ HorrorUI::HorrorUI()
     fontKeyGuide = -1;
     fontKeyAction = -1;
 
-    clockHour = 3;
-    clockMinute = 17;
-    clockSecondTimer = 0;
+    // ゲーム内時計の初期化（午前1時00分スタート、実時間1秒あたり1ゲーム分進行）
+    clockHour = 1;
+    clockMinute = 0;
+    totalGameMinutes = 0.0f;
+    gameMinutesPerRealSecond = 1.0f;
+    isTimePaused = false;
 
     currentPrompt = PromptType::None;
     requestedPrompt = PromptType::None;
@@ -47,6 +50,19 @@ HorrorUI::HorrorUI()
     horrorEffectsEnabled = true;
     frameCount = 0;
     displayedFearPercent = 0.0f;
+
+    currentDay = 1;
+    dayBannerTimer = 0.0f;
+    dayBannerMax = 4.5f;
+
+    // 恐怖視覚エフェクト初期化
+    ghostScreenGraph = -1;
+    currentFearParam = 0.0f;
+    deathClosingProgress = 0.0f;
+    deathBlinkFactor = 1.0f;
+    doubleVisionAmount = 0.0f;
+    desaturationAmount = 0.0f;
+    focusBlurAmount = 0.0f;
 }
 
 // デストラクタ
@@ -55,9 +71,15 @@ HorrorUI::~HorrorUI()
     Finalize();
 }
 
-// 初期化（フォント生成）
+// 初期化（フォント生成・ポストプロセスバッファ生成）
 void HorrorUI::Initialize()
 {
+    // 二重像・焦点ボケ用オフスクリーンサーフェス
+    if (ghostScreenGraph == -1)
+    {
+        ghostScreenGraph = MakeScreen(1280, 720, FALSE);
+    }
+
     // ホラー演出に特化した擦れ・不気味な筆跡フォント "Chiller" を全UIフォントの基調として生成
     // 小型UI用（ミニマップ、バッテリー、所持数、恐怖度など全HUD表示用）
     fontSmall = CreateFontToHandle("Chiller", 20, 2, DX_FONTTYPE_ANTIALIASING);
@@ -88,9 +110,10 @@ void HorrorUI::Initialize()
     if (fontKeyAction == -1) fontKeyAction = CreateFontToHandle("MS Gothic", 15, 1, DX_FONTTYPE_NORMAL);
 }
 
-// 終了処理（フォントハンドルの破棄）
+// 終了処理（フォントハンドルおよびエフェクト画面の破棄）
 void HorrorUI::Finalize()
 {
+    if (ghostScreenGraph != -1) { DeleteGraph(ghostScreenGraph); ghostScreenGraph = -1; }
     if (fontSmall != -1) { DeleteFontToHandle(fontSmall); fontSmall = -1; }
     if (fontMedium != -1) { DeleteFontToHandle(fontMedium); fontMedium = -1; }
     if (fontLarge != -1) { DeleteFontToHandle(fontLarge); fontLarge = -1; }
@@ -100,22 +123,18 @@ void HorrorUI::Finalize()
     if (fontKeyAction != -1) { DeleteFontToHandle(fontKeyAction); fontKeyAction = -1; }
 }
 
-// 毎フレーム更新
-void HorrorUI::Update()
+// 毎フレーム更新（デルタ秒dt対応）
+void HorrorUI::Update(float dt)
 {
     frameCount++;
 
-    // ゲーム内時計の進行（実時間約60秒でゲーム内1分進行）
-    clockSecondTimer++;
-    if (clockSecondTimer >= 60 * 60)
+    // ゲーム内時計の進行（一時停止中でない場合のみデルタ時間で進行）
+    if (!isTimePaused && dt > 0.0f)
     {
-        clockSecondTimer = 0;
-        clockMinute++;
-        if (clockMinute >= 60)
-        {
-            clockMinute = 0;
-            clockHour = (clockHour + 1) % 24;
-        }
+        totalGameMinutes += gameMinutesPerRealSecond * dt;
+        int totalMins = 60 + static_cast<int>(totalGameMinutes);
+        clockHour = (totalMins / 60) % 24;
+        clockMinute = totalMins % 60;
     }
 
     // インタラクトプロンプトのフェードイン/フェードアウト処理
@@ -155,6 +174,13 @@ void HorrorUI::Update()
     // グリッチ・ジッタータイマーのカウントダウン
     if (glitchTimer > 0) glitchTimer--;
     if (jitterTimer > 0) jitterTimer--;
+
+    // ステージ告知バナータイマーの更新
+    if (dayBannerTimer > 0.0f)
+    {
+        dayBannerTimer -= 1.0f / 60.0f;
+        if (dayBannerTimer < 0.0f) dayBannerTimer = 0.0f;
+    }
 }
 
 // プロンプト要求
@@ -163,18 +189,75 @@ void HorrorUI::SetPrompt(PromptType type)
     requestedPrompt = type;
 }
 
-// ゲーム内時計の設定
+// 7日間システム設定
+void HorrorUI::SetCurrentDay(int day)
+{
+    if (day < 1) day = 1;
+    if (day > 7) day = 7;
+    currentDay = day;
+}
+
+int HorrorUI::GetCurrentDay() const
+{
+    return currentDay;
+}
+
+void HorrorUI::TriggerDayBanner(float duration)
+{
+    dayBannerMax = duration;
+    dayBannerTimer = duration;
+}
+
+// ゲーム内時計の設定（指定時刻へ直接変更し通算分数を同期）
 void HorrorUI::SetGameTime(int hour, int minute)
 {
     clockHour = hour;
     clockMinute = minute;
-    clockSecondTimer = 0;
+    // 午前1時（01:00 AM）を基準0分として通算経過分数を同期
+    int fromOneAM = (hour - 1) * 60 + minute;
+    if (fromOneAM < 0) fromOneAM = 0;
+    totalGameMinutes = static_cast<float>(fromOneAM);
 }
 
 void HorrorUI::GetGameTime(int& hour, int& minute) const
 {
     hour = clockHour;
     minute = clockMinute;
+}
+
+// ゲーム内時刻の直接早送り（デバッグ操作用）
+void HorrorUI::AdvanceGameMinutes(float minutes)
+{
+    totalGameMinutes += minutes;
+    if (totalGameMinutes < 0.0f) totalGameMinutes = 0.0f;
+    int totalMins = 60 + static_cast<int>(totalGameMinutes);
+    clockHour = (totalMins / 60) % 24;
+    clockMinute = totalMins % 60;
+}
+
+// ゲーム内時刻に基づくホラーレベル取得
+// 0: 01:00〜01:59 (序盤・平穏)
+// 1: 02:00〜02:59 (中盤・緊張上昇)
+// 2: 03:00〜03:59 (怪異頻出・深夜3時の魔窟)
+// 3: 04:00以降     (終盤・極限ホラー環境)
+int HorrorUI::GetHorrorTimeLevel() const
+{
+    if (clockHour <= 1) return 0;
+    if (clockHour == 2) return 1;
+    if (clockHour == 3) return 2;
+    return 3;
+}
+
+const char* HorrorUI::GetHorrorTimeLevelName() const
+{
+    switch (GetHorrorTimeLevel())
+    {
+    case 0: return "EARLY NIGHT (CALM)";
+    case 1: return "RISING TENSION";
+    case 2: return "WITCHING HOUR (PEAK)";
+    case 3: return "LATE NIGHT (EXTREME)";
+    default: return "UNKNOWN";
+    }
 }
 
 // ホラー演出・グリッチAPI
@@ -222,31 +305,144 @@ bool HorrorUI::IsHorrorEffectsEnabled() const
     return horrorEffectsEnabled;
 }
 
-// 画面周辺のダーク減光（ビネット）描画
+// ホラー視覚エフェクトパラメータ設定
+void HorrorUI::SetHorrorVisualParams(float fear, float deathClose, float deathBlink, float doubleVision, float desat, float focusBlur)
+{
+    currentFearParam = fear;
+    deathClosingProgress = deathClose;
+    deathBlinkFactor = deathBlink;
+    doubleVisionAmount = doubleVision;
+    desaturationAmount = desat;
+    focusBlurAmount = focusBlur;
+}
+
+// 画面周辺のダーク減光（ビネット）描画（恐怖度連動・死の視野狭窄対応）
 void HorrorUI::DrawScreenVignette()
 {
     if (!horrorEffectsEnabled) return;
 
-    // 画面四隅および外周を自然に暗くする控えめなビネット効果
-    // 描画負荷を最小限に抑えるため、段階的アルファ矩形ストリップを描画
-    int steps = 6;
+    // 恐怖度に応じたビネット強度・幅の算出
+    // CALM (0.0〜0.2): ほぼ無色・非常に薄い外周シェード
+    // UNEASY (0.2〜0.4): 控えめな減衰
+    // AFRAID (0.4〜0.6): 明確な外周の暗闇
+    // PANIC (0.6〜0.8): 画面端を覆う強い闇
+    // TERROR (0.8〜1.0): 画面中央付近まで迫る重苦しい暗闇
+    float fear = currentFearParam;
+    if (fear < 0.0f) fear = 0.0f;
+    if (fear > 1.0f) fear = 1.0f;
+
+    int steps = 4 + static_cast<int>(fear * 12.0f);
+    int maxStrip = 10 + static_cast<int>(fear * 14.0f);
+    float maxAlpha = 15.0f + fear * 195.0f;
+
     for (int i = 0; i < steps; i++)
     {
-        int inset = i * 14;
-        int alpha = (int)(22.0f * (1.0f - (float)i / steps));
-        SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
+        int inset = i * maxStrip;
+        float ratio = 1.0f - static_cast<float>(i) / static_cast<float>(steps);
+        int alpha = static_cast<int>(maxAlpha * ratio * ratio);
+        if (alpha <= 0) continue;
+        if (alpha > 255) alpha = 255;
 
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
         // 上辺
-        DrawBox(0, inset, 1280, inset + 14, GetColor(0, 0, 0), TRUE);
+        DrawBox(0, inset, 1280, inset + maxStrip, GetColor(0, 0, 0), TRUE);
         // 下辺
-        DrawBox(0, 720 - inset - 14, 1280, 720 - inset, GetColor(0, 0, 0), TRUE);
+        DrawBox(0, 720 - inset - maxStrip, 1280, 720 - inset, GetColor(0, 0, 0), TRUE);
         // 左辺
-        DrawBox(inset, 0, inset + 14, 720, GetColor(0, 0, 0), TRUE);
+        DrawBox(inset, 0, inset + maxStrip, 720, GetColor(0, 0, 0), TRUE);
         // 右辺
-        DrawBox(1280 - inset - 14, 0, 1280 - inset, 720, GetColor(0, 0, 0), TRUE);
+        DrawBox(1280 - inset - maxStrip, 0, 1280 - inset, 720, GetColor(0, 0, 0), TRUE);
+    }
+
+    // 死亡時・失神シネマティック視界狭窄（瞼の閉じ込みと最後のまばたき）
+    if (deathClosingProgress > 0.001f)
+    {
+        float t = deathClosingProgress;
+        if (t > 1.0f) t = 1.0f;
+
+        // deathBlinkFactor によるまばたき（目が細まった後、一瞬僅かに見開き、そして永遠に閉じる）
+        float blinkMod = deathBlinkFactor;
+        if (blinkMod < 0.0f) blinkMod = 0.0f;
+        if (blinkMod > 1.0f) blinkMod = 1.0f;
+
+        // 瞼（上下黒バー）の閉じ込み高さ
+        float closeRatio = t * (1.0f - blinkMod * 0.45f);
+        if (closeRatio > 1.0f) closeRatio = 1.0f;
+        int closeH = static_cast<int>(360.0f * closeRatio);
+
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 255);
+        if (closeH > 0)
+        {
+            // 上瞼
+            DrawBox(0, 0, 1280, closeH, GetColor(0, 0, 0), TRUE);
+            // 下瞼
+            DrawBox(0, 720 - closeH, 1280, 720, GetColor(0, 0, 0), TRUE);
+        }
+
+        // 左右からの意識混濁ブラックアウト
+        int closeW = static_cast<int>(640.0f * closeRatio * 0.75f);
+        if (closeW > 0)
+        {
+            DrawBox(0, closeH, closeW, 720 - closeH, GetColor(0, 0, 0), TRUE);
+            DrawBox(1280 - closeW, closeH, 1280, 720 - closeH, GetColor(0, 0, 0), TRUE);
+        }
+
+        // 視野全体へのフェード膜
+        int darkPulse = static_cast<int>(255.0f * (1.0f - (1.0f - t) * blinkMod));
+        if (darkPulse > 0)
+        {
+            if (darkPulse > 255) darkPulse = 255;
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, darkPulse);
+            DrawBox(0, 0, 1280, 720, GetColor(0, 0, 0), TRUE);
+        }
     }
 
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+}
+
+// 恐怖視覚エフェクト（二重像・焦点ボケ・冷色脱色）の描画
+void HorrorUI::DrawPostHorrorEffects()
+{
+    if (!horrorEffectsEnabled) return;
+
+    // 冷色脱色（恐怖・死に連動した青暗い彩度低下）
+    if (desaturationAmount > 0.01f)
+    {
+        int desatAlpha = static_cast<int>(desaturationAmount * 65.0f);
+        if (desatAlpha > 200) desatAlpha = 200;
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, desatAlpha);
+        DrawBox(0, 0, 1280, 720, GetColor(8, 16, 26), TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    }
+
+    // 二重像（幽体ゴースト視覚）
+    if (doubleVisionAmount > 0.02f && ghostScreenGraph != -1)
+    {
+        GetDrawScreenGraph(0, 0, 1280, 720, ghostScreenGraph);
+        int ghostAlpha = static_cast<int>(doubleVisionAmount * 55.0f);
+        if (ghostAlpha > 120) ghostAlpha = 120;
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, ghostAlpha);
+
+        int offX = static_cast<int>(std::sin(frameCount * 0.12f) * 7.0f);
+        int offY = static_cast<int>(std::cos(frameCount * 0.09f) * 4.0f);
+        DrawGraph(offX, offY, ghostScreenGraph, FALSE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    }
+
+    // 焦点ボケ・視覚不安定（フォーカスが偶発的に揺らぐ）
+    if (focusBlurAmount > 0.02f && ghostScreenGraph != -1)
+    {
+        GetDrawScreenGraph(0, 0, 1280, 720, ghostScreenGraph);
+        int blurAlpha = static_cast<int>(focusBlurAmount * 45.0f);
+        if (blurAlpha > 100) blurAlpha = 100;
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, blurAlpha);
+
+        DrawGraph(-3, 0, ghostScreenGraph, FALSE);
+        DrawGraph( 3, 0, ghostScreenGraph, FALSE);
+        DrawGraph( 0, -2, ghostScreenGraph, FALSE);
+        DrawGraph( 0,  2, ghostScreenGraph, FALSE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    }
 }
 
 // 画面中央の最小限レティクル（照準）描画
@@ -397,16 +593,16 @@ void HorrorUI::DrawInteractionPrompt()
     }
 
     int textLen = (int)strlen(promptText);
-    int approxWidth = textLen * 11;
-    int posX = 640 - approxWidth / 2;
+    int actualWidth = (fontMedium != -1) ? GetDrawStringWidthToHandle(promptText, textLen, fontMedium) : textLen * 11;
+    int posX = 640 - actualWidth / 2;
     int posY = 470;
 
     int alpha = (int)(promptAlpha * 220.0f);
     SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
 
-    // 控えめな半透明バックプレート
-    DrawBox(posX - 12, posY - 4, posX + approxWidth + 12, posY + 22, COL_BG, TRUE);
-    DrawBox(posX - 12, posY - 4, posX + approxWidth + 12, posY + 22, COL_BORDER_DIM, FALSE);
+    // 控えめな半透明バックプレート（文字幅に応じた動的パディング）
+    DrawBox(posX - 16, posY - 4, posX + actualWidth + 16, posY + 24, COL_BG, TRUE);
+    DrawBox(posX - 16, posY - 4, posX + actualWidth + 16, posY + 24, COL_BORDER_DIM, FALSE);
 
     // プロンプト文字列の描画
     if (fontMedium != -1)
@@ -421,50 +617,99 @@ void HorrorUI::DrawInteractionPrompt()
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 }
 
-// ゲーム内時計の描画（画面左上: 例 03:17 AM）
+// ゲーム内時計・日数HUDの描画（画面左上: 例 DAY 1/7, 01:00 AM）
 void HorrorUI::DrawClock()
 {
     char timeStr[32];
     snprintf(timeStr, sizeof(timeStr), "%02d:%02d AM", clockHour, clockMinute);
 
-    int posX = 26;
-    int posY = 18;
+    char dayStr[32];
+    snprintf(dayStr, sizeof(dayStr), "DAY %d/7", currentDay);
 
-    // ごく控えめな背景
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 140);
-    DrawBox(posX - 6, posY - 4, posX + 104, posY + 28, COL_BG, TRUE);
-    DrawBox(posX - 6, posY - 4, posX + 104, posY + 28, COL_BORDER_DIM, FALSE);
-    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    int panelX1 = 26;
+    int panelY1 = 12;
+    int panelX2 = 236;
+    int panelY2 = 38;
 
-    // デジタル・ホラー調の文字
-    DrawJitterString(posX + 4, posY + 1, timeStr, COL_TEXT, fontClock);
+    // レトロ端末パネル背景（ミニマップと横幅210pxを完全統一）
+    DrawRetroPanel(panelX1, panelY1, panelX2, panelY2, COL_BORDER, COL_PANEL_BG, 185);
+
+    // 左側：ステージ日数表記（オレンジ系）
+    DrawJitterString(panelX1 + 10, panelY1 + 5, dayStr, COL_TARGET, fontSmall);
+
+    // 右側：ゲーム内時刻表記（オフホワイト・右揃え配置で重なりを完全排除）
+    int timeW = (fontSmall != -1) ? GetDrawStringWidthToHandle(timeStr, (int)strlen(timeStr), fontSmall) : 65;
+    DrawJitterString(panelX2 - timeW - 10, panelY1 + 5, timeStr, COL_TEXT, fontSmall);
 }
 
-// 新聞所持数・ステータスの描画（画面下部: 例 PAPERS 08）
+// 夜開始時のステージ告知バナー描画（画面上部中央フェード）
+void HorrorUI::DrawDayBanner(const char* dayName, const char* subtitle, int quota)
+{
+    if (dayBannerTimer <= 0.0f) return;
+
+    float alphaFactor = 1.0f;
+    float elapsed = dayBannerMax - dayBannerTimer;
+    if (elapsed < 0.6f)
+    {
+        alphaFactor = elapsed / 0.6f;
+    }
+    else if (dayBannerTimer < 0.8f)
+    {
+        alphaFactor = dayBannerTimer / 0.8f;
+    }
+
+    int alpha = static_cast<int>(alphaFactor * 225.0f);
+    if (alpha <= 0) return;
+
+    int cx = 640;
+    int bw = 640;
+    int bh = 64;
+    int by1 = 55;
+    int by2 = by1 + bh;
+
+    DrawRetroPanel(cx - bw / 2, by1, cx + bw / 2, by2, COL_BORDER, COL_PANEL_BG, alpha);
+
+    // 見出し
+    char titleBuf[64];
+    snprintf(titleBuf, sizeof(titleBuf), "--- %s ---", dayName ? dayName : "MIDNIGHT SHIFT");
+    int tw = (fontLarge != -1) ? GetDrawStringWidthToHandle(titleBuf, (int)strlen(titleBuf), fontLarge) : 200;
+
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
+    DrawJitterString(cx - tw / 2, by1 + 6, titleBuf, COL_TARGET, fontLarge);
+
+    char subBuf[128];
+    snprintf(subBuf, sizeof(subBuf), "QUOTA: %02d HOUSES  |  %s", quota, subtitle ? subtitle : "");
+    int sw = (fontSmall != -1) ? GetDrawStringWidthToHandle(subBuf, (int)strlen(subBuf), fontSmall) : 200;
+    DrawJitterString(cx - sw / 2, by1 + 34, subBuf, COL_TEXT, fontSmall);
+
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+}
+
+// 新聞所持数・ステータスの描画（画面左下: ミニマップと横幅210pxを完全統一）
 void HorrorUI::DrawPaperCargo(int paperCount, bool isHolding)
 {
     char paperStr[32];
     snprintf(paperStr, sizeof(paperStr), "PAPERS  %02d", paperCount);
 
-    int posX = 26;
-    int posY = 668;
+    int panelX1 = 26;
+    int panelY1 = 668;
+    int panelX2 = 236;
+    int panelY2 = 698;
 
-    // 背景枠
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 150);
-    DrawBox(posX - 6, posY - 4, posX + 120 + (isHolding ? 88 : 0), posY + 26, COL_BG, TRUE);
-    DrawBox(posX - 6, posY - 4, posX + 120 + (isHolding ? 88 : 0), posY + 26, COL_BORDER_DIM, FALSE);
-    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    // レトロ端末パネル枠と背景の描画（ミニマップと横幅210pxを完全統一）
+    DrawRetroPanel(panelX1, panelY1, panelX2, panelY2, COL_BORDER, COL_PANEL_BG, 185);
 
-    // 所持部数
-    DrawJitterString(posX + 4, posY + 1, paperStr, COL_TEXT, fontSmall);
+    // 左側：所持部数
+    DrawJitterString(panelX1 + 10, panelY1 + 5, paperStr, COL_TEXT, fontSmall);
 
-    // 手持ち状態の表示
+    // 右側：手持ち状態の表示（右揃え配置で重なりを完全排除）
     if (isHolding)
     {
-        // 控えめな点滅
+        const char* holdStr = "[HOLDING]";
+        int holdW = (fontSmall != -1) ? GetDrawStringWidthToHandle(holdStr, (int)strlen(holdStr), fontSmall) : 60;
         bool blink = ((frameCount / 25) % 2) == 0;
         unsigned int col = blink ? COL_TARGET : COL_TEXT_DIM;
-        DrawJitterString(posX + 115, posY + 1, "[HOLDING]", col, fontSmall);
+        DrawJitterString(panelX2 - holdW - 10, panelY1 + 5, holdStr, col, fontSmall);
     }
 }
 
@@ -474,7 +719,7 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
     int kx1 = 980;
     int ky1 = 20;
     int kx2 = 1255;
-    int ky2 = 232;
+    int ky2 = 246;
 
     // レトロ端末パネル枠と背景の描画
     DrawRetroPanel(kx1, ky1, kx2, ky2, COL_BORDER, COL_PANEL_BG, 195);
@@ -530,7 +775,7 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
     };
 
     int startY = ky1 + 31;
-    int lineSpacing = 27;
+    int lineSpacing = 28;
     int nItems = sizeof(items) / sizeof(items[0]);
 
     for (int i = 0; i < nItems; ++i)
@@ -541,8 +786,8 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
         // キー表記（不気味なホラー筆跡フォント）
         DrawJitterString(curX, curY, items[i].key, items[i].keyCol, fontKeyGuide);
 
-        // アクション表記（不気味なホラー筆跡フォント）
-        DrawJitterString(kx1 + 96, curY, items[i].action, items[i].actCol, fontKeyAction);
+        // アクション表記（十分な水平オフセットで重なりを完全排除）
+        DrawJitterString(kx1 + 108, curY, items[i].action, items[i].actCol, fontKeyAction);
     }
 }
 
@@ -551,11 +796,11 @@ void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isR
 {
     (void)isRiding;
 
-    // ミニマップ枠 (26, 52)〜(236, 247) の直下、Y=254〜302 に配置
+    // ミニマップ枠 (26, 74)〜(236, 269) の直下、Y=276〜324 に配置
     int panelX1 = 26;
-    int panelY1 = 254;
+    int panelY1 = 276;
     int panelX2 = 236;
-    int panelY2 = 302;
+    int panelY2 = 324;
 
     // レトロ端末パネル外枠と背景の描画
     DrawRetroPanel(panelX1, panelY1, panelX2, panelY2, COL_BORDER, COL_PANEL_BG, 185);
@@ -680,7 +925,7 @@ void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isR
     }
 }
 
-// 恐怖度メーターHUD描画（画面左上、時計の右横に配置）
+// 恐怖度メーターHUD描画（画面左上、時計パネル直下・ミニマップ直上に配置）
 void HorrorUI::DrawFearMeter(float fearPercent, bool inSafeLight)
 {
     // 表示用恐怖度パーセントの滑らかな補間（急激なバーの跳ねを防止）
@@ -688,13 +933,13 @@ void HorrorUI::DrawFearMeter(float fearPercent, bool inSafeLight)
     if (displayedFearPercent < 0.0f) displayedFearPercent = 0.0f;
     if (displayedFearPercent > 100.0f) displayedFearPercent = 100.0f;
 
-    int posX = 134;
-    int posY = 18;
-    int panelW = 102;
-    int panelH = 28;
+    int panelX1 = 26;
+    int panelY1 = 42;
+    int panelX2 = 236;
+    int panelY2 = 68;
 
-    // レトロ端末パネル背景
-    DrawRetroPanel(posX - 6, posY - 4, posX + panelW, posY + panelH, COL_BORDER_DIM, COL_BG, 140);
+    // レトロ端末パネル背景（ミニマップと横幅210pxを完全統一）
+    DrawRetroPanel(panelX1, panelY1, panelX2, panelY2, COL_BORDER_DIM, COL_BG, 185);
 
     // 恐怖段階に応じた文字色・警告色の決定
     unsigned int fearColor = COL_TEXT_DIM;
@@ -736,36 +981,45 @@ void HorrorUI::DrawFearMeter(float fearPercent, bool inSafeLight)
         fearColor = COL_TEXT_DIM;
     }
 
-    // 恐怖度数値ラベル（Chillerホラーフォント）
+    // 上段左側：恐怖度数値ラベル（Chillerホラーフォント）
     char fearStr[32];
     snprintf(fearStr, sizeof(fearStr), "FEAR %02d%%", static_cast<int>(displayedFearPercent));
-    DrawJitterString(posX + 4 + jitterX, posY + jitterY, fearStr, fearColor, fontSmall);
+    DrawJitterString(panelX1 + 10 + jitterX, panelY1 + 3 + jitterY, fearStr, fearColor, fontSmall);
 
-    // 安全光内フィードバック（控えめな緑系微小インジケータ）
+    // 上段右側：安全光判定インジケータ（SAFE: 穏やかな緑 / DARK: 危険な赤橙点滅、右揃え配置で重なりを排除）
     if (inSafeLight)
     {
-        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 180);
-        DrawJitterString(posX + 68, posY, "SAFE", GetColor(110, 175, 140), fontSmall);
-        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        const char* safeStr = "SAFE";
+        int strW = (fontSmall != -1) ? GetDrawStringWidthToHandle(safeStr, (int)strlen(safeStr), fontSmall) : 36;
+        DrawJitterString(panelX2 - strW - 10, panelY1 + 3, safeStr, GetColor(110, 185, 140), fontSmall);
+    }
+    else
+    {
+        const char* darkStr = "DARK";
+        int strW = (fontSmall != -1) ? GetDrawStringWidthToHandle(darkStr, (int)strlen(darkStr), fontSmall) : 36;
+        bool blink = ((frameCount / 20) % 2) == 0;
+        unsigned int darkCol = blink ? GetColor(220, 70, 60) : GetColor(160, 45, 40);
+        DrawJitterString(panelX2 - strW - 10, panelY1 + 3, darkStr, darkCol, fontSmall);
     }
 
-    // ゲージスロット背景枠
-    int barX = posX + 4;
-    int barY = posY + 19;
-    int barW = 94;
-    int barH = 5;
+    // 下段：ゲージスロット背景枠および恐怖度進行バー
+    int barX1 = panelX1 + 10;
+    int barX2 = panelX2 - 10;
+    int barY1 = panelY1 + 19;
+    int barY2 = panelY1 + 24;
+    int barW = barX2 - barX1;
 
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 100);
-    DrawBox(barX, barY, barX + barW, barY + barH, GetColor(25, 32, 28), TRUE);
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 120);
+    DrawBox(barX1, barY1, barX2, barY2, GetColor(20, 26, 22), TRUE);
+    DrawBox(barX1, barY1, barX2, barY2, COL_BORDER_DIM, FALSE);
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-    DrawBox(barX, barY, barX + barW, barY + barH, COL_BORDER_DIM, FALSE);
 
     // ゲージ塗りつぶし
     int fillW = static_cast<int>((displayedFearPercent / 100.0f) * static_cast<float>(barW - 2));
     if (fillW > 0)
     {
-        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 200);
-        DrawBox(barX + 1, barY + 1, barX + 1 + fillW, barY + barH - 1, fearColor, TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 220);
+        DrawBox(barX1 + 1, barY1 + 1, barX1 + 1 + fillW, barY2 - 1, fearColor, TRUE);
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 }
@@ -819,22 +1073,32 @@ void HorrorUI::DrawGameOver(float fadeAlpha, bool isInteractive)
 
     DrawRetroPanel(cx - 240, cy - 100, cx + 240, cy + 100, COL_BORDER_DIM, COL_BG, 230);
 
-    // ゲームオーバータイトル（赤系）
+    // ゲームオーバータイトル（赤系・動的センタリング）
+    const char* overStr = "GAME OVER";
     if (fontLarge != -1)
     {
-        DrawStringToHandle(cx - 80, cy - 65, "GAME OVER", GetColor(200, 50, 45), fontLarge);
+        int ow = GetDrawStringWidthToHandle(overStr, (int)strlen(overStr), fontLarge);
+        DrawStringToHandle(cx - ow / 2, cy - 65, overStr, GetColor(200, 50, 45), fontLarge);
     }
     else
     {
-        DrawString(cx - 40, cy - 65, "GAME OVER", GetColor(200, 50, 45));
+        int ow = GetDrawStringWidth(overStr, (int)strlen(overStr));
+        DrawString(cx - ow / 2, cy - 65, overStr, GetColor(200, 50, 45));
     }
 
-    // ホラー演出テキスト
-    DrawString(cx - 105, cy - 10, "CONSUMED BY THE DARKNESS...", COL_TEXT_DIM);
+    // ホラー演出テキスト（動的センタリング）
+    const char* darkMsg = "CONSUMED BY THE DARKNESS...";
+    int dw = GetDrawStringWidth(darkMsg, (int)strlen(darkMsg));
+    DrawString(cx - dw / 2, cy - 10, darkMsg, COL_TEXT_DIM);
 
-    // 操作案内（リトライ・終了）
+    // 操作案内（リトライ・終了・動的センタリング）
     bool blink = ((frameCount / 30) % 2) == 0;
     unsigned int promptCol = blink ? COL_TEXT : COL_TEXT_DIM;
-    DrawString(cx - 90, cy + 40, "[ R ] RETRY DELIVERY", promptCol);
-    DrawString(cx - 50, cy + 65, "[ ESC ] QUIT", COL_TEXT_DIM);
+    const char* retryStr = "[ R ] RETRY DELIVERY";
+    int rw = GetDrawStringWidth(retryStr, (int)strlen(retryStr));
+    DrawString(cx - rw / 2, cy + 40, retryStr, promptCol);
+
+    const char* quitStr = "[ ESC ] QUIT";
+    int qw = GetDrawStringWidth(quitStr, (int)strlen(quitStr));
+    DrawString(cx - qw / 2, cy + 65, quitStr, COL_TEXT_DIM);
 }
