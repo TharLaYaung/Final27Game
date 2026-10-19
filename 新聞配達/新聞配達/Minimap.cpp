@@ -4,6 +4,7 @@
 #include "Bicycle.h"
 #include "DeliveryManager.h"
 #include "Newspaper.h"
+#include "Map.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -170,23 +171,36 @@ void Minimap::Draw(
     // 道路線（控えめな暗灰色）
     unsigned int roadCol = HorrorUI::COL_BORDER_DIM;
 
-    // 南大通り（Road F: Z = -30, X = -25 〜 +25）
-    DrawStreetLine(-25.0f, -30.0f, 25.0f, -30.0f, roadCol);
+    // 南大通り（Road F: Z = -30, X = -28 〜 +28）
+    DrawStreetLine(-28.0f, -30.0f, 28.0f, -30.0f, roadCol);
 
-    // 西通り（Road A: X = -25, Z = -30 〜 +15）
-    DrawStreetLine(-25.0f, -30.0f, -25.0f, 15.0f, roadCol);
+    // 西通り（Road A: X = -25, Z = -30 〜 +18）
+    DrawStreetLine(-25.0f, -30.0f, -25.0f, 18.0f, roadCol);
 
-    // 東通り（Road D: X = +25, Z = -30 〜 +15）
-    DrawStreetLine(25.0f, -30.0f, 25.0f, 15.0f, roadCol);
+    // 東通り（Road D: X = +25, Z = -30 〜 +18）
+    DrawStreetLine(25.0f, -30.0f, 25.0f, 18.0f, roadCol);
 
     // 中央横通り（Road E: Z = -10, X = -25 〜 +25）
     DrawStreetLine(-25.0f, -10.0f, 25.0f, -10.0f, roadCol);
 
-    // 北横通り（Road B: Z = +15, X = -25 〜 +25）
-    DrawStreetLine(-25.0f, 15.0f, 25.0f, 15.0f, roadCol);
+    // 北横通り（Road B: Z = +15, X = -28 〜 +28）
+    DrawStreetLine(-28.0f, 15.0f, 28.0f, 15.0f, roadCol);
 
-    // 北路地行き止まり（Road C: X = 0, Z = +15 〜 +38）
-    DrawStreetLine(0.0f, 15.0f, 0.0f, 38.0f, roadCol);
+    // 北路地行き止まり（Road C: X = 0, Z = +15 〜 +40）
+    DrawStreetLine(0.0f, 15.0f, 0.0f, 40.0f, roadCol);
+
+    // 住宅の建物フットプリント矩形描画（控えめな暗緑色）
+    unsigned int houseMapCol = GetColor(16, 28, 24);
+    const std::vector<HouseData>& houses = MapGetHouses();
+    for (size_t i = 0; i < houses.size(); ++i)
+    {
+        const HouseData& h = houses[i];
+        int hx1 = WorldToMapX(h.position.x - 3.2f);
+        int hx2 = WorldToMapX(h.position.x + 3.2f);
+        int hy1 = WorldToMapY(h.position.z + 3.8f);
+        int hy2 = WorldToMapY(h.position.z - 3.8f);
+        DrawBox(hx1, hy1, hx2, hy2, houseMapCol, TRUE);
+    }
 
     // レトロ端末風の微細な走査線（スキャンライン）演出
     if (ui.IsHorrorEffectsEnabled())

@@ -1,7 +1,8 @@
-﻿#include "Bicycle.h"
+#include "Bicycle.h"
 #include "Player.h"
 #include "HorrorUI.h"
 #include "Map.h"
+#include "WorldCollision.h"
 #include <cmath>
 #include <cstdlib>
 
@@ -254,36 +255,75 @@ void Bicycle::Update(Player& player)
                 -sinf(angle)
             );
 
-        // 次の位置
-        VECTOR nextPosition =
-            position;
+        // 次の移動量を計算
+        VECTOR bikeDelta = VGet(0.0f, 0.0f, 0.0f);
 
         // Wキーで前進する
         if (CheckHitKey(KEY_INPUT_W))
         {
-            nextPosition.x +=
-                forward.x * moveSpeed;
-
-            nextPosition.z +=
-                forward.z * moveSpeed;
+            bikeDelta.x += forward.x * moveSpeed;
+            bikeDelta.z += forward.z * moveSpeed;
         }
 
         // Sキーで後退する
         if (CheckHitKey(KEY_INPUT_S))
         {
-            nextPosition.x -=
-                forward.x * moveSpeed;
-
-            nextPosition.z -=
-                forward.z * moveSpeed;
+            bikeDelta.x -= forward.x * moveSpeed;
+            bikeDelta.z -= forward.z * moveSpeed;
         }
 
-        // 移動できる場合
-        if (CanMove(nextPosition))
+        // 自転車の当たり判定半径
+        const float bicycleRadius = 0.8f;
+
+        // 移動入力がある場合
+        if (bikeDelta.x != 0.0f || bikeDelta.z != 0.0f)
         {
-            // 自転車の位置を更新する
-            position =
-                nextPosition;
+            VECTOR nextPosition = VGet(
+                position.x + bikeDelta.x,
+                position.y,
+                position.z + bikeDelta.z
+            );
+
+            // 1. 直進判定
+            if (CanMove(nextPosition))
+            {
+                position = nextPosition;
+            }
+            else
+            {
+                // 2. スライディング判定（壁沿いに進める軸を判定）
+                VECTOR testBikeX = VGet(position.x + bikeDelta.x, position.y, position.z);
+                VECTOR testBikeZ = VGet(position.x, position.y, position.z + bikeDelta.z);
+                bool movedX = false;
+                bool movedZ = false;
+
+                if (CanMove(testBikeX))
+                {
+                    position.x = testBikeX.x;
+                    movedX = true;
+                }
+                if (CanMove(testBikeZ))
+                {
+                    position.z = testBikeZ.z;
+                    movedZ = true;
+                }
+
+                // 3. どちらの単軸も直接進めない場合は法線射影スライド
+                if (!movedX && !movedZ)
+                {
+                    VECTOR slideBike = nextPosition;
+                    if (WorldCollision::Instance().ResolveCollision(slideBike, bicycleRadius))
+                    {
+                        if (CanMove(slideBike))
+                        {
+                            position = slideBike;
+                        }
+                    }
+                }
+            }
+
+            // めり込み防止補正
+            WorldCollision::Instance().ResolveCollision(position, bicycleRadius);
         }
 
         // Aキーで左に曲がる
@@ -316,14 +356,15 @@ void Bicycle::Update(Player& player)
             // 自転車から降りる（※ライトが点灯していれば自転車に付いたまま路面を照らし続ける）
             isRiding = false;
 
-            // プレイヤーを自転車の横へ移動する
-            player.SetPosition(
-                VGet(
-                    position.x + 1.5f,
-                    position.y + 1.7f,
-                    position.z
-                )
+            // プレイヤーを自転車の横（安全な位置）へ移動
+            VECTOR dismountPos = VGet(
+                position.x + 1.5f,
+                position.y + 1.7f,
+                position.z
             );
+            // 降りた位置が壁内にならないよう補正
+            WorldCollision::Instance().ResolveCollision(dismountPos, 0.40f);
+            player.SetPosition(dismountPos);
         }
     }
 

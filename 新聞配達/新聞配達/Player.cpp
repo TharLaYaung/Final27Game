@@ -1,6 +1,7 @@
 #include "Player.h"
 #include <cmath>
 #include "Map.h"
+#include "WorldCollision.h"
 
 // コンストラクタ
 Player::Player()
@@ -69,7 +70,7 @@ Player::Player()
 }
 
 
-// プレイヤーを更新する
+// プレイヤーを更新する（滑らかな壁沿いスライディング移動）
 void Player::Update()
 {
     // マウス視点を更新する
@@ -89,54 +90,87 @@ void Player::Update()
         -sinf(yaw)
     );
 
-    // 次の位置
-    VECTOR nextPosition = position;
+    // 移動デルタを計算
+    VECTOR moveDelta = VGet(0.0f, 0.0f, 0.0f);
 
     // Wキーで前進する
     if (CheckHitKey(KEY_INPUT_W))
     {
-        nextPosition.x +=
-            forward.x * moveSpeed;
-
-        nextPosition.z +=
-            forward.z * moveSpeed;
+        moveDelta.x += forward.x * moveSpeed;
+        moveDelta.z += forward.z * moveSpeed;
     }
 
     // Sキーで後退する
     if (CheckHitKey(KEY_INPUT_S))
     {
-        nextPosition.x -=
-            forward.x * moveSpeed;
-
-        nextPosition.z -=
-            forward.z * moveSpeed;
+        moveDelta.x -= forward.x * moveSpeed;
+        moveDelta.z -= forward.z * moveSpeed;
     }
 
     // Aキーで左へ移動する
     if (CheckHitKey(KEY_INPUT_A))
     {
-        nextPosition.x -=
-            right.x * moveSpeed;
-
-        nextPosition.z -=
-            right.z * moveSpeed;
+        moveDelta.x -= right.x * moveSpeed;
+        moveDelta.z -= right.z * moveSpeed;
     }
 
     // Dキーで右へ移動する
     if (CheckHitKey(KEY_INPUT_D))
     {
-        nextPosition.x +=
-            right.x * moveSpeed;
-
-        nextPosition.z +=
-            right.z * moveSpeed;
+        moveDelta.x += right.x * moveSpeed;
+        moveDelta.z += right.z * moveSpeed;
     }
 
-    // 移動できる場合
-    if (CanMove(nextPosition))
+    // 移動入力がある場合
+    if (moveDelta.x != 0.0f || moveDelta.z != 0.0f)
     {
-        // プレイヤーの位置を更新する
-        position = nextPosition;
+        VECTOR desiredPos = VGet(
+            position.x + moveDelta.x,
+            position.y,
+            position.z + moveDelta.z
+        );
+
+        // 1. 斜め移動そのまま進めるか判定（遮る壁がない場合は最速処理）
+        if (CanMove(desiredPos))
+        {
+            position = desiredPos;
+        }
+        else
+        {
+            // 2. スライディング判定（壁に斜めに接触した際、X軸・Z軸に分解して進める軸のみ進む）
+            VECTOR testPosX = VGet(position.x + moveDelta.x, position.y, position.z);
+            VECTOR testPosZ = VGet(position.x, position.y, position.z + moveDelta.z);
+
+            bool movedX = false;
+            bool movedZ = false;
+
+            if (CanMove(testPosX))
+            {
+                position.x = testPosX.x;
+                movedX = true;
+            }
+            if (CanMove(testPosZ))
+            {
+                position.z = testPosZ.z;
+                movedZ = true;
+            }
+
+            // 3. どちらの単軸も直接進めない場合（角や斜め塀）、法線射影スライドで補正
+            if (!movedX && !movedZ)
+            {
+                VECTOR slidePos = desiredPos;
+                if (WorldCollision::Instance().ResolveCollision(slidePos, collisionRadius))
+                {
+                    if (CanMove(slidePos))
+                    {
+                        position = slidePos;
+                    }
+                }
+            }
+        }
+
+        // めり込み防止の最終押し戻し
+        WorldCollision::Instance().ResolveCollision(position, collisionRadius);
     }
 }
 

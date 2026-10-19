@@ -48,6 +48,9 @@ int WINAPI WinMain(
     // ウィンドウモードで起動
     ChangeWindowMode(TRUE);
 
+    // ウィンドウタイトルバーの名称設定
+    SetMainWindowText("NEWSPAPER DELIVERY");
+
     // 画面解像度 1280x720, 32bitカラー
     SetGraphMode(
         1280,
@@ -168,6 +171,8 @@ int WINAPI WinMain(
     bool oldKey9 = false;
     bool oldKey0 = false;
     bool oldKeyJ = false;
+    bool oldPrevDayKey = false;
+    bool oldNextDayKey = false;
     bool mapDebugEnabled = false;
 
     // メインゲームループ
@@ -383,6 +388,24 @@ int WINAPI WinMain(
                 horrorManager.DebugTriggerStreetLightEvent(nightEnv, player);
             }
             oldKey0 = curK0;
+
+            // [ キー / テンキー - : 前日へ即時切り替え（7日間デバッグ操作）
+            bool curPrevDay = (CheckHitKey(KEY_INPUT_LBRACKET) != 0 || CheckHitKey(KEY_INPUT_SUBTRACT) != 0);
+            if (curPrevDay && !oldPrevDayKey)
+            {
+                int newDay = (sceneManager.GetCurrentDay() <= 1) ? 7 : sceneManager.GetCurrentDay() - 1;
+                sceneManager.ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, newDay);
+            }
+            oldPrevDayKey = curPrevDay;
+
+            // ] キー / テンキー + : 翌日へ即時切り替え（7日間デバッグ操作）
+            bool curNextDay = (CheckHitKey(KEY_INPUT_RBRACKET) != 0 || CheckHitKey(KEY_INPUT_ADD) != 0);
+            if (curNextDay && !oldNextDayKey)
+            {
+                int newDay = (sceneManager.GetCurrentDay() >= 7) ? 1 : sceneManager.GetCurrentDay() + 1;
+                sceneManager.ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, newDay);
+            }
+            oldNextDayKey = curNextDay;
 
             // ホラーUI状態更新（デルタ秒対応: 時計・プロンプトフェードなど）
             HorrorUI::Instance().Update(0.01666f);
