@@ -134,45 +134,68 @@ bool DeliveryManager::IsAllDeliveriesComplete() const
     return allDeliveriesComplete;
 }
 
-// 7日間ステージ設定
+// 7日間シード値の取得（日毎の決定論的シード）
+unsigned int DeliveryManager::GetDaySeed(int day)
+{
+    switch (day)
+    {
+    case 1: return 0x1001Au;
+    case 2: return 0x2002Bu;
+    case 3: return 0x3003Cu;
+    case 4: return 0x4004Du;
+    case 5: return 0x5005Eu;
+    case 6: return 0x6006Fu;
+    case 7:
+    default: return 0x70070u;
+    }
+}
+
+// 現在日のシード値取得
+unsigned int DeliveryManager::GetCurrentDaySeed() const
+{
+    return GetDaySeed(currentDay);
+}
+
+// 7日間ステージ設定（決定論的シードに基づく配達順生成）
 void DeliveryManager::SetDay(int day)
 {
     if (day < 1) day = 1;
     if (day > 7) day = 7;
     currentDay = day;
 
-    dayTargetHouses.clear();
+    // 日別配達必要軒数（Day 1: 3軒 〜 Day 7: 全8軒）
+    int count = 3;
     switch (currentDay)
     {
-    case 1:
-        // Day 1（月曜・チュートリアル夜）: 3軒
-        dayTargetHouses = { 0, 1, 3 };
-        break;
-    case 2:
-        // Day 2（火曜・小雨と明滅）: 4軒
-        dayTargetHouses = { 0, 2, 4, 5 };
-        break;
-    case 3:
-        // Day 3（水曜・立ち込める濃霧）: 5軒
-        dayTargetHouses = { 1, 3, 5, 6, 7 };
-        break;
-    case 4:
-        // Day 4（木曜・豪雨と停電）: 6軒
-        dayTargetHouses = { 0, 1, 2, 4, 6, 7 };
-        break;
-    case 5:
-        // Day 5（金曜・凍える降雪）: 6軒
-        dayTargetHouses = { 1, 2, 3, 5, 6, 7 };
-        break;
-    case 6:
-        // Day 6（土曜・猛吹雪と迫る影）: 7軒
-        dayTargetHouses = { 0, 1, 2, 3, 4, 5, 6 };
-        break;
+    case 1: count = 3; break;
+    case 2: count = 4; break;
+    case 3: count = 5; break;
+    case 4: count = 6; break;
+    case 5: count = 6; break;
+    case 6: count = 7; break;
     case 7:
-    default:
-        // Day 7（日曜・最終夜・超濃霧と総力戦）: 全8軒
-        dayTargetHouses = { 0, 1, 2, 3, 4, 5, 6, 7 };
-        break;
+    default: count = 8; break;
+    }
+
+    // 決定論的シードに基づく疑似乱数ジェネレータ
+    unsigned int rng = GetDaySeed(currentDay);
+    auto NextRand = [&]() -> unsigned int {
+        rng = rng * 1664525u + 1013904223u;
+        return rng;
+    };
+
+    // 全8棟の住宅ID（0〜7）をフィッシャー・イェーツ法で日別シード決定論的シャッフル
+    std::vector<int> allHouses = { 0, 1, 2, 3, 4, 5, 6, 7 };
+    for (size_t i = allHouses.size() - 1; i > 0; --i)
+    {
+        size_t j = NextRand() % (i + 1);
+        std::swap(allHouses[i], allHouses[j]);
+    }
+
+    dayTargetHouses.clear();
+    for (int i = 0; i < count; ++i)
+    {
+        dayTargetHouses.push_back(allHouses[i]);
     }
 
     totalDeliveries = static_cast<int>(dayTargetHouses.size());

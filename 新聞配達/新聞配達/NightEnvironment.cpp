@@ -1,6 +1,7 @@
 #include "NightEnvironment.h"
 #include "Bicycle.h"
 #include "HorrorUI.h"
+#include "Map.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -113,6 +114,14 @@ bool NightEnvironment::Initialize()
             streetLights[i].lightHandle = handle;
         }
     }
+
+    // 街灯電柱を静的ワールドコリジョンに登録
+    std::vector<VECTOR> poles;
+    for (size_t i = 0; i < streetLights.size(); ++i)
+    {
+        poles.push_back(streetLights[i].position);
+    }
+    MapRegisterLampPoles(poles);
 
     // デフォルトの例外配達風プリセットを適用
     SetPreset(EnvironmentPreset::NightDeliveryStyle);

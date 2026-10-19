@@ -719,7 +719,7 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
     int kx1 = 980;
     int ky1 = 20;
     int kx2 = 1255;
-    int ky2 = 246;
+    int ky2 = 274;
 
     // レトロ端末パネル枠と背景の描画
     DrawRetroPanel(kx1, ky1, kx2, ky2, COL_BORDER, COL_PANEL_BG, 195);
@@ -771,7 +771,8 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
         { "[ LMB ]", lmbAction, lmbKeyCol, lmbActCol },
         { "[ F ]", fAction, fKeyCol, fActCol },
         { "[ ESC ]", "Pause Menu", defaultKeyCol, defaultActCol },
-        { "[ F6 ]", f6Action, f6KeyCol, f6ActCol }
+        { "[ F6 ]", f6Action, f6KeyCol, f6ActCol },
+        { "[ [ / ] ]", "Day - / +", GetColor(140, 200, 220), defaultActCol }
     };
 
     int startY = ky1 + 31;

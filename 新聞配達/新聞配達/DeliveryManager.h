@@ -50,6 +50,8 @@ public:
     int GetCurrentDay() const;
     const char* GetDayName() const;
     const char* GetDaySubtitle() const;
+    static unsigned int GetDaySeed(int day);
+    unsigned int GetCurrentDaySeed() const;
 
     // 現在の目的地の取得
     int GetCurrentTargetId() const;
