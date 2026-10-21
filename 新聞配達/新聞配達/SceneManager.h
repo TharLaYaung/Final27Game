@@ -7,6 +7,7 @@ class Player;
 class Bicycle;
 class Newspaper;
 class Mailbox;
+class BatteryManager;
 class DeliveryManager;
 class Minimap;
 class NightEnvironment;
@@ -50,6 +51,7 @@ public:
         Bicycle& bicycle,
         Newspaper& newspaper,
         Mailbox& mailbox,
+        BatteryManager& batteryManager,
         DeliveryManager& deliveryManager,
         NightEnvironment& nightEnv,
         WeatherManager& weatherManager,
@@ -63,6 +65,7 @@ public:
         Bicycle& bicycle,
         Newspaper& newspaper,
         Mailbox& mailbox,
+        BatteryManager& batteryManager,
         DeliveryManager& deliveryManager,
         Minimap& minimap,
         NightEnvironment& nightEnv,
@@ -79,6 +82,7 @@ public:
         Player& player,
         Bicycle& bicycle,
         Newspaper& newspaper,
+        BatteryManager& batteryManager,
         DeliveryManager& deliveryManager,
         NightEnvironment& nightEnv,
         WeatherManager& weatherManager,

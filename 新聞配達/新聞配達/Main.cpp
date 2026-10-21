@@ -13,6 +13,7 @@
 #include "WeatherManager.h"
 #include "HorrorManager.h"
 #include "SceneManager.h"
+#include "BatteryManager.h"
 
 // Windowsアプリケーションのエントリポイント
 int WINAPI WinMain(
@@ -90,6 +91,7 @@ int WINAPI WinMain(
     WeatherManager weatherManager;
     HorrorManager horrorManager;
     SceneManager sceneManager;
+    BatteryManager batteryManager;
 
     // ホラーUI総合管理システムの初期化（フォント生成など）
     HorrorUI::Instance().Initialize();
@@ -131,6 +133,17 @@ int WINAPI WinMain(
         MessageBox(
             NULL,
             "Failed to load mailbox model.",
+            "Error",
+            MB_OK
+        );
+    }
+
+    // バッテリーアイテム管理システム初期化
+    if (batteryManager.Initialize() == false)
+    {
+        MessageBox(
+            NULL,
+            "Failed to load battery model.",
             "Error",
             MB_OK
         );
@@ -195,6 +208,7 @@ int WINAPI WinMain(
             bicycle,
             newspaper,
             mailbox,
+            batteryManager,
             deliveryManager,
             nightEnv,
             weatherManager,
@@ -253,11 +267,12 @@ int WINAPI WinMain(
             }
             oldF5Key = curF5;
 
-            // F6キー: マップデバッグ表示ON/OFF切り替え
+            // F6キー: マップデバッグ表示およびモンスター追跡デバッグON/OFF切り替え
             bool curF6 = (CheckHitKey(KEY_INPUT_F6) != 0);
             if (curF6 && !oldF6Key)
             {
                 mapDebugEnabled = !mapDebugEnabled;
+                horrorManager.SetShowDebugHUD(mapDebugEnabled);
             }
             oldF6Key = curF6;
 
@@ -394,7 +409,7 @@ int WINAPI WinMain(
             if (curPrevDay && !oldPrevDayKey)
             {
                 int newDay = (sceneManager.GetCurrentDay() <= 1) ? 7 : sceneManager.GetCurrentDay() - 1;
-                sceneManager.ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, newDay);
+                sceneManager.ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, newDay);
             }
             oldPrevDayKey = curPrevDay;
 
@@ -403,7 +418,7 @@ int WINAPI WinMain(
             if (curNextDay && !oldNextDayKey)
             {
                 int newDay = (sceneManager.GetCurrentDay() >= 7) ? 1 : sceneManager.GetCurrentDay() + 1;
-                sceneManager.ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, newDay);
+                sceneManager.ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, newDay);
             }
             oldNextDayKey = curNextDay;
 
@@ -475,6 +490,12 @@ int WINAPI WinMain(
                 player
             );
 
+            // バッテリーアイテム・交換操作の更新
+            batteryManager.Update(
+                player,
+                bicycle
+            );
+
             // ミニマップ更新
             minimap.Update();
         }
@@ -488,6 +509,7 @@ int WINAPI WinMain(
             bicycle,
             newspaper,
             mailbox,
+            batteryManager,
             deliveryManager,
             minimap,
             nightEnv,
@@ -499,6 +521,9 @@ int WINAPI WinMain(
         // 裏画面の内容を表画面へ反映
         ScreenFlip();
     }
+
+    // バッテリー管理システムの終了処理
+    batteryManager.Finalize();
 
     // シーン管理システムの終了処理
     sceneManager.Finalize();

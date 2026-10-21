@@ -115,6 +115,9 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>C:\DxLib_VC\プロジェクトに追加すべきファイル_VC用;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /y /d /s /i "$(ProjectDir)Data" "$(OutDir)Data"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -149,6 +152,7 @@
     <ClCompile Include="HorrorManager.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="WorldCollision.cpp" />
+    <ClCompile Include="BatteryManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Bicycle.h" />
@@ -168,6 +172,7 @@
     <ClInclude Include="HorrorManager.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="WorldCollision.h" />
+    <ClInclude Include="BatteryManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

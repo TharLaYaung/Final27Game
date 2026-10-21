@@ -588,7 +588,51 @@ void HorrorUI::DrawInteractionPrompt()
     case PromptType::DeliverNewspaper:
         promptText = "[ LMB ] DELIVER";
         break;
+    case PromptType::TakeBattery:
+        promptText = "[ LMB ] TAKE BATTERY";
+        break;
+    case PromptType::ReplaceBattery:
+        promptText = "[ R ] REPLACE BATTERY";
+        break;
     default:
+        return;
+    }
+
+    if (currentPrompt == PromptType::BatteryFull)
+    {
+        const char* line1 = "BATTERY FULL";
+        const char* line2 = "SPARE 2/2";
+        int w1 = (fontMedium != -1) ? GetDrawStringWidthToHandle(line1, (int)strlen(line1), fontMedium) : 130;
+        int w2 = (fontSmall != -1) ? GetDrawStringWidthToHandle(line2, (int)strlen(line2), fontSmall) : 80;
+        int maxW = (w1 > w2) ? w1 : w2;
+        int posX = 640 - maxW / 2;
+        int posY = 458;
+
+        int alpha = (int)(promptAlpha * 220.0f);
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
+
+        DrawBox(posX - 18, posY - 6, posX + maxW + 18, posY + 48, COL_BG, TRUE);
+        DrawBox(posX - 18, posY - 6, posX + maxW + 18, posY + 48, COL_WARNING, FALSE);
+
+        if (fontMedium != -1)
+        {
+            DrawStringToHandle(640 - w1 / 2, posY, line1, COL_WARNING, fontMedium);
+        }
+        else
+        {
+            DrawString(640 - w1 / 2, posY, line1, COL_WARNING);
+        }
+
+        if (fontSmall != -1)
+        {
+            DrawStringToHandle(640 - w2 / 2, posY + 26, line2, COL_TEXT, fontSmall);
+        }
+        else
+        {
+            DrawString(640 - w2 / 2, posY + 26, line2, COL_TEXT);
+        }
+
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
         return;
     }
 
@@ -714,12 +758,12 @@ void HorrorUI::DrawPaperCargo(int paperCount, bool isHolding)
 }
 
 // 操作キー案内HUD描画（画面右上パネル）
-void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDeliver, bool isHeadlightOn, bool isMapDebugOn)
+void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDeliver, bool isHeadlightOn, bool isMapDebugOn, bool canReplaceBattery)
 {
     int kx1 = 980;
     int ky1 = 20;
     int kx2 = 1255;
-    int ky2 = 274;
+    int ky2 = 298;
 
     // レトロ端末パネル枠と背景の描画
     DrawRetroPanel(kx1, ky1, kx2, ky2, COL_BORDER, COL_PANEL_BG, 195);
@@ -764,11 +808,16 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
     unsigned int f6KeyCol = isMapDebugOn ? GetColor(150, 215, 185) : defaultKeyCol;
     unsigned int f6ActCol = isMapDebugOn ? GetColor(135, 185, 165) : defaultActCol;
 
+    const char* rAction = canReplaceBattery ? "Replace Bat" : "Replace Bat";
+    unsigned int rKeyCol = canReplaceBattery ? activeKeyCol : defaultKeyCol;
+    unsigned int rActCol = canReplaceBattery ? activeActCol : defaultActCol;
+
     KeyItem items[] = {
         { "[ WASD ]", isRiding ? "Pedal / Steer" : "Move", defaultKeyCol, defaultActCol },
         { "[ MOUSE ]", "Look", defaultKeyCol, defaultActCol },
         { "[ E ]", eAction, eKeyCol, eActCol },
         { "[ LMB ]", lmbAction, lmbKeyCol, lmbActCol },
+        { "[ R ]", rAction, rKeyCol, rActCol },
         { "[ F ]", fAction, fKeyCol, fActCol },
         { "[ ESC ]", "Pause Menu", defaultKeyCol, defaultActCol },
         { "[ F6 ]", f6Action, f6KeyCol, f6ActCol },
@@ -793,7 +842,7 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
 }
 
 // 自転車ヘッドライト・バッテリーHUD描画（画面左側、ミニマップ直下に配置）
-void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isRiding, bool isFastDrain)
+void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isRiding, bool isFastDrain, int spareBatteries, int maxSpareBatteries)
 {
     (void)isRiding;
 
@@ -801,7 +850,7 @@ void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isR
     int panelX1 = 26;
     int panelY1 = 276;
     int panelX2 = 236;
-    int panelY2 = 324;
+    int panelY2 = 348;
 
     // レトロ端末パネル外枠と背景の描画
     DrawRetroPanel(panelX1, panelY1, panelX2, panelY2, COL_BORDER, COL_PANEL_BG, 185);
@@ -921,6 +970,48 @@ void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isR
             // 非点灯セル：極めて暗い背景スロット枠
             SetDrawBlendMode(DX_BLENDMODE_ALPHA, 90);
             DrawBox(cx1, cy1, cx2, cy2, GetColor(30, 38, 34), TRUE);
+            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        }
+    }
+
+
+    // 予備バッテリー区切り線
+    DrawLine(panelX1 + 6, panelY1 + 41, panelX2 - 6, panelY1 + 41, COL_BORDER_DIM);
+
+    // 予備バッテリー所持数表示（SPARE 0/2, SPARE 1/2, SPARE 2/2）
+    char spareStr[32];
+    snprintf(spareStr, sizeof(spareStr), "SPARE %d/%d", spareBatteries, maxSpareBatteries);
+
+    unsigned int spareCol = COL_TEXT_DIM;
+    if (spareBatteries >= maxSpareBatteries)
+    {
+        spareCol = GetColor(140, 225, 175);
+    }
+    else if (spareBatteries > 0)
+    {
+        spareCol = COL_TEXT;
+    }
+
+    DrawJitterString(panelX1 + 10, panelY1 + 46, spareStr, spareCol, fontSmall);
+
+    // 予備バッテリー所持スロットランプ（2個）
+    for (int s = 0; s < maxSpareBatteries; ++s)
+    {
+        int sx1 = panelX2 - 34 + s * 13;
+        int sy1 = panelY1 + 48;
+        int sx2 = sx1 + 9;
+        int sy2 = sy1 + 9;
+
+        if (s < spareBatteries)
+        {
+            DrawBox(sx1, sy1, sx2, sy2, GetColor(110, 215, 150), TRUE);
+            DrawBox(sx1, sy1, sx2, sy2, GetColor(160, 245, 190), FALSE);
+        }
+        else
+        {
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 120);
+            DrawBox(sx1, sy1, sx2, sy2, COL_BG, TRUE);
+            DrawBox(sx1, sy1, sx2, sy2, COL_BORDER_DIM, FALSE);
             SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
         }
     }

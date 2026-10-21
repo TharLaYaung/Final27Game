@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "DxLib.h"
 
@@ -87,6 +87,9 @@ public:
     void TriggerHeadlightFlicker();
     void TriggerHeadlightBlackout(float durationSeconds);
     void SetBatteryDrainMultiplier(float multiplier);
+
+    // バッテリーの満充電交換処理
+    void ReplaceBattery();
 
     // バッテリー空時の通知フラグ（UI表示用）
     bool IsEmptyWarningActive() const;

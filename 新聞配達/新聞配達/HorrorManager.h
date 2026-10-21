@@ -3,6 +3,7 @@
 #include "DxLib.h"
 #include "HorrorEntity.h"
 #include <vector>
+#include <string>
 
 class Player;
 class Bicycle;
@@ -41,6 +42,37 @@ enum class JumpscareState
     GroundedStare,  // フェーズ5: 地面横倒し視点・眼前に直立する怪異の直視（1.50s）
     VisionClosing,  // フェーズ6: 視界狭窄・最後のまばたき・暗転（2.00s）
     GameOver        // フェーズ7: ゲームオーバー待機
+};
+
+// モンスター追跡状態マシン
+enum class MonsterChaseState
+{
+    Dormant,        // 未解禁（配達4件未満）またはスポーン待機
+    Idle,           // 待機・周囲見渡し（MonsterIdle.mv1）
+    Searching,      // 索敵・巡回（MonsterIdle.mv1）
+    Chasing,        // 追跡疾走（MonsterRun.mv1）
+    LostPlayer,     // 見失い中（最後に確認した位置へ移動、MonsterRun.mv1）
+    AvoidingLight,  // 安全光境界で停止・凝視（MonsterIdle.mv1）
+    Despawned       // クールダウン待機・一時消滅
+};
+
+// 7日間追跡難易度パラメータ
+struct MonsterDayParams
+{
+    float runSpeed;             // 疾走速度 (m/s)
+    float searchSpeed;          // 探索歩行速度 (m/s)
+    float lostSightDuration;    // 見失い猶予時間 (s)
+    float cooldownDuration;     // 追跡終了後のクールダウン (s)
+    float campingMaxDuration;   // 街灯外での待機限界時間 (s)
+    float detectRange;          // 最大探知距離 (m)
+    float fearMultiplier;       // 追跡中の恐怖上昇倍率
+};
+
+// 街区ナビゲーションノード構造体
+struct MonsterNavNode
+{
+    int id;
+    VECTOR pos;
 };
 
 // ホラー固定出現候補地点
@@ -105,8 +137,21 @@ public:
     int GetCurrentDay() const { return currentDay; }
     float GetFearRiseMultiplier() const { return fearRiseMultiplier; }
 
-    // デバッグHUDのON/OFF切り替え (F11)
+    // モンスター追跡状態・パラメータ取得
+    bool IsChaseUnlocked() const { return isChaseUnlocked; }
+    MonsterChaseState GetChaseState() const { return chaseState; }
+    const char* GetChaseStateName() const;
+    VECTOR GetLastKnownPlayerPosition() const { return lastKnownPlayerPos; }
+    float GetLostSightTimer() const { return lostSightTimer; }
+    float GetChaseCooldownTimer() const { return chaseCooldownTimer; }
+    bool IsPlayerSafeFromMonster(const Player& player, const Bicycle& bicycle, const NightEnvironment& nightEnv, const char** outReason = nullptr) const;
+
+    // デバッグHUDのON/OFF切り替え (F11 / F6)
     void ToggleDebugHUD() { showDebugHUD = !showDebugHUD; }
+    void SetShowDebugHUD(bool show) { showDebugHUD = show; }
+    bool IsDebugHUDVisible() const { return showDebugHUD; }
+    float GetCachedBicycleBattery() const { return cachedBicycleBattery; }
+    float GetCachedMonsterDistance() const { return cachedMonsterDist; }
 
     // デバッグ用恐怖度強制設定
     void DebugSetFear(float level);
@@ -139,6 +184,18 @@ private:
     // ジャンプスケア演出の進行更新
     void UpdateJumpscareSequence(float dt, Player& player);
 
+    // モンスター追跡AIの更新
+    void UpdateMonsterChase(float dt, Player& player, const Bicycle& bicycle, const NightEnvironment& nightEnv, const DeliveryManager* deliveryManager);
+
+    // ナビゲーションノード初期化
+    void InitializeNavNodes();
+
+    // 障害物を迂回して目的地へ移動するヘルパー
+    void NavigateTowards(const VECTOR& targetPos, float speed, float dt);
+
+    // 適切なスポーン地点の探索
+    bool FindValidMonsterSpawn(const Player& player, const NightEnvironment& nightEnv, VECTOR& outSpawnPos);
+
     // 怪異モデル実体
     HorrorEntity entity;
 
@@ -147,6 +204,25 @@ private:
     float fearRiseMultiplier;
     int spawnChanceBonus;
     float entitySpeedMultiplier;
+
+    // モンスター追跡パラメータ・状態
+    bool isChaseUnlocked;
+    MonsterChaseState chaseState;
+    MonsterDayParams currentParams;
+    VECTOR lastKnownPlayerPos;
+    float lostSightTimer;
+    float chaseCooldownTimer;
+    float campingTimer;
+    float searchStateTimer;
+    int currentSearchNodeIndex;
+    float darknessTimeAccumulator;
+    float cachedBicycleBattery;
+    float cachedMonsterDist;
+    bool playerWasVisible;
+    bool lastLOSState;
+    const char* lastSafeReason;
+    int currentNavTargetNodeId;
+    std::vector<MonsterNavNode> navNodes;
 
     // 恐怖度・環境緊張度パラメータ
     float fearLevel;

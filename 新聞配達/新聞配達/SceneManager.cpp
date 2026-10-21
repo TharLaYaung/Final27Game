@@ -3,6 +3,7 @@
 #include "Bicycle.h"
 #include "Newspaper.h"
 #include "Mailbox.h"
+#include "BatteryManager.h"
 #include "DeliveryManager.h"
 #include "Minimap.h"
 #include "NightEnvironment.h"
@@ -186,6 +187,7 @@ void SceneManager::ResetGame(
     Player& player,
     Bicycle& bicycle,
     Newspaper& newspaper,
+    BatteryManager& batteryManager,
     DeliveryManager& deliveryManager,
     NightEnvironment& nightEnv,
     WeatherManager& weatherManager,
@@ -208,6 +210,9 @@ void SceneManager::ResetGame(
 
     // 配達状況の日別セットアップ（決定論的シードによる配達順設定）
     deliveryManager.SetDay(currentDay);
+
+    // 予備バッテリー所持数および日別スポーン位置のリセット
+    batteryManager.Reset(currentDay);
 
     // 決定論的シードに基づく玄関灯の点灯設定と安全検証
     unsigned int daySeed = deliveryManager.GetCurrentDaySeed();
@@ -309,6 +314,7 @@ void SceneManager::Update(
     Bicycle& bicycle,
     Newspaper& newspaper,
     Mailbox& mailbox,
+    BatteryManager& batteryManager,
     DeliveryManager& deliveryManager,
     NightEnvironment& nightEnv,
     WeatherManager& weatherManager,
@@ -433,7 +439,7 @@ void SceneManager::Update(
 
             if ((hitStart || enterDown || spaceDown) && !IsTransitioning())
             {
-                ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, titleSelectedDay);
+                ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, titleSelectedDay);
                 StartTransition(SceneType::Game, 0.8f);
             }
 
@@ -479,13 +485,13 @@ void SceneManager::Update(
                 else if (hitRetry || (enterDown && pauseMenuSelection == 1))
                 {
                     SetPaused(false);
-                    ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
+                    ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
                     StartTransition(SceneType::Game, 0.6f);
                 }
                 else if (hitTitle || (enterDown && pauseMenuSelection == 2))
                 {
                     SetPaused(false);
-                    ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
+                    ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
                     StartTransition(SceneType::Title, 0.8f);
                 }
                 else if (hitQuit || (enterDown && pauseMenuSelection == 3))
@@ -541,13 +547,13 @@ void SceneManager::Update(
                     if ((hitNextNight || enterDown || spaceDown) && !IsTransitioning())
                     {
                         currentDay++;
-                        ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
+                        ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
                         StartTransition(SceneType::Game, 1.0f);
                     }
 
                     if (hitTitle && !IsTransitioning())
                     {
-                        ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
+                        ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
                         StartTransition(SceneType::Title, 1.0f);
                     }
                 }
@@ -559,7 +565,7 @@ void SceneManager::Update(
 
                     if ((hitTitle || enterDown || spaceDown) && !IsTransitioning())
                     {
-                        ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
+                        ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
                         StartTransition(SceneType::Title, 1.0f);
                     }
 
@@ -584,13 +590,13 @@ void SceneManager::Update(
 
             if ((hitRetry || rDown) && !IsTransitioning())
             {
-                ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
+                ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
                 StartTransition(SceneType::Game, 0.8f);
             }
 
             if ((hitTitle || enterDown || spaceDown) && !IsTransitioning())
             {
-                ResetGame(player, bicycle, newspaper, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
+                ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
                 StartTransition(SceneType::Title, 1.0f);
             }
 
@@ -609,6 +615,7 @@ void SceneManager::Draw(
     Bicycle& bicycle,
     Newspaper& newspaper,
     Mailbox& mailbox,
+    BatteryManager& batteryManager,
     DeliveryManager& deliveryManager,
     Minimap& minimap,
     NightEnvironment& nightEnv,
@@ -625,6 +632,7 @@ void SceneManager::Draw(
             nightEnv.ApplyLightingAndFog();
             DrawGround();
             MapDraw();
+            batteryManager.Draw();
             nightEnv.DrawStreetLights();
             weatherManager.DrawParticles(bicycle, nightEnv);
 
@@ -642,10 +650,12 @@ void SceneManager::Draw(
             nightEnv.ApplyLightingAndFog();
             DrawGround();
             MapDraw();
+            batteryManager.Draw();
             nightEnv.DrawStreetLights();
             bicycle.Draw();
             newspaper.Draw();
             mailbox.Draw(deliveryManager);
+            batteryManager.Draw();
             weatherManager.DrawParticles(bicycle, nightEnv);
             horrorManager.Draw3D();
 
@@ -682,7 +692,9 @@ void SceneManager::Draw(
                 bicycle.GetBatteryPercent(),
                 bicycle.IsHeadlightOn(),
                 bicycle.IsRiding(),
-                bicycle.IsDebugFastDrain()
+                bicycle.IsDebugFastDrain(),
+                batteryManager.GetSpareCount(),
+                batteryManager.GetMaxSpareCount()
             );
 
             HorrorUI::Instance().DrawPaperCargo(
@@ -692,7 +704,8 @@ void SceneManager::Draw(
 
             HorrorUI::Instance().DrawInteractionPrompt();
 
-            bool isAiming = bicycle.CanRide() || newspaper.CanTake() || mailbox.CanDeliver();
+            bool canReplace = batteryManager.CanReplaceBicycleBattery(player, bicycle);
+            bool isAiming = bicycle.CanRide() || newspaper.CanTake() || mailbox.CanDeliver() || (batteryManager.GetAimedBatteryId() != -1) || canReplace;
             HorrorUI::Instance().DrawCrosshair(isAiming);
 
             // 操作キー案内HUD描画（画面下部）
@@ -701,7 +714,8 @@ void SceneManager::Draw(
                 newspaper.IsHolding(),
                 isAiming,
                 bicycle.IsHeadlightOn(),
-                mapDebugEnabled
+                mapDebugEnabled,
+                canReplace
             );
 
             nightEnv.DrawDebugHUD();
@@ -777,6 +791,7 @@ void SceneManager::Draw(
 
             DrawGround();
             MapDraw();
+            batteryManager.Draw();
             nightEnv.DrawStreetLights();
             bicycle.Draw();
             weatherManager.DrawParticles(bicycle, nightEnv);
@@ -1117,11 +1132,11 @@ void SceneManager::DrawGameOverScene(const DeliveryManager& deliveryManager)
     int cx = 640;
     int cy = 360;
 
-    // 暗黒背景
-    DrawBox(0, 0, 1280, 720, GetColor(4, 3, 5), TRUE);
+    // 暗黒背景（純黒）
+    DrawBox(0, 0, 1280, 720, GetColor(0, 0, 0), TRUE);
 
     // アナログ砂嵐ノイズ（テレビの砂嵐演出）
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 45);
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 35);
     for (int i = 0; i < 220; ++i)
     {
         int rx = std::rand() % 1280;
@@ -1129,22 +1144,6 @@ void SceneManager::DrawGameOverScene(const DeliveryManager& deliveryManager)
         int rw = 2 + std::rand() % 5;
         unsigned int ncol = (std::rand() % 2 == 0) ? GetColor(190, 190, 190) : GetColor(40, 40, 40);
         DrawBox(rx, ry, rx + rw, ry + 1, ncol, TRUE);
-    }
-    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-
-    // 心拍のような赤色フラッシュ・ダーク赤ビネットパルス
-    float pulse = std::sin(gameOverTimer * 3.2f);
-    int pulseAlpha = 80 + (int)(pulse * 35.0f);
-    if (pulseAlpha < 40) pulseAlpha = 40;
-
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, pulseAlpha);
-    for (int i = 0; i < 8; ++i)
-    {
-        int inset = i * 25;
-        DrawBox(0, inset, 1280, inset + 25, GetColor(140, 15, 15), TRUE);
-        DrawBox(0, 720 - inset - 25, 1280, 720 - inset, GetColor(140, 15, 15), TRUE);
-        DrawBox(inset, 0, inset + 25, 720, GetColor(140, 15, 15), TRUE);
-        DrawBox(1280 - inset - 25, 0, 1280 - inset, 720, GetColor(140, 15, 15), TRUE);
     }
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 

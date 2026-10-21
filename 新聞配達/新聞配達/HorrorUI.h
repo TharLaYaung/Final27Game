@@ -10,7 +10,10 @@ enum class PromptType
     RideBicycle,        // 自転車に乗る [ E ] RIDE
     DismountBicycle,    // 自転車から降りる [ E ] DISMOUNT
     TakeNewspaper,      // 新聞を取る [ LMB ] TAKE
-    DeliverNewspaper    // 配達する [ LMB ] DELIVER
+    DeliverNewspaper,   // 配達する [ LMB ] DELIVER
+    TakeBattery,        // バッテリーを拾う [ LMB ] TAKE BATTERY
+    BatteryFull,        // バッテリー満杯 BATTERY FULL / SPARE 2/2
+    ReplaceBattery      // バッテリー交換 [ R ] REPLACE BATTERY
 };
 
 // ホラーUI総合管理クラス
@@ -54,10 +57,10 @@ public:
     void DrawPaperCargo(int paperCount, bool isHolding);
 
     // 操作キー案内HUD描画（ゲーム画面下部）
-    void DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDeliver, bool isHeadlightOn, bool isMapDebugOn);
+    void DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDeliver, bool isHeadlightOn, bool isMapDebugOn, bool canReplaceBattery = false);
 
     // 自転車ヘッドライト・バッテリーHUD描画（ミニマップ直下に配置）
-    void DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isRiding, bool isFastDrain);
+    void DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isRiding, bool isFastDrain, int spareBatteries = 0, int maxSpareBatteries = 2);
 
     // 恐怖度メーターHUD描画（画面左上、時計直下に配置）
     void DrawFearMeter(float fearPercent, bool inSafeLight);

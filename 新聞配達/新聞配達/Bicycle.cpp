@@ -694,6 +694,13 @@ void Bicycle::SetBatteryDrainMultiplier(float multiplier)
     batteryDrainMultiplier = multiplier;
 }
 
+// バッテリーの満充電交換処理
+void Bicycle::ReplaceBattery()
+{
+    batteryCurrent = batteryMax;
+    emptyWarningTimer = 0;
+}
+
 // 効果音用フック
 void Bicycle::PlayElectricalSoundHook()
 {
