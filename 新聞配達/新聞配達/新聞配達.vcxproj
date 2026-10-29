@@ -152,7 +152,8 @@
     <ClCompile Include="HorrorManager.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="WorldCollision.cpp" />
-    <ClCompile Include="BatteryManager.cpp" />
+    <ClCompile Include="BatteryManager.cpp" />
+    <ClCompile Include="AudioManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Bicycle.h" />
@@ -172,7 +173,8 @@
     <ClInclude Include="HorrorManager.h" />
     <ClInclude Include="SceneManager.h" />
     <ClInclude Include="WorldCollision.h" />
-    <ClInclude Include="BatteryManager.h" />
+    <ClInclude Include="BatteryManager.h" />
+    <ClInclude Include="AudioManager.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

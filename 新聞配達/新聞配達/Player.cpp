@@ -1,3 +1,4 @@
+#include "AudioManager.h"
 #include "Player.h"
 #include <cmath>
 #include "Map.h"
@@ -124,6 +125,8 @@ void Player::Update()
     // 移動入力がある場合
     if (moveDelta.x != 0.0f || moveDelta.z != 0.0f)
     {
+        // 濡れたアスファルトの歩行足音再生
+        AudioManager::Instance().PlayFootstep();
         VECTOR desiredPos = VGet(
             position.x + moveDelta.x,
             position.y,

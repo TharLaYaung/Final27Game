@@ -1,4 +1,4 @@
-﻿// Ground.hを読み込む
+// Ground.hを読み込む
 #include "Ground.h"
 
 // 道路矩形を描画するヘルパー関数
@@ -13,8 +13,32 @@ static void DrawRoadQuad(float x1, float z1, float x2, float z2, unsigned int co
     DrawTriangle3D(p2, p4, p3, color, TRUE);
 }
 
+// 道路沿いの立体コンクリート縁石を描画するヘルパー関数
+static void DrawCurbBlock(float cx, float cz, float hw, float hd, float height = 0.08f)
+{
+    float x1 = cx - hw, x2 = cx + hw;
+    float y1 = 0.0f, y2 = height;
+    float z1 = cz - hd, z2 = cz + hd;
+
+    unsigned int sideCol = GetColor(45, 48, 50);
+    unsigned int topCol = GetColor(62, 66, 68);
+
+    // 側面
+    DrawTriangle3D(VGet(x1, y1, z1), VGet(x2, y1, z1), VGet(x1, y2, z1), sideCol, TRUE);
+    DrawTriangle3D(VGet(x2, y1, z1), VGet(x2, y2, z1), VGet(x1, y2, z1), sideCol, TRUE);
+    DrawTriangle3D(VGet(x1, y1, z2), VGet(x1, y2, z2), VGet(x2, y1, z2), sideCol, TRUE);
+    DrawTriangle3D(VGet(x2, y1, z2), VGet(x1, y2, z2), VGet(x2, y2, z2), sideCol, TRUE);
+    DrawTriangle3D(VGet(x1, y1, z1), VGet(x1, y2, z1), VGet(x1, y1, z2), sideCol, TRUE);
+    DrawTriangle3D(VGet(x1, y2, z1), VGet(x1, y2, z2), VGet(x1, y1, z2), sideCol, TRUE);
+    DrawTriangle3D(VGet(x2, y1, z1), VGet(x2, y1, z2), VGet(x2, y2, z1), sideCol, TRUE);
+    DrawTriangle3D(VGet(x2, y2, z1), VGet(x2, y1, z2), VGet(x2, y2, z2), sideCol, TRUE);
+    // 天面
+    DrawTriangle3D(VGet(x1, y2, z1), VGet(x2, y2, z1), VGet(x1, y2, z2), topCol, TRUE);
+    DrawTriangle3D(VGet(x2, y2, z1), VGet(x2, y2, z2), VGet(x1, y2, z2), topCol, TRUE);
+}
+
 // 地面および住宅街道路を描画する関数
-// 深夜3時の冷たいアスファルト路面と狭小住宅街の道路網を描画
+// 深夜3時の冷たいアスファルト路面と立体縁石、狭小住宅街の道路網を描画
 void DrawGround()
 {
     // 敷地・土台ベース地面色（深夜の極めて暗い土・草地色 RGB = 15, 18, 16）
@@ -50,6 +74,24 @@ void DrawGround()
 
     // 6. 北路地行き止まり・Road C（X = 0, Z = +15 〜 +40）
     DrawRoadQuad(-3.0f, 15.0f, 3.0f, 40.0f, asphaltColor);
+
+    // 立体コンクリート縁石の描画（車道と歩道・敷地境界を際立たせる）
+    // 西通り外側縁石（住宅0・7側）
+    DrawCurbBlock(-28.12f, -6.0f, 0.12f, 24.0f, 0.07f);
+    // 東通り外側縁石（住宅5・6側）
+    DrawCurbBlock(28.12f, -6.0f, 0.12f, 24.0f, 0.07f);
+
+    // 南大通り南側縁石
+    DrawCurbBlock(0.0f, -33.12f, 28.0f, 0.12f, 0.07f);
+
+    // 北横通り北側縁石（住宅1・3側、路地C開口部を除く）
+    DrawCurbBlock(-15.5f, 18.12f, 12.5f, 0.12f, 0.07f);
+    DrawCurbBlock(15.5f, 18.12f, 12.5f, 0.12f, 0.07f);
+
+    // 北路地C行き止まり奥縁石（住宅2側）
+    DrawCurbBlock(0.0f, 40.12f, 3.2f, 0.12f, 0.07f);
+    DrawCurbBlock(-3.12f, 27.5f, 0.12f, 12.5f, 0.07f);
+    DrawCurbBlock(3.12f, 27.5f, 0.12f, 12.5f, 0.07f);
 
     // 道路白線・路肩境界線の描画（褪せた暗白緑色）
     unsigned int curbLineColor = GetColor(50, 60, 56);

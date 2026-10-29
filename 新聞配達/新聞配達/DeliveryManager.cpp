@@ -1,3 +1,4 @@
+#include "AudioManager.h"
 #include "DeliveryManager.h"
 #include "Map.h"
 #include <cmath>
@@ -97,6 +98,7 @@ void DeliveryManager::OnDeliverySuccess(int mailboxId)
 
     // 完了配達数を加算
     completedDeliveries++;
+    AudioManager::Instance().PlayDeliverySuccess();
 
     // 配達完了フィードバック状態へ移行（約2秒間表示）
     state = DeliveryState::CompleteFeedback;
@@ -163,7 +165,7 @@ void DeliveryManager::SetDay(int day)
     if (day > 7) day = 7;
     currentDay = day;
 
-    // 日別配達必要軒数（Day 1: 3軒 〜 Day 7: 全8軒）
+    // 日ごとの配達軒数（Day 1: 3軒 〜 Day 7: 8軒）
     int count = 3;
     switch (currentDay)
     {
@@ -177,7 +179,6 @@ void DeliveryManager::SetDay(int day)
     default: count = 8; break;
     }
 
-    // 決定論的シードに基づく疑似乱数ジェネレータ
     unsigned int rng = GetDaySeed(currentDay);
     auto NextRand = [&]() -> unsigned int {
         rng = rng * 1664525u + 1013904223u;

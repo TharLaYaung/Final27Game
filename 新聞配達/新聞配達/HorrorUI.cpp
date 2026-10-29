@@ -57,7 +57,9 @@ HorrorUI::HorrorUI()
 
     // 恐怖視覚エフェクト初期化
     ghostScreenGraph = -1;
+    bloodSplatterGraph = -1;
     currentFearParam = 0.0f;
+    showKeyGuide = true;
     deathClosingProgress = 0.0f;
     deathBlinkFactor = 1.0f;
     doubleVisionAmount = 0.0f;
@@ -78,6 +80,10 @@ void HorrorUI::Initialize()
     if (ghostScreenGraph == -1)
     {
         ghostScreenGraph = MakeScreen(1280, 720, FALSE);
+    }
+    if (bloodSplatterGraph == -1)
+    {
+        bloodSplatterGraph = LoadGraph("Data/blood_splatter.png");
     }
 
     // ホラー演出に特化した擦れ・不気味な筆跡フォント "Chiller" を全UIフォントの基調として生成
@@ -114,6 +120,7 @@ void HorrorUI::Initialize()
 void HorrorUI::Finalize()
 {
     if (ghostScreenGraph != -1) { DeleteGraph(ghostScreenGraph); ghostScreenGraph = -1; }
+    if (bloodSplatterGraph != -1) { DeleteGraph(bloodSplatterGraph); bloodSplatterGraph = -1; }
     if (fontSmall != -1) { DeleteFontToHandle(fontSmall); fontSmall = -1; }
     if (fontMedium != -1) { DeleteFontToHandle(fontMedium); fontMedium = -1; }
     if (fontLarge != -1) { DeleteFontToHandle(fontLarge); fontLarge = -1; }
@@ -321,78 +328,39 @@ void HorrorUI::DrawScreenVignette()
 {
     if (!horrorEffectsEnabled) return;
 
-    // 恐怖度に応じたビネット強度・幅の算出
-    // CALM (0.0〜0.2): ほぼ無色・非常に薄い外周シェード
-    // UNEASY (0.2〜0.4): 控えめな減衰
-    // AFRAID (0.4〜0.6): 明確な外周の暗闇
-    // PANIC (0.6〜0.8): 画面端を覆う強い闇
-    // TERROR (0.8〜1.0): 画面中央付近まで迫る重苦しい暗闇
+    // 視界を狭める画面縮小（トンネルビジョン）を完全撤廃
+    // モンスター接近時でも視界が狭く暗くならないよう、最外周（約24px）のみ極薄の陰影を配置
     float fear = currentFearParam;
     if (fear < 0.0f) fear = 0.0f;
     if (fear > 1.0f) fear = 1.0f;
 
-    int steps = 4 + static_cast<int>(fear * 12.0f);
-    int maxStrip = 10 + static_cast<int>(fear * 14.0f);
-    float maxAlpha = 15.0f + fear * 195.0f;
+    // 画面中央やゲームプレイ視界を絶対に遮らない極薄の最外縁シャドウ（最大幅24px、最大アルファ25）
+    const int steps = 3;
+    const int stripSize = 8;
+    float maxAlpha = 8.0f + fear * 17.0f;
 
     for (int i = 0; i < steps; i++)
     {
-        int inset = i * maxStrip;
-        float ratio = 1.0f - static_cast<float>(i) / static_cast<float>(steps);
-        int alpha = static_cast<int>(maxAlpha * ratio * ratio);
+        int inset = i * stripSize;
+        float ratio = 1.0f - static_cast<float>(i) / steps;
+        int alpha = static_cast<int>(maxAlpha * ratio);
         if (alpha <= 0) continue;
-        if (alpha > 255) alpha = 255;
 
         SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
-        // 上辺
-        DrawBox(0, inset, 1280, inset + maxStrip, GetColor(0, 0, 0), TRUE);
-        // 下辺
-        DrawBox(0, 720 - inset - maxStrip, 1280, 720 - inset, GetColor(0, 0, 0), TRUE);
-        // 左辺
-        DrawBox(inset, 0, inset + maxStrip, 720, GetColor(0, 0, 0), TRUE);
-        // 右辺
-        DrawBox(1280 - inset - maxStrip, 0, 1280 - inset, 720, GetColor(0, 0, 0), TRUE);
+        DrawBox(0, inset, 1280, inset + stripSize, GetColor(0, 0, 0), TRUE);
+        DrawBox(0, 720 - inset - stripSize, 1280, 720 - inset, GetColor(0, 0, 0), TRUE);
+        DrawBox(inset, 0, inset + stripSize, 720, GetColor(0, 0, 0), TRUE);
+        DrawBox(1280 - inset - stripSize, 0, 1280 - inset, 720, GetColor(0, 0, 0), TRUE);
     }
 
-    // 死亡時・失神シネマティック視界狭窄（瞼の閉じ込みと最後のまばたき）
+    // 死亡演出最終盤（VisionClosing）でのフェードアウトのみ全画面アルファフェードとして処理（画面縮小矩形は使用しない）
     if (deathClosingProgress > 0.001f)
     {
-        float t = deathClosingProgress;
-        if (t > 1.0f) t = 1.0f;
-
-        // deathBlinkFactor によるまばたき（目が細まった後、一瞬僅かに見開き、そして永遠に閉じる）
-        float blinkMod = deathBlinkFactor;
-        if (blinkMod < 0.0f) blinkMod = 0.0f;
-        if (blinkMod > 1.0f) blinkMod = 1.0f;
-
-        // 瞼（上下黒バー）の閉じ込み高さ
-        float closeRatio = t * (1.0f - blinkMod * 0.45f);
-        if (closeRatio > 1.0f) closeRatio = 1.0f;
-        int closeH = static_cast<int>(360.0f * closeRatio);
-
-        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 255);
-        if (closeH > 0)
+        int fadeAlpha = static_cast<int>(deathClosingProgress * 255.0f);
+        if (fadeAlpha > 255) fadeAlpha = 255;
+        if (fadeAlpha > 0)
         {
-            // 上瞼
-            DrawBox(0, 0, 1280, closeH, GetColor(0, 0, 0), TRUE);
-            // 下瞼
-            DrawBox(0, 720 - closeH, 1280, 720, GetColor(0, 0, 0), TRUE);
-        }
-
-        // 左右からの意識混濁ブラックアウト
-        int closeW = static_cast<int>(640.0f * closeRatio * 0.75f);
-        if (closeW > 0)
-        {
-            DrawBox(0, closeH, closeW, 720 - closeH, GetColor(0, 0, 0), TRUE);
-            DrawBox(1280 - closeW, closeH, 1280, 720 - closeH, GetColor(0, 0, 0), TRUE);
-        }
-
-        // 視野全体へのフェード膜
-        int darkPulse = static_cast<int>(255.0f * (1.0f - (1.0f - t) * blinkMod));
-        if (darkPulse > 0)
-        {
-            if (darkPulse > 255) darkPulse = 255;
-            SetDrawBlendMode(DX_BLENDMODE_ALPHA, darkPulse);
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, fadeAlpha);
             DrawBox(0, 0, 1280, 720, GetColor(0, 0, 0), TRUE);
         }
     }
@@ -400,22 +368,13 @@ void HorrorUI::DrawScreenVignette()
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 }
 
-// 恐怖視覚エフェクト（二重像・焦点ボケ・冷色脱色）の描画
+// ホラー視覚エフェクトの描画
 void HorrorUI::DrawPostHorrorEffects()
 {
     if (!horrorEffectsEnabled) return;
 
-    // 冷色脱色（恐怖・死に連動した青暗い彩度低下）
-    if (desaturationAmount > 0.01f)
-    {
-        int desatAlpha = static_cast<int>(desaturationAmount * 65.0f);
-        if (desatAlpha > 200) desatAlpha = 200;
-        SetDrawBlendMode(DX_BLENDMODE_ALPHA, desatAlpha);
-        DrawBox(0, 0, 1280, 720, GetColor(8, 16, 26), TRUE);
-        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-    }
+    // 視界を暗くする全画面黒塗り矩形は完全排除し、明るさを保護
 
-    // 二重像（幽体ゴースト視覚）
     if (doubleVisionAmount > 0.02f && ghostScreenGraph != -1)
     {
         GetDrawScreenGraph(0, 0, 1280, 720, ghostScreenGraph);
@@ -675,10 +634,8 @@ void HorrorUI::DrawClock()
     int panelX2 = 236;
     int panelY2 = 38;
 
-    // レトロ端末パネル背景（ミニマップと横幅210pxを完全統一）
     DrawRetroPanel(panelX1, panelY1, panelX2, panelY2, COL_BORDER, COL_PANEL_BG, 185);
 
-    // 左側：ステージ日数表記（オレンジ系）
     DrawJitterString(panelX1 + 10, panelY1 + 5, dayStr, COL_TARGET, fontSmall);
 
     // 右側：ゲーム内時刻表記（オフホワイト・右揃え配置で重なりを完全排除）
@@ -760,6 +717,18 @@ void HorrorUI::DrawPaperCargo(int paperCount, bool isHolding)
 // 操作キー案内HUD描画（画面右上パネル）
 void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDeliver, bool isHeadlightOn, bool isMapDebugOn, bool canReplaceBattery)
 {
+    if (!showKeyGuide)
+    {
+        // 操作ガイド非表示時は右上端に最小限のトグル案内のみ表示
+        int minX1 = 1105;
+        int minY1 = 20;
+        int minX2 = 1255;
+        int minY2 = 50;
+        DrawRetroPanel(minX1, minY1, minX2, minY2, COL_BORDER_DIM, COL_PANEL_BG, 175);
+        DrawJitterString(minX1 + 10, minY1 + 5, "[ H ] GUIDE", COL_TEXT_DIM, fontKeyAction);
+        return;
+    }
+
     int kx1 = 980;
     int ky1 = 20;
     int kx2 = 1255;
@@ -821,7 +790,7 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
         { "[ F ]", fAction, fKeyCol, fActCol },
         { "[ ESC ]", "Pause Menu", defaultKeyCol, defaultActCol },
         { "[ F6 ]", f6Action, f6KeyCol, f6ActCol },
-        { "[ [ / ] ]", "Day - / +", GetColor(140, 200, 220), defaultActCol }
+        { "[ H ]", "Hide Guide", activeKeyCol, activeActCol }
     };
 
     int startY = ky1 + 31;
@@ -1121,30 +1090,20 @@ void HorrorUI::DrawScareDistortion(float intensity)
 {
     if (intensity <= 0.0f) return;
 
-    // 画面外周の激しい減光
-    int alpha = static_cast<int>(intensity * 240.0f);
-    if (alpha > 255) alpha = 255;
+    // 画面を暗く縮める処理を完全排除：モンスターの姿がはっきりと見えるよう視界をクリアに保持
+    // 激突・急襲時の一瞬の鮮血テンションフラッシュ（薄い赤色の衝撃パルスのみ）
+    int flashAlpha = static_cast<int>(intensity * 35.0f);
+    if (flashAlpha > 45) flashAlpha = 45;
 
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha / 2);
-    DrawBox(0, 0, 1280, 720, GetColor(0, 0, 0), TRUE);
-
-    // 周辺ビネットの二重掛け
-    int steps = 10;
-    for (int i = 0; i < steps; ++i)
+    if (flashAlpha > 0)
     {
-        int inset = i * 20;
-        int stepAlpha = static_cast<int>(intensity * 40.0f * (1.0f - static_cast<float>(i) / steps));
-        SetDrawBlendMode(DX_BLENDMODE_ALPHA, stepAlpha);
-        DrawBox(0, inset, 1280, inset + 20, GetColor(0, 0, 0), TRUE);
-        DrawBox(0, 720 - inset - 20, 1280, 720 - inset, GetColor(0, 0, 0), TRUE);
-        DrawBox(inset, 0, inset + 20, 720, GetColor(0, 0, 0), TRUE);
-        DrawBox(1280 - inset - 20, 0, 1280 - inset, 720, GetColor(0, 0, 0), TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, flashAlpha);
+        DrawBox(0, 0, 1280, 720, GetColor(150, 15, 15), TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
-
-    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 }
 
-// ゲームオーバー画面描画
+// ゲームオーバー描画
 void HorrorUI::DrawGameOver(float fadeAlpha, bool isInteractive)
 {
     // 暗黒フェード
@@ -1193,4 +1152,22 @@ void HorrorUI::DrawGameOver(float fadeAlpha, bool isInteractive)
     const char* quitStr = "[ ESC ] QUIT";
     int qw = GetDrawStringWidth(quitStr, (int)strlen(quitStr));
     DrawString(cx - qw / 2, cy + 65, quitStr, COL_TEXT_DIM);
+}
+
+// 襲撃・被弾時のカメラレンズ血痕スプラッター描画
+// 襲撃・被弾時のリアルなカメラレンズ血痕スプラッター描画
+void HorrorUI::DrawBloodSplatter(float intensity)
+{
+    if (intensity <= 0.001f) return;
+
+    int alpha = static_cast<int>(intensity * 255.0f);
+    if (alpha > 255) alpha = 255;
+
+    // リアルな有機的流体・高圧動脈血飛沫・重力流下の高解像度テクスチャを描画
+    if (bloodSplatterGraph != -1)
+    {
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
+        DrawGraph(0, 0, bloodSplatterGraph, TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    }
 }

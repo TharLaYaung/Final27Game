@@ -422,29 +422,102 @@ void NightEnvironment::ApplyLightingAndFog()
     SetGlobalAmbientLight(ambientColor);
 }
 
-// 街灯3Dポールとランプヘッドを描画
+// 街灯3Dポールとランプヘッドを描画（リアルな根巻きコンクリート基礎・警戒帯・接地影付き）
 void NightEnvironment::DrawPoleModel(const VECTOR& pos, float intensity, COLOR_F color)
 {
-    // 電柱の太さと高さ
     float poleRadius = 0.10f;
     float poleHeight = 4.2f;
 
-    unsigned int poleColor = GetColor(35, 38, 42);
-
-    // 電柱の柱体（8面柱）
-    int sides = 8;
-    for (int i = 0; i < sides; i++)
+    // 電柱直下の接地影（地面にしっかりと埋設された定着感・アンビエントオクルージョン）
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 190);
+    unsigned int shCol = GetColor(5, 6, 8);
+    const int shadowSegs = 16;
+    for (int i = 0; i < shadowSegs; ++i)
     {
-        float a1 = (float)i / sides * DX_PI_F * 2.0f;
-        float a2 = (float)(i + 1) / sides * DX_PI_F * 2.0f;
+        float a1 = (float)i / shadowSegs * DX_PI_F * 2.0f;
+        float a2 = (float)(i + 1) / shadowSegs * DX_PI_F * 2.0f;
+        VECTOR c = VGet(pos.x, 0.015f, pos.z);
+        VECTOR p1 = VGet(pos.x + cosf(a1) * 0.40f, 0.015f, pos.z + sinf(a1) * 0.40f);
+        VECTOR p2 = VGet(pos.x + cosf(a2) * 0.40f, 0.015f, pos.z + sinf(a2) * 0.40f);
+        DrawTriangle3D(c, p1, p2, shCol, TRUE);
+    }
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 
-        VECTOR b1 = VGet(pos.x + cosf(a1) * poleRadius, pos.y, pos.z + sinf(a1) * poleRadius);
-        VECTOR b2 = VGet(pos.x + cosf(a2) * poleRadius, pos.y, pos.z + sinf(a2) * poleRadius);
+    // 電柱の根巻きコンクリート基礎台座（八角形、高さ0.42m、半径0.22m）
+    int baseSides = 8;
+    float baseRadius = 0.22f;
+    float baseHeight = 0.42f;
+    unsigned int baseSideCol = GetColor(45, 48, 50);
+    unsigned int baseTopCol = GetColor(65, 70, 72);
+
+    for (int i = 0; i < baseSides; i++)
+    {
+        float a1 = (float)i / baseSides * DX_PI_F * 2.0f;
+        float a2 = (float)(i + 1) / baseSides * DX_PI_F * 2.0f;
+        VECTOR b1 = VGet(pos.x + cosf(a1) * baseRadius, pos.y, pos.z + sinf(a1) * baseRadius);
+        VECTOR b2 = VGet(pos.x + cosf(a2) * baseRadius, pos.y, pos.z + sinf(a2) * baseRadius);
+        VECTOR t1 = VGet(pos.x + cosf(a1) * baseRadius, pos.y + baseHeight, pos.z + sinf(a1) * baseRadius);
+        VECTOR t2 = VGet(pos.x + cosf(a2) * baseRadius, pos.y + baseHeight, pos.z + sinf(a2) * baseRadius);
+        DrawTriangle3D(b1, t1, t2, baseSideCol, TRUE);
+        DrawTriangle3D(b1, t2, b2, baseSideCol, TRUE);
+
+        // 基礎上面
+        VECTOR topCenter = VGet(pos.x, pos.y + baseHeight, pos.z);
+        DrawTriangle3D(topCenter, t1, t2, baseTopCol, TRUE);
+    }
+
+    // 基礎上部の金属アンカーカラー金具（高さ0.06m、半径0.15m）
+    float flangeRadius = 0.15f;
+    float flangeHeight = 0.06f;
+    unsigned int flangeCol = GetColor(25, 28, 30);
+    for (int i = 0; i < baseSides; i++)
+    {
+        float a1 = (float)i / baseSides * DX_PI_F * 2.0f;
+        float a2 = (float)(i + 1) / baseSides * DX_PI_F * 2.0f;
+        VECTOR b1 = VGet(pos.x + cosf(a1) * flangeRadius, pos.y + baseHeight, pos.z + sinf(a1) * flangeRadius);
+        VECTOR b2 = VGet(pos.x + cosf(a2) * flangeRadius, pos.y + baseHeight, pos.z + sinf(a2) * flangeRadius);
+        VECTOR t1 = VGet(pos.x + cosf(a1) * flangeRadius, pos.y + baseHeight + flangeHeight, pos.z + sinf(a1) * flangeRadius);
+        VECTOR t2 = VGet(pos.x + cosf(a2) * flangeRadius, pos.y + baseHeight + flangeHeight, pos.z + sinf(a2) * flangeRadius);
+        DrawTriangle3D(b1, t1, t2, flangeCol, TRUE);
+        DrawTriangle3D(b1, t2, b2, flangeCol, TRUE);
+    }
+
+    // 主スチール柱体（八面柱）
+    unsigned int poleColor = GetColor(38, 42, 45);
+    for (int i = 0; i < baseSides; i++)
+    {
+        float a1 = (float)i / baseSides * DX_PI_F * 2.0f;
+        float a2 = (float)(i + 1) / baseSides * DX_PI_F * 2.0f;
+
+        VECTOR b1 = VGet(pos.x + cosf(a1) * poleRadius, pos.y + baseHeight + flangeHeight, pos.z + sinf(a1) * poleRadius);
+        VECTOR b2 = VGet(pos.x + cosf(a2) * poleRadius, pos.y + baseHeight + flangeHeight, pos.z + sinf(a2) * poleRadius);
         VECTOR t1 = VGet(b1.x, pos.y + poleHeight, b1.z);
         VECTOR t2 = VGet(b2.x, pos.y + poleHeight, b2.z);
 
         DrawTriangle3D(b1, t1, t2, poleColor, TRUE);
         DrawTriangle3D(b1, t2, b2, poleColor, TRUE);
+    }
+
+    // 日本の電柱特有の黄色・黒の安全反射警戒帯（高さ1.10m〜1.42m）
+    float bandY0 = pos.y + 1.10f;
+    float bandHeight = 0.08f;
+    float stripeRadius = poleRadius + 0.005f;
+    for (int b = 0; b < 4; ++b)
+    {
+        float yBottom = bandY0 + b * bandHeight;
+        float yTop = yBottom + bandHeight;
+        unsigned int bCol = (b % 2 == 0) ? GetColor(200, 160, 20) : GetColor(20, 22, 24);
+        for (int i = 0; i < baseSides; i++)
+        {
+            float a1 = (float)i / baseSides * DX_PI_F * 2.0f;
+            float a2 = (float)(i + 1) / baseSides * DX_PI_F * 2.0f;
+            VECTOR b1 = VGet(pos.x + cosf(a1) * stripeRadius, yBottom, pos.z + sinf(a1) * stripeRadius);
+            VECTOR b2 = VGet(pos.x + cosf(a2) * stripeRadius, yBottom, pos.z + sinf(a2) * stripeRadius);
+            VECTOR t1 = VGet(pos.x + cosf(a1) * stripeRadius, yTop, pos.z + sinf(a1) * stripeRadius);
+            VECTOR t2 = VGet(pos.x + cosf(a2) * stripeRadius, yTop, pos.z + sinf(a2) * stripeRadius);
+            DrawTriangle3D(b1, t1, t2, bCol, TRUE);
+            DrawTriangle3D(b1, t2, b2, bCol, TRUE);
+        }
     }
 
     // 上部アーム（道路側に少し突き出る）

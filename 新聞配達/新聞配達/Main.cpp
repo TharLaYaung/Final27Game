@@ -13,6 +13,7 @@
 #include "WeatherManager.h"
 #include "HorrorManager.h"
 #include "SceneManager.h"
+#include "AudioManager.h"
 #include "BatteryManager.h"
 
 // Windowsアプリケーションのエントリポイント
@@ -75,6 +76,10 @@ int WINAPI WinMain(
         0.1f,
         1000.0f
     );
+
+    // 3Dレンダリング用Zバッファを有効化（ポスト・電柱等の地面貫通・浮遊感を防止）
+    SetUseZBuffer3D(TRUE);
+    SetWriteZBuffer3D(TRUE);
 
     // 街並みマップモデル初期化
     MapInit();
@@ -158,6 +163,9 @@ int WINAPI WinMain(
     // シーン統合管理システム初期化
     sceneManager.Initialize();
 
+    // 統合ホラー音響システムの初期化
+    AudioManager::Instance().Initialize();
+
     // 60FPS制御用の時間記録
     LONGLONG prevTime = GetNowHiPerformanceCount();
 
@@ -184,8 +192,7 @@ int WINAPI WinMain(
     bool oldKey9 = false;
     bool oldKey0 = false;
     bool oldKeyJ = false;
-    bool oldPrevDayKey = false;
-    bool oldNextDayKey = false;
+    bool oldHKey = false;
     bool mapDebugEnabled = false;
 
     // メインゲームループ
@@ -202,6 +209,8 @@ int WINAPI WinMain(
         bool quitRequested = false;
 
         // シーン管理更新（トランジション進行・各シーン制御・シネマティックカメラ）
+        AudioManager::Instance().Update(0.01666f);
+
         sceneManager.Update(
             0.01666f,
             player,
@@ -404,24 +413,16 @@ int WINAPI WinMain(
             }
             oldKey0 = curK0;
 
-            // [ キー / テンキー - : 前日へ即時切り替え（7日間デバッグ操作）
-            bool curPrevDay = (CheckHitKey(KEY_INPUT_LBRACKET) != 0 || CheckHitKey(KEY_INPUT_SUBTRACT) != 0);
-            if (curPrevDay && !oldPrevDayKey)
+            // Hキー / TABキー: 操作ガイドHUDの表示/非表示トグル切り替え
+            bool curH = (CheckHitKey(KEY_INPUT_H) != 0 || CheckHitKey(KEY_INPUT_TAB) != 0);
+            if (curH && !oldHKey)
             {
-                int newDay = (sceneManager.GetCurrentDay() <= 1) ? 7 : sceneManager.GetCurrentDay() - 1;
-                sceneManager.ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, newDay);
+                HorrorUI::Instance().ToggleKeyGuide();
+                AudioManager::Instance().PlayMenuClick();
             }
-            oldPrevDayKey = curPrevDay;
+            oldHKey = curH;
 
-            // ] キー / テンキー + : 翌日へ即時切り替え（7日間デバッグ操作）
-            bool curNextDay = (CheckHitKey(KEY_INPUT_RBRACKET) != 0 || CheckHitKey(KEY_INPUT_ADD) != 0);
-            if (curNextDay && !oldNextDayKey)
-            {
-                int newDay = (sceneManager.GetCurrentDay() >= 7) ? 1 : sceneManager.GetCurrentDay() + 1;
-                sceneManager.ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, newDay);
-            }
-            oldNextDayKey = curNextDay;
-
+            
             // ホラーUI状態更新（デルタ秒対応: 時計・プロンプトフェードなど）
             HorrorUI::Instance().Update(0.01666f);
 
@@ -453,6 +454,11 @@ int WINAPI WinMain(
                 bicycle.Update(
                     player
                 );
+            }
+            else
+            {
+                // 移動・視線操作制限中（ジャンプスケア演出・死亡演出）：カメラのみ更新してシェイクや倒れ込みを反映
+                player.UpdateCamera();
             }
 
             // 新聞更新（カゴ座標追従および手持ち描画管理）
@@ -518,6 +524,18 @@ int WINAPI WinMain(
             mapDebugEnabled
         );
 
+        // F11キーによる手動スクリーンショット保存
+        static bool oldF11 = false;
+        bool curF11 = (CheckHitKey(KEY_INPUT_F11) != 0);
+        if (curF11 && !oldF11)
+        {
+            static int ssCount = 0;
+            char path[256];
+            sprintf_s(path, "screenshot_%d.png", ++ssCount);
+            SaveDrawScreenToPNG(0, 0, 1280, 720, path);
+        }
+        oldF11 = curF11;
+
         // 裏画面の内容を表画面へ反映
         ScreenFlip();
     }
@@ -527,6 +545,9 @@ int WINAPI WinMain(
 
     // シーン管理システムの終了処理
     sceneManager.Finalize();
+
+    // 統合ホラー音響システムの終了処理
+    AudioManager::Instance().Finalize();
 
     // マップシステムの終了処理
     MapFinalize();

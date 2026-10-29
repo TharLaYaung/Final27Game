@@ -16,6 +16,55 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
+
+// プロシージャルUI音声生成ヘルパー（外部WAVファイル不要でメモリ内合成）
+static int CreateProceduralSound(float freq, float durationSec, float decayRate)
+{
+    int sampleRate = 44100;
+    int numSamples = (int)(sampleRate * durationSec);
+    int dataSize = numSamples * 2;
+    int fileSize = 44 + dataSize;
+
+    std::vector<unsigned char> wav(fileSize);
+
+    // RIFFヘッダ
+    std::memcpy(&wav[0], "RIFF", 4);
+    int riffSize = fileSize - 8;
+    std::memcpy(&wav[4], &riffSize, 4);
+    std::memcpy(&wav[8], "WAVE", 4);
+
+    // fmtチャンク（PCM 16bit 44.1kHz モノラル）
+    std::memcpy(&wav[12], "fmt ", 4);
+    int fmtSize = 16;
+    short audioFormat = 1;
+    short numChannels = 1;
+    int byteRate = sampleRate * 2;
+    short blockAlign = 2;
+    short bitsPerSample = 16;
+    std::memcpy(&wav[16], &fmtSize, 4);
+    std::memcpy(&wav[20], &audioFormat, 2);
+    std::memcpy(&wav[22], &numChannels, 2);
+    std::memcpy(&wav[24], &sampleRate, 4);
+    std::memcpy(&wav[28], &byteRate, 4);
+    std::memcpy(&wav[32], &blockAlign, 2);
+    std::memcpy(&wav[34], &bitsPerSample, 2);
+
+    // dataチャンク
+    std::memcpy(&wav[36], "data", 4);
+    std::memcpy(&wav[40], &dataSize, 4);
+
+    short* samples = (short*)&wav[44];
+    for (int i = 0; i < numSamples; ++i)
+    {
+        float t = (float)i / sampleRate;
+        float env = std::exp(-t * decayRate);
+        float s = std::sin(2.0f * DX_PI_F * freq * t) * env;
+        samples[i] = (short)(s * 28000.0f);
+    }
+
+    return LoadSoundMemByMemImage(&wav[0], wav.size());
+}
 
 // コンストラクタ
 SceneManager::SceneManager()
@@ -27,6 +76,16 @@ SceneManager::SceneManager()
     , transitionAlpha(0.0f)
     , currentDay(1)
     , titleSelectedDay(1)
+    , titleSubMenu(TitleSubMenu::Main)
+    , titleMenuSelection(0)
+    , settingsSelection(0)
+    , masterVolume(80)
+    , bgmVolume(70)
+    , sfxVolume(85)
+    , audioTestFeedbackTimer(0.0f)
+    , soundMenuSelect(-1)
+    , soundMenuAdjust(-1)
+    , soundTestPulse(-1)
     , isPaused(false)
     , pauseMenuSelection(0)
     , titleTimer(0.0f)
@@ -49,6 +108,8 @@ SceneManager::SceneManager()
     , oldEscKey(false)
     , oldUpKey(false)
     , oldDownKey(false)
+    , oldLeftKey(false)
+    , oldRightKey(false)
 {
 }
 
@@ -70,8 +131,20 @@ bool SceneManager::Initialize()
 
     currentDay = 1;
     titleSelectedDay = 1;
+    titleSubMenu = TitleSubMenu::Main;
+    titleMenuSelection = 0;
+    settingsSelection = 0;
+    masterVolume = 80;
+    bgmVolume = 70;
+    sfxVolume = 85;
+    audioTestFeedbackTimer = 0.0f;
     isPaused = false;
     pauseMenuSelection = 0;
+
+    // プロシージャルUI音声の合成
+    soundMenuSelect = CreateProceduralSound(650.0f, 0.05f, 40.0f);
+    soundMenuAdjust = CreateProceduralSound(420.0f, 0.04f, 45.0f);
+    soundTestPulse = CreateProceduralSound(160.0f, 0.35f, 9.0f);
 
     titleTimer = 0.0f;
     clearTimer = 0.0f;
@@ -89,6 +162,8 @@ bool SceneManager::Initialize()
     oldEscKey = false;
     oldUpKey = false;
     oldDownKey = false;
+    oldLeftKey = false;
+    oldRightKey = false;
 
     // タイトル画面でマウス操作を可能にするためマウスカーソルを表示
     SetMouseDispFlag(TRUE);
@@ -118,6 +193,7 @@ bool SceneManager::Initialize()
     fontReportBody = CreateFontToHandle("Consolas", 18, 2, DX_FONTTYPE_NORMAL);
     if (fontReportBody == -1) fontReportBody = CreateFontToHandle("MS Gothic", 18, 2, DX_FONTTYPE_NORMAL);
 
+    AudioManager::Instance().PlayTitleBgm();
     return true;
 }
 
@@ -130,9 +206,45 @@ void SceneManager::Finalize()
     if (fontMenu != -1) { DeleteFontToHandle(fontMenu); fontMenu = -1; }
     if (fontReportTitle != -1) { DeleteFontToHandle(fontReportTitle); fontReportTitle = -1; }
     if (fontReportBody != -1) { DeleteFontToHandle(fontReportBody); fontReportBody = -1; }
+
+    if (soundMenuSelect != -1) { DeleteSoundMem(soundMenuSelect); soundMenuSelect = -1; }
+    if (soundMenuAdjust != -1) { DeleteSoundMem(soundMenuAdjust); soundMenuAdjust = -1; }
+    if (soundTestPulse != -1) { DeleteSoundMem(soundTestPulse); soundTestPulse = -1; }
 }
 
-// ポーズ状態の切り替え
+void SceneManager::SetMasterVolume(int vol)
+{
+    masterVolume = (vol < 0) ? 0 : (vol > 100 ? 100 : vol);
+    AudioManager::Instance().SetMasterVolume(masterVolume);
+}
+
+void SceneManager::SetBgmVolume(int vol)
+{
+    bgmVolume = (vol < 0) ? 0 : (vol > 100 ? 100 : vol);
+    AudioManager::Instance().SetBgmVolume(bgmVolume);
+}
+
+void SceneManager::SetSfxVolume(int vol)
+{
+    sfxVolume = (vol < 0) ? 0 : (vol > 100 ? 100 : vol);
+    AudioManager::Instance().SetSfxVolume(sfxVolume);
+}
+
+void SceneManager::PlayMenuClick()
+{
+    AudioManager::Instance().PlayMenuClick();
+}
+
+void SceneManager::PlayMenuAdjust()
+{
+    AudioManager::Instance().PlayMenuAdjust();
+}
+
+void SceneManager::PlayTestAudioPulse()
+{
+    AudioManager::Instance().PlayTestAudioPulse();
+}
+
 void SceneManager::SetPaused(bool paused)
 {
     isPaused = paused;
@@ -235,7 +347,8 @@ void SceneManager::ResetGame(
     weatherManager.Initialize();
     weatherManager.SetDayWeather(currentDay, nightEnv);
 
-    // 恐怖・怪異システムの日別難易度設定
+    // 恐怖・怪異システムの日別難易度設定および完全リセット
+    horrorManager.Reset();
     horrorManager.Initialize();
     horrorManager.SetDayDifficulty(currentDay);
 
@@ -330,10 +443,7 @@ void SceneManager::Update(
     mouseClicked = (isMouseLeft && !oldMouseLeft);
     oldMouseLeft = isMouseLeft;
 
-    // ボタン判定ラムダ式
-    auto CheckButtonHit = [&](int x1, int y1, int x2, int y2) -> bool {
-        return (mouseX >= x1 && mouseX <= x2 && mouseY >= y1 && mouseY <= y2 && mouseClicked);
-    };
+    // マウスクリック判定はメンバー関数 CheckButtonHit / CheckButtonHover を使用
 
     // キー入力エッジトリガー検出
     bool curEnter = (CheckHitKey(KEY_INPUT_RETURN) != 0 || CheckHitKey(KEY_INPUT_NUMPADENTER) != 0);
@@ -360,6 +470,14 @@ void SceneManager::Update(
     bool downDown = curDown && !oldDownKey;
     oldDownKey = curDown;
 
+    bool curLeft = (CheckHitKey(KEY_INPUT_LEFT) != 0 || CheckHitKey(KEY_INPUT_A) != 0);
+    bool leftDown = curLeft && !oldLeftKey;
+    oldLeftKey = curLeft;
+
+    bool curRight = (CheckHitKey(KEY_INPUT_RIGHT) != 0 || CheckHitKey(KEY_INPUT_D) != 0);
+    bool rightDown = curRight && !oldRightKey;
+    oldRightKey = curRight;
+
     // トランジション進行処理
     if (transitionState == TransitionState::FadeOut)
     {
@@ -378,13 +496,19 @@ void SceneManager::Update(
                 SetPaused(false);
                 SetMouseDispFlag(FALSE);
                 SetMousePoint(640, 360);
+                AudioManager::Instance().PlayGameAmbienceBgm();
+            }
+            else if (currentScene == SceneType::Title)
+            {
+                SetMouseDispFlag(TRUE);
+                AudioManager::Instance().PlayTitleBgm();
             }
             else
             {
                 SetMouseDispFlag(TRUE);
+                AudioManager::Instance().StopBgm();
             }
-        }
-        return;
+        }return;
     }
     else if (transitionState == TransitionState::FadeIn)
     {
@@ -410,6 +534,11 @@ void SceneManager::Update(
             SetMouseDispFlag(TRUE);
             titleTimer += dt;
 
+            if (audioTestFeedbackTimer > 0.0f)
+            {
+                audioTestFeedbackTimer -= dt;
+            }
+
             // タイトル画面でのシネマティックカメラ移動
             float camT = titleTimer * 0.05f;
             VECTOR camPos = VGet(-25.0f + std::sin(camT * 0.5f) * 1.5f, 2.2f, -28.0f + std::fmod(camT * 12.0f, 42.0f));
@@ -420,32 +549,140 @@ void SceneManager::Update(
             nightEnv.Update(bicycle);
             weatherManager.Update(dt, player, bicycle, nightEnv);
 
-            // 日別ステージ選択ボタン判定（文字との重複防止のため外側に配置）
-            bool hitPrevDay = CheckButtonHit(cx - 210, 360, cx - 160, 405);
-            bool hitNextDay = CheckButtonHit(cx + 160, 360, cx + 210, 405);
-
-            if (hitPrevDay)
+            if (titleSubMenu == TitleSubMenu::Main)
             {
-                titleSelectedDay = (titleSelectedDay <= 1) ? 7 : titleSelectedDay - 1;
+                // キーボードによるメニュー選択カーソル移動（4項目：0〜3）
+                if (upDown)
+                {
+                    titleMenuSelection = (titleMenuSelection <= 0) ? 3 : titleMenuSelection - 1;
+                    PlayMenuAdjust();
+                }
+                if (downDown)
+                {
+                    titleMenuSelection = (titleMenuSelection >= 3) ? 0 : titleMenuSelection + 1;
+                    PlayMenuAdjust();
+                }
+
+                int menuY = 250;
+                // ボタンの当たり判定（4項目）
+                bool hitStart    = CheckButtonHit(cx - 200, menuY + 20,  cx + 200, menuY + 62);
+                bool hitSettings = CheckButtonHit(cx - 200, menuY + 76,  cx + 200, menuY + 118);
+                bool hitGuide    = CheckButtonHit(cx - 200, menuY + 132, cx + 200, menuY + 174);
+                bool hitQuit     = CheckButtonHit(cx - 200, menuY + 188, cx + 200, menuY + 230);
+
+                if (CheckButtonHover(cx - 200, menuY + 20,  cx + 200, menuY + 62))  titleMenuSelection = 0;
+                if (CheckButtonHover(cx - 200, menuY + 76,  cx + 200, menuY + 118)) titleMenuSelection = 1;
+                if (CheckButtonHover(cx - 200, menuY + 132, cx + 200, menuY + 174)) titleMenuSelection = 2;
+                if (CheckButtonHover(cx - 200, menuY + 188, cx + 200, menuY + 230)) titleMenuSelection = 3;
+
+                // 決定処理（クリックまたはEnter/Space）
+                if (((titleMenuSelection == 0 && (enterDown || spaceDown)) || hitStart) && !IsTransitioning())
+                {
+                    PlayMenuClick();
+                    ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
+                    StartTransition(SceneType::Game, 0.8f);
+                }
+                else if ((titleMenuSelection == 1 && (enterDown || spaceDown)) || hitSettings)
+                {
+                    PlayMenuClick();
+                    titleSubMenu = TitleSubMenu::Settings;
+                    settingsSelection = 0;
+                }
+                else if ((titleMenuSelection == 2 && (enterDown || spaceDown)) || hitGuide)
+                {
+                    PlayMenuClick();
+                    titleSubMenu = TitleSubMenu::KeyGuide;
+                }
+                else if (((titleMenuSelection == 3 && (enterDown || spaceDown)) || hitQuit || escDown) && !IsTransitioning())
+                {
+                    PlayMenuClick();
+                    outQuitRequested = true;
+                }
             }
-            if (hitNextDay)
+            else if (titleSubMenu == TitleSubMenu::Settings)
             {
-                titleSelectedDay = (titleSelectedDay >= 7) ? 1 : titleSelectedDay + 1;
+                // 設定画面でのキーボードカーソル移動
+                if (upDown)
+                {
+                    settingsSelection = (settingsSelection <= 0) ? 4 : settingsSelection - 1;
+                    PlayMenuAdjust();
+                }
+                if (downDown)
+                {
+                    settingsSelection = (settingsSelection >= 4) ? 0 : settingsSelection + 1;
+                    PlayMenuAdjust();
+                }
+
+                int setY = 160;
+                int barW = 240;
+                int btnW = 28;
+                int barX = cx - 280 + 160;
+                int sliderX = barX + btnW + 8;
+                int rightBtnX = sliderX + barW + 8;
+
+                // スライダー操作のラムダ
+                auto HandleSlider = [&](int row, int& vol, int y) {
+                    bool hitLeftBtn = CheckButtonHit(barX, y, barX + btnW, y + 28);
+                    bool hitRightBtn = CheckButtonHit(rightBtnX, y, rightBtnX + btnW, y + 28);
+                    bool hitBar = CheckButtonHit(sliderX, y + 2, sliderX + barW, y + 26);
+
+                    bool dec = hitLeftBtn || (settingsSelection == row && leftDown);
+                    bool inc = hitRightBtn || (settingsSelection == row && rightDown);
+
+                    if (dec)
+                    {
+                        vol = (vol <= 5) ? 0 : vol - 5;
+                        PlayMenuAdjust();
+                    }
+                    if (inc)
+                    {
+                        vol = (vol >= 95) ? 100 : vol + 5;
+                        PlayMenuAdjust();
+                    }
+                    if (hitBar && mouseClicked)
+                    {
+                        int relX = mouseX - (barX + btnW + 10);
+                        float rate = (float)relX / (float)barW;
+                        rate = (rate < 0.0f) ? 0.0f : (rate > 1.0f ? 1.0f : rate);
+                        vol = (int)(rate * 100.0f);
+                        PlayMenuAdjust();
+                    }
+                };
+
+                HandleSlider(0, masterVolume, setY + 45);
+                HandleSlider(1, bgmVolume,    setY + 110);
+                HandleSlider(2, sfxVolume,    setY + 175);
+
+                bool hitTest = CheckButtonHit(cx - 150, setY + 245, cx + 150, setY + 285);
+                bool hitBack = CheckButtonHit(cx - 150, setY + 305, cx + 150, setY + 345);
+
+                if (hitTest) settingsSelection = 3;
+                if (hitBack) settingsSelection = 4;
+
+                if ((settingsSelection == 3 && (enterDown || spaceDown)) || hitTest)
+                {
+                    PlayTestAudioPulse();
+                    audioTestFeedbackTimer = 0.8f;
+                }
+                if ((settingsSelection == 4 && (enterDown || spaceDown)) || hitBack || escDown)
+                {
+                    PlayMenuClick();
+                    titleSubMenu = TitleSubMenu::Main;
+                }
             }
-
-            // ボタン判定（配達開始・終了）
-            bool hitStart = CheckButtonHit(cx - 180, 420, cx + 180, 465);
-            bool hitQuit = CheckButtonHit(cx - 180, 480, cx + 180, 525);
-
-            if ((hitStart || enterDown || spaceDown) && !IsTransitioning())
+            else if (titleSubMenu == TitleSubMenu::KeyGuide)
             {
-                ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, titleSelectedDay);
-                StartTransition(SceneType::Game, 0.8f);
-            }
+                int pw = 1100;
+                int ph = 500;
+                int py = 115;
+                int btnY = py + ph - 52;
+                bool hitBack = CheckButtonHit(cx - 140, btnY, cx + 140, btnY + 36);
 
-            if ((hitQuit || escDown) && !IsTransitioning())
-            {
-                outQuitRequested = true;
+                if (hitBack || escDown || enterDown || spaceDown)
+                {
+                    PlayMenuClick();
+                    titleSubMenu = TitleSubMenu::Main;
+                }
             }
         }
         break;
@@ -527,52 +764,32 @@ void SceneManager::Update(
             SetMouseDispFlag(TRUE);
             clearTimer += dt;
 
-            // 夜明けのシネマティック街路カメラ移動
-            float dawnT = clearTimer * 0.04f;
-            VECTOR camPos = VGet(-18.0f + std::sin(dawnT) * 1.2f, 3.5f, 6.0f + std::cos(dawnT * 0.5f) * 2.0f);
-            VECTOR camTarget = VGet(-25.0f, 1.8f, 12.0f);
-            SetCameraPositionAndTarget_UpVecY(camPos, camTarget);
-
-            // 夜明け環境の更新
-            weatherManager.Update(dt, player, bicycle, nightEnv);
-
-            if (clearTimer > 1.5f)
+            if (currentDay < 7)
             {
-                if (currentDay < 7)
+                // Day 1〜6: ENTERキーまたは約3.5秒経過で翌日へスムーズに自動遷移
+                bool hitNextNight = mouseClicked && (mouseY > 200);
+                if ((hitNextNight || enterDown || spaceDown || clearTimer >= 3.5f) && !IsTransitioning())
                 {
-                    // 翌夜へ進むボタン（Day 1〜6）
-                    bool hitNextNight = CheckButtonHit(cx - 200, cy + 135, cx + 200, cy + 180);
-                    bool hitTitle = CheckButtonHit(cx - 200, cy + 190, cx + 200, cy + 230);
-
-                    if ((hitNextNight || enterDown || spaceDown) && !IsTransitioning())
-                    {
-                        currentDay++;
-                        ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
-                        StartTransition(SceneType::Game, 1.0f);
-                    }
-
-                    if (hitTitle && !IsTransitioning())
-                    {
-                        ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
-                        StartTransition(SceneType::Title, 1.0f);
-                    }
+                    currentDay++;
+                    ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
+                    StartTransition(SceneType::Game, 1.0f);
                 }
-                else
+            }
+            else
+            {
+                // 最終日: タイトルへ戻る / 終了
+                bool hitTitle = CheckButtonHit(cx - 180, cy + 60, cx + 180, cy + 100);
+                bool hitQuit = CheckButtonHit(cx - 180, cy + 115, cx + 180, cy + 155);
+
+                if ((hitTitle || enterDown || spaceDown) && !IsTransitioning())
                 {
-                    // 最終日クリア・全7日生存達成エンディング（Day 7）
-                    bool hitTitle = CheckButtonHit(cx - 180, cy + 155, cx + 180, cy + 195);
-                    bool hitQuit = CheckButtonHit(cx - 180, cy + 205, cx + 180, cy + 245);
+                    ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
+                    StartTransition(SceneType::Title, 1.0f);
+                }
 
-                    if ((hitTitle || enterDown || spaceDown) && !IsTransitioning())
-                    {
-                        ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
-                        StartTransition(SceneType::Title, 1.0f);
-                    }
-
-                    if ((hitQuit || escDown) && !IsTransitioning())
-                    {
-                        outQuitRequested = true;
-                    }
+                if ((hitQuit || escDown) && !IsTransitioning())
+                {
+                    outQuitRequested = true;
                 }
             }
         }
@@ -629,6 +846,8 @@ void SceneManager::Draw(
     case SceneType::Title:
         {
             // 3D背景の描画
+            SetUseZBuffer3D(TRUE);
+            SetWriteZBuffer3D(TRUE);
             nightEnv.ApplyLightingAndFog();
             DrawGround();
             MapDraw();
@@ -636,8 +855,10 @@ void SceneManager::Draw(
             nightEnv.DrawStreetLights();
             weatherManager.DrawParticles(bicycle, nightEnv);
 
-            // 2D描画への影響を防ぐためフォグを無効化
+            // 2D描画への影響を防ぐためフォグとZバッファを無効化
             SetFogEnable(FALSE);
+            SetUseZBuffer3D(FALSE);
+            SetWriteZBuffer3D(FALSE);
 
             // 2Dタイトル画面オーバーレイ
             DrawTitleScene(nightEnv);
@@ -647,6 +868,8 @@ void SceneManager::Draw(
     case SceneType::Game:
         {
             // 3Dワールド描画
+            SetUseZBuffer3D(TRUE);
+            SetWriteZBuffer3D(TRUE);
             nightEnv.ApplyLightingAndFog();
             DrawGround();
             MapDraw();
@@ -664,8 +887,10 @@ void SceneManager::Draw(
                 MapDrawDebug(deliveryManager.GetCurrentTargetId());
             }
 
-            // 2D描画・UI・ミニマップへの影響を防ぐためフォグを無効化
+            // 2D描画・UI・ミニマップへの影響を防ぐためフォグとZバッファを無効化
             SetFogEnable(FALSE);
+            SetUseZBuffer3D(FALSE);
+            SetWriteZBuffer3D(FALSE);
 
             // 恐怖視覚エフェクト（二重像・焦点ボケ・冷色脱色）を3D画面へ適用
             HorrorUI::Instance().DrawPostHorrorEffects();
@@ -727,7 +952,7 @@ void SceneManager::Draw(
                 HorrorUI::Instance().DrawRetroPanel(18, 304, 340, 436,
                     HorrorUI::COL_BORDER, HorrorUI::COL_PANEL_BG, 220);
 
-                HorrorUI::Instance().DrawJitterString(26, 310, "[ F6: MAP & DAY DEBUG ]",
+                HorrorUI::Instance().DrawJitterString(26, 310, "[ F6: MAP & MISSION DEBUG ]",
                     GetColor(220, 180, 80), HorrorUI::Instance().GetFontSmall());
 
                 char dbgTarget[64];
@@ -750,7 +975,7 @@ void SceneManager::Draw(
                     HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
 
                 char dbgDay[64];
-                snprintf(dbgDay, sizeof(dbgDay), "DAY %d (SEED: 0x%05X) [ / ]: SWITCH",
+                snprintf(dbgDay, sizeof(dbgDay), "DAY %d / 7 (SEED: 0x%05X)",
                     currentDay, deliveryManager.GetCurrentDaySeed());
                 HorrorUI::Instance().DrawJitterString(26, 370, dbgDay,
                     GetColor(140, 210, 240), HorrorUI::Instance().GetFontSmall());
@@ -817,119 +1042,363 @@ void SceneManager::Draw(
 }
 
 // タイトルシーン描画
+// 音量スライダーバー描画ヘルパー
+void SceneManager::DrawVolumeSlider(int x, int y, int width, int height, int volume, const char* label, bool isSelected, bool& outDecreased, bool& outIncreased)
+{
+    (void)outDecreased;
+    (void)outIncreased;
+    (void)width;
+
+    // 項目名ラベル
+    unsigned int lblCol = isSelected ? GetColor(255, 210, 160) : GetColor(200, 210, 205);
+    if (isSelected)
+    {
+        DrawString(x - 18, y + 4, ">", GetColor(240, 80, 60));
+    }
+    DrawString(x, y + 4, label, lblCol);
+
+    int barX = x + 160;
+    int barW = 240;
+    int btnW = 28;
+
+    // マイナスボタン [ < ]
+    bool hLeft = CheckButtonHover(barX, y, barX + btnW, y + height);
+    DrawBox(barX, y, barX + btnW, y + height, hLeft ? GetColor(55, 28, 28) : GetColor(32, 35, 38), TRUE);
+    DrawBox(barX, y, barX + btnW, y + height, hLeft ? GetColor(200, 80, 70) : GetColor(65, 70, 75), FALSE);
+    DrawString(barX + 9, y + 4, "<", hLeft ? GetColor(255, 255, 255) : GetColor(210, 220, 215));
+
+    // バー本体背景
+    int sliderX = barX + btnW + 8;
+    DrawBox(sliderX, y + 2, sliderX + barW, y + height - 2, GetColor(16, 18, 20), TRUE);
+    DrawBox(sliderX, y + 2, sliderX + barW, y + height - 2, isSelected ? GetColor(140, 60, 50) : GetColor(55, 60, 65), FALSE);
+
+    // 10段階のホラーセグメントブロック
+    int segCount = 10;
+    int activeSegs = (volume + 5) / 10;
+    int segW = (barW - 6) / segCount;
+    for (int i = 0; i < segCount; ++i)
+    {
+        int sx = sliderX + 3 + i * segW;
+        bool active = (i < activeSegs);
+        unsigned int segCol = active
+            ? (isSelected ? GetColor(240, 75, 55) : GetColor(190, 65, 50))
+            : GetColor(28, 32, 36);
+        DrawBox(sx, y + 5, sx + segW - 2, y + height - 5, segCol, TRUE);
+    }
+
+    // プラスボタン [ > ]
+    int rightBtnX = sliderX + barW + 8;
+    bool hRight = CheckButtonHover(rightBtnX, y, rightBtnX + btnW, y + height);
+    DrawBox(rightBtnX, y, rightBtnX + btnW, y + height, hRight ? GetColor(55, 28, 28) : GetColor(32, 35, 38), TRUE);
+    DrawBox(rightBtnX, y, rightBtnX + btnW, y + height, hRight ? GetColor(200, 80, 70) : GetColor(65, 70, 75), FALSE);
+    DrawString(rightBtnX + 9, y + 4, ">", hRight ? GetColor(255, 255, 255) : GetColor(210, 220, 215));
+
+    // パーセンテージ値
+    char pctStr[16];
+    snprintf(pctStr, sizeof(pctStr), "%3d%%", volume);
+    DrawString(rightBtnX + btnW + 12, y + 4, pctStr, isSelected ? GetColor(255, 200, 120) : GetColor(210, 175, 130));
+}
+
+// タイトルシーン描画（メイン・設定・ガイドのディスパッチ）
 void SceneManager::DrawTitleScene(const NightEnvironment& nightEnv)
 {
     (void)nightEnv;
 
     int cx = 640;
 
-    // 画面全体の薄い暗減光
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 110);
+    // 画面全体の半暗転
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 115);
     DrawBox(0, 0, 1280, 720, GetColor(4, 6, 8), TRUE);
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 
-    // 上部レトロVHSインフォメーション
-    bool playBlink = (((int)(titleTimer * 2.0f)) % 2) == 0;
-    unsigned int playCol = playBlink ? GetColor(110, 215, 160) : GetColor(60, 120, 90);
-    DrawString(32, 28, "PLAY >", playCol);
-    DrawString(120, 28, "SP   -0:01:00", GetColor(180, 195, 185));
+    // 周辺減光（ホラーヴィネット）
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 90);
+    DrawBox(0, 0, 1280, 55, GetColor(0, 0, 0), TRUE);
+    DrawBox(0, 665, 1280, 720, GetColor(0, 0, 0), TRUE);
+    DrawBox(0, 0, 55, 720, GetColor(0, 0, 0), TRUE);
+    DrawBox(1225, 0, 1280, 720, GetColor(0, 0, 0), TRUE);
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+
+    // 上部レトロVHS・カムコーダーインフォメーション
+    bool recBlink = (((int)(titleTimer * 2.0f)) % 2) == 0;
+    unsigned int recCol = recBlink ? GetColor(230, 45, 40) : GetColor(70, 20, 20);
+    DrawString(36, 26, "REC ●", recCol);
+    DrawString(125, 26, "TAPE: SP  0:01:24", GetColor(180, 195, 185));
 
     char timeBuf[64];
-    snprintf(timeBuf, sizeof(timeBuf), "1998.08.14  AM 01:00:%02d", ((int)titleTimer) % 60);
-    DrawString(990, 28, timeBuf, GetColor(180, 195, 185));
+    snprintf(timeBuf, sizeof(timeBuf), "1998.08.14 FRI  AM 01:00:%02d", ((int)titleTimer) % 60);
+    DrawString(960, 26, timeBuf, GetColor(180, 195, 185));
 
-    // タイトルロゴの描画（色収差ジッター付き）
-    int titleY = 165;
-    float jitterSine = std::sin(titleTimer * 8.0f);
-    int jx = (std::rand() % 3 == 0) ? (int)(jitterSine * 2.0f) : 0;
-
-    const char* mainTitle = "NEWSPAPER DELIVERY";
-    int logoW = (fontTitleKanji != -1) ? GetDrawStringWidthToHandle(mainTitle, (int)strlen(mainTitle), fontTitleKanji) : 320;
-    int logoX = cx - logoW / 2;
-
-    // 赤・シアンの色収差シャドウとメインホラーロゴ
-    if (fontTitleKanji != -1)
+    // サブメニュー画面ごとの描画ディスパッチ
+    if (titleSubMenu == TitleSubMenu::Main)
     {
-        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 180);
-        DrawStringToHandle(logoX - 2 + jx, titleY, mainTitle, GetColor(190, 35, 30), fontTitleKanji);
-        DrawStringToHandle(logoX + 2 - jx, titleY, mainTitle, GetColor(35, 120, 140), fontTitleKanji);
-        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
-        DrawStringToHandle(logoX, titleY, mainTitle, GetColor(230, 235, 225), fontTitleKanji);
+        int titleY = 110;
+        float jitterSine = std::sin(titleTimer * 8.0f);
+        int jx = (std::rand() % 4 == 0) ? (int)(jitterSine * 2.0f) : 0;
+
+        const char* mainTitle = "NEWSPAPER DELIVERY";
+        int logoW = (fontTitleKanji != -1) ? GetDrawStringWidthToHandle(mainTitle, (int)strlen(mainTitle), fontTitleKanji) : 340;
+        int logoX = cx - logoW / 2;
+
+        if (fontTitleKanji != -1)
+        {
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 180);
+            DrawStringToHandle(logoX - 2 + jx, titleY, mainTitle, GetColor(190, 35, 30), fontTitleKanji);
+            DrawStringToHandle(logoX + 2 - jx, titleY, mainTitle, GetColor(35, 120, 140), fontTitleKanji);
+            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+            DrawStringToHandle(logoX, titleY, mainTitle, GetColor(235, 240, 230), fontTitleKanji);
+        }
+        else
+        {
+            DrawString(cx - 150, titleY, mainTitle, GetColor(235, 240, 230));
+        }
+
+        // サブタイトル
+        const char* subTitle = "- SHINYA HAITATSU -";
+        if (fontTitleEnglish != -1)
+        {
+            int subW = GetDrawStringWidthToHandle(subTitle, (int)strlen(subTitle), fontTitleEnglish);
+            DrawStringToHandle(cx - subW / 2, titleY + 70, subTitle, GetColor(185, 75, 65), fontTitleEnglish);
+        }
+
+        DrawTitleMainMenu(cx, jitterSine);
     }
-    else
+    else if (titleSubMenu == TitleSubMenu::Settings)
     {
-        int fallbackW = GetDrawStringWidth(mainTitle, (int)strlen(mainTitle));
-        DrawString(cx - fallbackW / 2, titleY, mainTitle, GetColor(225, 230, 220));
+        DrawTitleSettings(cx);
     }
-
-    // サブタイトル
-    const char* subTitle = "- SHINYA HAITATSU -";
-    if (fontTitleEnglish != -1)
+    else if (titleSubMenu == TitleSubMenu::KeyGuide)
     {
-        int subW = GetDrawStringWidthToHandle(subTitle, (int)strlen(subTitle), fontTitleEnglish);
-        DrawStringToHandle(cx - subW / 2, titleY + 74, subTitle, GetColor(165, 80, 75), fontTitleEnglish);
-    }
-
-    // キャッチコピー
-    const char* tagline = "The silence of 1:00 AM, and the horrors in the alley.";
-    if (fontSubText != -1)
-    {
-        int tagW = GetDrawStringWidthToHandle(tagline, (int)strlen(tagline), fontSubText);
-        DrawStringToHandle(cx - tagW / 2, titleY + 115, tagline, GetColor(125, 140, 135), fontSubText);
-    }
-
-    // メニューボックス（レトロCRTパネル）
-    int menuY = 350;
-    int mw = 440;
-    int mh = 195;
-    HorrorUI::Instance().DrawRetroPanel(cx - mw / 2, menuY, cx + mw / 2, menuY + mh,
-        HorrorUI::COL_BORDER, HorrorUI::COL_PANEL_BG, 200);
-
-    // 日数選択バー (< DAY X - NAME >)
-    const char* dayTitles[7] = {
-        "DAY 1 - MON (3 Houses)",
-        "DAY 2 - TUE (4 Houses)",
-        "DAY 3 - WED (5 Houses)",
-        "DAY 4 - THU (6 Houses)",
-        "DAY 5 - FRI (6 Houses)",
-        "DAY 6 - SAT (7 Houses)",
-        "DAY 7 - SUN (8 Houses)"
-    };
-    const char* selDayStr = dayTitles[titleSelectedDay - 1];
-
-    DrawButton(cx - 210, 362, cx - 160, 404, "<", GetColor(180, 190, 185), GetColor(255, 255, 240), fontMenu);
-    DrawButton(cx + 160, 362, cx + 210, 404, ">", GetColor(180, 190, 185), GetColor(255, 255, 240), fontMenu);
-
-    if (fontMenu != -1)
-    {
-        int sw = GetDrawStringWidthToHandle(selDayStr, (int)strlen(selDayStr), fontMenu);
-        DrawStringToHandle(cx - sw / 2, 370, selDayStr, GetColor(240, 175, 120), fontMenu);
-    }
-    else
-    {
-        DrawString(cx - 70, 372, selDayStr, GetColor(240, 175, 120));
+        DrawTitleKeyGuide(cx);
     }
 
-    // ボタンの描画（マウスホバー＆クリック対応）
-    DrawButton(cx - 180, 418, cx + 180, 463, "START DELIVERY",
-        GetColor(210, 220, 215), GetColor(255, 255, 240), fontMenu);
-
-    DrawButton(cx - 180, 478, cx + 180, 523, "QUIT GAME",
-        GetColor(150, 160, 155), GetColor(230, 235, 230), fontMenu);
-
-    // 画面下部の操作ヘルプバー
-    int helpY = 665;
-    HorrorUI::Instance().DrawRetroPanel(26, helpY, 1254, helpY + 32,
-        HorrorUI::COL_BORDER_DIM, HorrorUI::COL_BG, 180);
-    HorrorUI::Instance().DrawJitterString(42, helpY + 8,
-        "[ CONTROLS ]  WASD: Move  |  Mouse: Look  |  E: Ride / Dismount  |  LMB: Take / Deliver  |  F: Light  |  ESC: Pause  |  < >: Select Day",
-        GetColor(150, 165, 160), HorrorUI::Instance().GetFontKeyGuide());
-
-    // CRT走査線・ノイズ
+    // CRT走査線・VHSアナログノイズ
     DrawScanlinesAndNoise(24);
 }
 
-// ポーズメニュー描画
+// タイトルメインメニュー描画
+void SceneManager::DrawTitleMainMenu(int cx, float jitterSine)
+{
+    (void)jitterSine;
+
+    // キャッチコピー
+    const char* tagline = "The silence of 1:00 AM, and the horrors lurking in the alley.";
+    if (fontSubText != -1)
+    {
+        int tagW = GetDrawStringWidthToHandle(tagline, (int)strlen(tagline), fontSubText);
+        DrawStringToHandle(cx - tagW / 2, 215, tagline, GetColor(135, 145, 140), fontSubText);
+    }
+
+    // メニューパネル（古びた金属と錆・血痕を思わせるレトロホラー枠）
+    int menuY = 250;
+    int mw = 480;
+    int mh = 246;
+    HorrorUI::Instance().DrawRetroPanel(cx - mw / 2, menuY, cx + mw / 2, menuY + mh,
+        GetColor(85, 45, 45), GetColor(15, 12, 14), 225);
+
+    // ボタンの描画ヘルパー
+    auto DrawMenuRow = [&](int y, const char* label, bool isSelected) {
+        bool hovered = CheckButtonHover(cx - 200, y, cx + 200, y + 42);
+        bool active = isSelected || hovered;
+
+        unsigned int bgCol = active ? GetColor(45, 20, 22) : GetColor(20, 22, 25);
+        unsigned int borderCol = active ? GetColor(185, 60, 50) : GetColor(50, 55, 60);
+        unsigned int textCol = active ? GetColor(255, 125, 100) : GetColor(185, 195, 190);
+
+        DrawBox(cx - 200, y, cx + 200, y + 42, bgCol, TRUE);
+        DrawBox(cx - 200, y, cx + 200, y + 42, borderCol, FALSE);
+
+        if (active)
+        {
+            DrawString(cx - 185, y + 13, ">", GetColor(240, 80, 60));
+        }
+
+        if (fontMenu != -1)
+        {
+            int lw = GetDrawStringWidthToHandle(label, (int)strlen(label), fontMenu);
+            DrawStringToHandle(cx - lw / 2, y + 8, label, textCol, fontMenu);
+        }
+        else
+        {
+            int lw = GetDrawStringWidth(label, (int)strlen(label));
+            DrawString(cx - lw / 2, y + 13, label, textCol);
+        }
+    };
+
+    // 1. 配達開始
+    DrawMenuRow(menuY + 20, "START DELIVERY", (titleMenuSelection == 0));
+
+    // 2. 音声・環境設定
+    DrawMenuRow(menuY + 74, "AUDIO SETTINGS", (titleMenuSelection == 1));
+
+    // 3. 操作・サバイバルガイド
+    DrawMenuRow(menuY + 128, "CONTROLS & SURVIVAL GUIDE", (titleMenuSelection == 2));
+
+    // 4. ゲーム終了
+    DrawMenuRow(menuY + 182, "QUIT GAME", (titleMenuSelection == 3));
+
+    // 画面最下部の簡易操作インフォバー
+    int helpY = 665;
+    HorrorUI::Instance().DrawRetroPanel(26, helpY, 1254, helpY + 34,
+        HorrorUI::COL_BORDER_DIM, HorrorUI::COL_BG, 190);
+    HorrorUI::Instance().DrawJitterString(42, helpY + 9,
+        "[ CONTROLS ]  WASD / Mouse: Navigate  |  ENTER / Click: Select  |  < >: Adjust Volume in Settings  |  ESC: Quit",
+        GetColor(150, 165, 160), HorrorUI::Instance().GetFontKeyGuide());
+}
+
+void SceneManager::DrawTitleSettings(int cx)
+{
+    int setY = 160;
+    int sw = 680;
+    int sh = 420;
+
+    // 設定ウィンドウパネル
+    HorrorUI::Instance().DrawRetroPanel(cx - sw / 2, setY, cx + sw / 2, setY + sh,
+        GetColor(90, 50, 50), GetColor(16, 14, 18), 240);
+
+    // ヘッダータイトル
+    const char* setTitle = "AUDIO & ENVIRONMENT SETTINGS";
+    if (fontReportTitle != -1)
+    {
+        int tw = GetDrawStringWidthToHandle(setTitle, (int)strlen(setTitle), fontReportTitle);
+        DrawStringToHandle(cx - tw / 2, setY + 14, setTitle, GetColor(240, 185, 140), fontReportTitle);
+    }
+    else
+    {
+        DrawString(cx - 130, setY + 16, setTitle, GetColor(240, 185, 140));
+    }
+
+    DrawLine(cx - sw / 2 + 25, setY + 48, cx + sw / 2 - 25, setY + 48, GetColor(75, 42, 42));
+
+    // 3本のスライダーバー描画
+    bool dummyDec = false, dummyInc = false;
+    DrawVolumeSlider(cx - 280, setY + 65,  560, 28, masterVolume, "MASTER VOLUME", (settingsSelection == 0), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 125, 560, 28, bgmVolume,    "BGM / AMBIENCE", (settingsSelection == 1), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 185, 560, 28, sfxVolume,    "SFX / EFFECTS",  (settingsSelection == 2), dummyDec, dummyInc);
+
+    // サウンドテストボタン
+    int testBtnY = setY + 250;
+    bool hTest = CheckButtonHover(cx - 150, testBtnY, cx + 150, testBtnY + 38);
+    bool testActive = (settingsSelection == 3) || hTest;
+    bool pulseFlashing = (audioTestFeedbackTimer > 0.0f);
+
+    unsigned int testBg = pulseFlashing ? GetColor(90, 25, 25) : (testActive ? GetColor(48, 22, 24) : GetColor(24, 26, 30));
+    unsigned int testBorder = testActive ? GetColor(200, 75, 65) : GetColor(60, 65, 70);
+    unsigned int testTxt = pulseFlashing ? GetColor(255, 255, 200) : (testActive ? GetColor(255, 135, 110) : GetColor(190, 200, 195));
+
+    DrawBox(cx - 150, testBtnY, cx + 150, testBtnY + 38, testBg, TRUE);
+    DrawBox(cx - 150, testBtnY, cx + 150, testBtnY + 38, testBorder, FALSE);
+    const char* testLabel = pulseFlashing ? "[ ! AUDIO PULSE PLAYING ! ]" : "TEST AUDIO PULSE";
+    int tlw = GetDrawStringWidth(testLabel, (int)strlen(testLabel));
+    DrawString(cx - tlw / 2, testBtnY + 11, testLabel, testTxt);
+
+    // 戻るボタン
+    int backBtnY = setY + 305;
+    bool hBack = CheckButtonHover(cx - 150, backBtnY, cx + 150, backBtnY + 38);
+    bool backActive = (settingsSelection == 4) || hBack;
+
+    DrawBox(cx - 150, backBtnY, cx + 150, backBtnY + 38, backActive ? GetColor(50, 22, 24) : GetColor(24, 26, 30), TRUE);
+    DrawBox(cx - 150, backBtnY, cx + 150, backBtnY + 38, backActive ? GetColor(200, 75, 65) : GetColor(60, 65, 70), FALSE);
+    const char* backLabel = "BACK TO MENU [ESC]";
+    int blw = GetDrawStringWidth(backLabel, (int)strlen(backLabel));
+    DrawString(cx - blw / 2, backBtnY + 11, backLabel, backActive ? GetColor(255, 135, 110) : GetColor(190, 200, 195));
+
+    // ガイド注釈
+    const char* guide = "Use Arrow Keys < > to Adjust, ENTER to Test, ESC to Return";
+    int gw = GetDrawStringWidth(guide, (int)strlen(guide));
+    DrawString(cx - gw / 2, setY + sh - 28, guide, GetColor(120, 135, 130));
+}
+
+// 操作説明・サバイバル規則サブメニュー画面描画
+void SceneManager::DrawTitleKeyGuide(int cx)
+{
+    int pw = 1100;
+    int ph = 500;
+    int py = 115;
+
+    // レトロマニュアルパネル（幅1100px：cx-550〜cx+550）
+    HorrorUI::Instance().DrawRetroPanel(cx - pw / 2, py, cx + pw / 2, py + ph,
+        GetColor(90, 50, 50), GetColor(14, 12, 16), 242);
+
+    // ヘッダータイトル
+    const char* guideTitle = "FIELD COURIER HANDBOOK - 1:00 AM PROTOCOL";
+    if (fontReportTitle != -1)
+    {
+        int tw = GetDrawStringWidthToHandle(guideTitle, (int)strlen(guideTitle), fontReportTitle);
+        DrawStringToHandle(cx - tw / 2, py + 14, guideTitle, GetColor(240, 190, 130), fontReportTitle);
+    }
+    else
+    {
+        DrawString(cx - 180, py + 16, guideTitle, GetColor(240, 190, 130));
+    }
+
+    DrawLine(cx - pw / 2 + 25, py + 48, cx + pw / 2 - 25, py + 48, GetColor(75, 42, 42));
+    DrawLine(cx - 10, py + 58, cx - 10, py + ph - 65, GetColor(50, 35, 38));
+
+    // 第1列：キーバインド
+    int col1X = cx - pw / 2 + 35;
+    DrawString(col1X, py + 58, "[ 1. KEY BINDINGS & CONTROLS ]", GetColor(240, 200, 140));
+
+    auto DrawKeyRow = [&](int y, const char* key, const char* desc) {
+        DrawBox(col1X, y, col1X + 130, y + 25, GetColor(30, 34, 38), TRUE);
+        DrawBox(col1X, y, col1X + 130, y + 25, GetColor(70, 75, 80), FALSE);
+        DrawString(col1X + 10, y + 5, key, GetColor(255, 230, 180));
+        DrawString(col1X + 145, y + 5, desc, GetColor(190, 200, 195));
+    };
+
+    DrawKeyRow(py + 90,  "W / A / S / D", "Move / Steer Bicycle");
+    DrawKeyRow(py + 122, "MOUSE",         "Look / Aim Flashlight");
+    DrawKeyRow(py + 154, "LEFT CLICK",    "Deliver Paper / Take Item");
+    DrawKeyRow(py + 186, "E KEY",         "Ride / Dismount Bicycle");
+    DrawKeyRow(py + 218, "F KEY",         "Bicycle Headlight ON/OFF");
+    DrawKeyRow(py + 250, "R KEY",         "Replace Battery from Spare");
+    DrawKeyRow(py + 282, "SPACE",         "Bicycle Bell / Brake");
+    DrawKeyRow(py + 314, "SHIFT",         "Sprint (Consumes Stamina)");
+    DrawKeyRow(py + 346, "ESC KEY",       "Pause Menu / Dispatch Log");
+    DrawKeyRow(py + 378, "< > ARROWS",    "Adjust Volume in Settings");
+    DrawKeyRow(py + 410, "H / TAB",       "Toggle Control Guide");
+
+    // 第2列：深夜配達サバイバル指示（枠内に完全に収まる文字幅設計）
+    int col2X = cx + 15;
+    DrawString(col2X, py + 58, "[ 2. MIDNIGHT SURVIVAL DIRECTIVES ]", GetColor(240, 110, 95));
+
+    auto DrawRule = [&](int y, const char* title, const char* desc, const char* desc2) {
+        DrawString(col2X, y, title, GetColor(230, 90, 75));
+        DrawString(col2X + 10, y + 18, desc, GetColor(175, 185, 180));
+        if (desc2) DrawString(col2X + 10, y + 34, desc2, GetColor(140, 155, 150));
+    };
+
+    DrawRule(py + 90,  "1. SAFE LIGHT (STREET LAMPS)",
+        "- Street lights repel entities (safety radius 6.5m).",
+        "- If a lamp flickers, prepare to leave immediately.");
+
+    DrawRule(py + 152, "2. BICYCLE HEADLIGHT & BATTERY",
+        "- Riding with battery > 0% shields against attacks.",
+        "- Battery at 0% leaves you exposed to fatal death.");
+
+    DrawRule(py + 214, "3. FEAR & THE CRAWL MONSTER",
+        "- Fear rises in darkness; at 100%, Crawl strikes.",
+        "- Face street lights to lower your Fear Meter.");
+
+    DrawRule(py + 276, "4. HALFWAY HUNT (DELIVERY 4/8)",
+        "- Halfway delivered, Chasing Monster begins hunt.",
+        "- Stay in light; monster faces you when chasing.");
+
+    DrawRule(py + 338, "5. SPARE BATTERIES LIMIT (MAX 2)",
+        "- You can carry up to 2 spare batteries.",
+        "- Press [R] near bicycle to reload 100% battery.");
+
+    // 戻るボタン
+    int btnY = py + ph - 52;
+    bool hBack = CheckButtonHover(cx - 140, btnY, cx + 140, btnY + 36);
+
+    DrawBox(cx - 140, btnY, cx + 140, btnY + 36, hBack ? GetColor(50, 22, 24) : GetColor(25, 28, 30), TRUE);
+    DrawBox(cx - 140, btnY, cx + 140, btnY + 36, hBack ? GetColor(200, 75, 65) : GetColor(65, 70, 75), FALSE);
+    const char* backTxt = "RETURN TO MENU [ESC]";
+    int bw = GetDrawStringWidth(backTxt, (int)strlen(backTxt));
+    DrawString(cx - bw / 2, btnY + 10, backTxt, hBack ? GetColor(255, 135, 110) : GetColor(190, 200, 195));
+}
+
 void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
 {
     (void)deliveryManager;
@@ -1004,127 +1473,95 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
 // クリアシーン描画
 void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager, const Bicycle& bicycle)
 {
+    (void)bicycle;
     int cx = 640;
     int cy = 360;
 
-    // 画面全体の薄明かりビネット
-    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 140);
-    DrawBox(0, 0, 1280, 720, GetColor(6, 12, 18), TRUE);
-    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    // 完全な黒画面背景
+    DrawBox(0, 0, 1280, 720, GetColor(0, 0, 0), TRUE);
 
-    // クリア報告パネル
-    int pw = 740;
-    int ph = 500;
-    HorrorUI::Instance().DrawRetroPanel(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2,
-        GetColor(75, 110, 100), GetColor(12, 20, 24), 225);
+    // 上部レトロVHSタイムスタンプ
+    char timeBuf[64];
+    snprintf(timeBuf, sizeof(timeBuf), "1998.08.%02d  AM 01:00:00", 14 + currentDay - 1);
+    DrawString(60, 40, "REC ●", GetColor(180, 40, 40));
+    DrawString(145, 40, "TAPE: SP  MIDNIGHT SURVEILLANCE", GetColor(130, 145, 140));
+    DrawString(980, 40, timeBuf, GetColor(130, 145, 140));
 
-    // ヘッダーバー
-    int topY = cy - ph / 2 + 25;
-    char headerTitle[64];
-    snprintf(headerTitle, sizeof(headerTitle), "DELIVERY LOG REPORT - DAY %d / 7", currentDay);
-    if (fontReportTitle != -1)
+    // 中央テキストUI
+    if (currentDay < 7)
     {
-        int hw = GetDrawStringWidthToHandle(headerTitle, (int)strlen(headerTitle), fontReportTitle);
-        DrawStringToHandle(cx - hw / 2, topY, headerTitle, GetColor(180, 230, 205), fontReportTitle);
-    }
+        // 1〜6日目：日ごとのクリア黒画面テキストUI
+        char titleStr[64];
+        snprintf(titleStr, sizeof(titleStr), "DAY %d COMPLETED", currentDay);
 
-    char recTimeBuf[32];
-    int endHour = 1, endMin = 0;
-    HorrorUI::Instance().GetGameTime(endHour, endMin);
-    snprintf(recTimeBuf, sizeof(recTimeBuf), "REC ■ %02d:%02d AM", endHour, endMin);
-    DrawString(cx + 170, topY + 6, recTimeBuf, GetColor(120, 160, 140));
-
-    DrawLine(cx - pw / 2 + 30, topY + 40, cx + pw / 2 - 30, topY + 40, GetColor(50, 80, 70));
-
-    // タイプライター調テキスト表示（時間経過で順次フェードイン）
-    int lineY = topY + 58;
-    int lineGap = 30;
-
-    char sectorStr[128];
-    snprintf(sectorStr, sizeof(sectorStr), "■ SHIFT:        %s", deliveryManager.GetDayName());
-
-    char deliveryStr[128];
-    snprintf(deliveryStr, sizeof(deliveryStr), "■ DELIVERIES:   %02d / %02d Houses Successfully Delivered",
-        deliveryManager.GetCompletedDeliveries(), deliveryManager.GetTotalDeliveries());
-
-    char batteryStr[128];
-    snprintf(batteryStr, sizeof(batteryStr), "■ BIKE BATTERY: %.0f%% Remaining Capacity", bicycle.GetBatteryPercent());
-
-    if (clearTimer > 0.3f)
-    {
-        DrawStringToHandle(cx - 310, lineY, sectorStr, GetColor(195, 205, 200), fontReportBody);
-    }
-    if (clearTimer > 0.8f)
-    {
-        DrawStringToHandle(cx - 310, lineY + lineGap, deliveryStr, GetColor(120, 220, 160), fontReportBody);
-    }
-    if (clearTimer > 1.3f)
-    {
-        DrawStringToHandle(cx - 310, lineY + lineGap * 2, batteryStr, GetColor(200, 215, 200), fontReportBody);
-    }
-    if (clearTimer > 1.8f)
-    {
-        if (currentDay < 7)
+        if (fontReportTitle != -1)
         {
-            DrawStringToHandle(cx - 310, lineY + lineGap * 3, "\"The eastern sky begins to pale with cold light...\"", GetColor(150, 185, 175), fontReportBody);
-            DrawStringToHandle(cx - 310, lineY + lineGap * 4, "\"Another night survived. Rest well... Tomorrow will be harsher.\"", GetColor(170, 205, 195), fontReportBody);
+            int tw = GetDrawStringWidthToHandle(titleStr, (int)strlen(titleStr), fontReportTitle);
+            DrawStringToHandle(cx - tw / 2, cy - 80, titleStr, GetColor(235, 245, 240), fontReportTitle);
         }
         else
         {
-            DrawStringToHandle(cx - 310, lineY + lineGap * 3, "\"Morning sun finally breaks through the supernatural fog!\"", GetColor(230, 220, 130), fontReportBody);
-            DrawStringToHandle(cx - 310, lineY + lineGap * 4, "\"You delivered every paper and broke the curse. YOU SURVIVED THE WEEK!\"", GetColor(140, 240, 180), fontReportBody);
+            int tw = GetDrawStringWidth(titleStr, (int)strlen(titleStr));
+            DrawString(cx - tw / 2, cy - 70, titleStr, GetColor(235, 245, 240));
+        }
+
+        char delivStr[64];
+        snprintf(delivStr, sizeof(delivStr), "ALL %d HOUSES DELIVERED", deliveryManager.GetTotalDeliveries());
+        int dw = GetDrawStringWidth(delivStr, (int)strlen(delivStr));
+        DrawString(cx - dw / 2, cy - 15, delivStr, GetColor(215, 150, 90));
+
+        const char* survStr = "SURVIVED THE NIGHT.";
+        int sw = GetDrawStringWidth(survStr, (int)strlen(survStr));
+        DrawString(cx - sw / 2, cy + 20, survStr, GetColor(140, 195, 165));
+
+        char nextStr[64];
+        snprintf(nextStr, sizeof(nextStr), "Preparing Day %d Route...", currentDay + 1);
+        int nw = GetDrawStringWidth(nextStr, (int)strlen(nextStr));
+        DrawString(cx - nw / 2, cy + 60, nextStr, GetColor(165, 180, 175));
+
+        // 点滅プロンプト案内
+        bool blink = (((int)(clearTimer * 2.5f)) % 2) == 0;
+        if (blink)
+        {
+            const char* prompt = "[ PRESS ENTER OR WAIT TO PROCEED ]";
+            int pw = GetDrawStringWidth(prompt, (int)strlen(prompt));
+            DrawString(cx - pw / 2, cy + 125, prompt, GetColor(180, 210, 200));
         }
     }
-
-    // 生還スタンプバナー
-    if (clearTimer > 2.3f)
+    else
     {
-        int stampY = lineY + lineGap * 5 + 4;
-        int sw = 600;
-        int sh = 38;
-        DrawBox(cx - sw / 2, stampY, cx + sw / 2, stampY + sh, GetColor(18, 45, 35), TRUE);
-        DrawBox(cx - sw / 2, stampY, cx + sw / 2, stampY + sh, GetColor(90, 205, 150), FALSE);
-
-        char stampStr[64];
-        if (currentDay < 7)
+        // 最終7日目クリア：全7夜生存達成テキストUI
+        const char* titleStr = "FINAL DAY COMPLETED";
+        if (fontReportTitle != -1)
         {
-            snprintf(stampStr, sizeof(stampStr), "★ DAY %d SURVIVED - PROCEED TO DAY %d ★", currentDay, currentDay + 1);
+            int tw = GetDrawStringWidthToHandle(titleStr, (int)strlen(titleStr), fontReportTitle);
+            DrawStringToHandle(cx - tw / 2, cy - 100, titleStr, GetColor(245, 220, 150), fontReportTitle);
         }
         else
         {
-            snprintf(stampStr, sizeof(stampStr), "★ ALL 7 NIGHTS SURVIVED - VICTORY ★");
+            int tw = GetDrawStringWidth(titleStr, (int)strlen(titleStr));
+            DrawString(cx - tw / 2, cy - 90, titleStr, GetColor(245, 220, 150));
         }
-        int stw = (fontReportBody != -1) ? GetDrawStringWidthToHandle(stampStr, (int)strlen(stampStr), fontReportBody) : 200;
-        DrawStringToHandle(cx - stw / 2, stampY + 8, stampStr, GetColor(110, 240, 180), fontReportBody);
+
+        const char* sub1 = "ALL 7 NIGHTS SURVIVED";
+        int s1w = GetDrawStringWidth(sub1, (int)strlen(sub1));
+        DrawString(cx - s1w / 2, cy - 35, sub1, GetColor(140, 235, 185));
+
+        const char* sub2 = "The dawn finally breaks. You made it through the nightmare alive.";
+        int s2w = GetDrawStringWidth(sub2, (int)strlen(sub2));
+        DrawString(cx - s2w / 2, cy + 5, sub2, GetColor(190, 205, 200));
+
+        // ボタン
+        DrawButton(cx - 180, cy + 60, cx + 180, cy + 100, "RETURN TO TITLE [ENTER]",
+            GetColor(35, 75, 65), GetColor(60, 130, 110));
+        DrawButton(cx - 180, cy + 115, cx + 180, cy + 155, "QUIT GAME [ESC]",
+            GetColor(50, 30, 35), GetColor(120, 50, 60));
     }
 
-    // 案内ボタン（マウス選択＆キー対応）
-    if (clearTimer > 2.8f)
-    {
-        if (currentDay < 7)
-        {
-            char nextNightBtn[64];
-            snprintf(nextNightBtn, sizeof(nextNightBtn), "PROCEED TO DAY %d", currentDay + 1);
-            DrawButton(cx - 200, cy + 135, cx + 200, cy + 175, nextNightBtn,
-                GetColor(210, 245, 220), GetColor(255, 255, 240), fontMenu);
-
-            DrawButton(cx - 200, cy + 185, cx + 200, cy + 225, "RETURN TO TITLE",
-                GetColor(150, 165, 160), GetColor(230, 235, 230), fontMenu);
-        }
-        else
-        {
-            DrawButton(cx - 180, cy + 145, cx + 180, cy + 185, "RETURN TO TITLE",
-                GetColor(210, 225, 220), GetColor(255, 255, 240), fontMenu);
-
-            DrawButton(cx - 180, cy + 195, cx + 180, cy + 235, "QUIT GAME",
-                GetColor(140, 155, 150), GetColor(230, 235, 230), fontMenu);
-        }
-    }
-
-    DrawScanlinesAndNoise(18);
+    // 微細なCRT走査線
+    DrawScanlinesAndNoise(15);
 }
 
-// ゲームオーバーシーン描画
 void SceneManager::DrawGameOverScene(const DeliveryManager& deliveryManager)
 {
     (void)deliveryManager;

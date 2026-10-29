@@ -59,6 +59,11 @@ public:
     // 操作キー案内HUD描画（ゲーム画面下部）
     void DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDeliver, bool isHeadlightOn, bool isMapDebugOn, bool canReplaceBattery = false);
 
+    // 操作キー案内HUDの表示/非表示トグル（Hキー対応）
+    void ToggleKeyGuide() { showKeyGuide = !showKeyGuide; }
+    bool IsKeyGuideVisible() const { return showKeyGuide; }
+    void SetKeyGuideVisible(bool visible) { showKeyGuide = visible; }
+
     // 自転車ヘッドライト・バッテリーHUD描画（ミニマップ直下に配置）
     void DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isRiding, bool isFastDrain, int spareBatteries = 0, int maxSpareBatteries = 2);
 
@@ -67,6 +72,9 @@ public:
 
     // 最大恐怖演出時の画面歪曲・ブラックアウト描画
     void DrawScareDistortion(float intensity);
+
+    // 襲撃・被弾時のカメラレンズ血痕スプラッター描画
+    void DrawBloodSplatter(float intensity);
 
     // ゲームオーバー画面描画
     void DrawGameOver(float fadeAlpha, bool isInteractive);
@@ -189,10 +197,14 @@ private:
 
     // 恐怖視覚エフェクト制御変数
     int ghostScreenGraph;
+    int bloodSplatterGraph;
     float currentFearParam;
     float deathClosingProgress;
     float deathBlinkFactor;
     float doubleVisionAmount;
     float desaturationAmount;
     float focusBlurAmount;
+
+    // 操作ガイドHUD表示フラグ
+    bool showKeyGuide;
 };
