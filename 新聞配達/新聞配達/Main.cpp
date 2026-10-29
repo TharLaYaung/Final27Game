@@ -47,7 +47,7 @@ int WINAPI WinMain(
     }
 
     // ウィンドウモードで起動
-    ChangeWindowMode(TRUE);
+    ChangeWindowMode(FALSE);
 
     // ウィンドウタイトルバーの名称設定
     SetMainWindowText("NEWSPAPER DELIVERY");
@@ -93,7 +93,8 @@ int WINAPI WinMain(
     SceneManager sceneManager;
     BatteryManager batteryManager;
 
-    // ホラーUI総合管理システムの初期化（フォント生成など）
+    // ホラーUI総合管理システムの初期化（フォント生成など）s
+
     HorrorUI::Instance().Initialize();
 
     // 深夜環境・照明・フォグ管理システムの初期化
