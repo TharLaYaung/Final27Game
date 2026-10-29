@@ -1,3 +1,4 @@
+#include "AudioManager.h"
 #include "Bicycle.h"
 #include "Player.h"
 #include "HorrorUI.h"
@@ -274,6 +275,10 @@ void Bicycle::Update(Player& player)
 
         // 自転車の当たり判定半径
         const float bicycleRadius = 0.8f;
+
+        // 自転車走行音の制御
+        bool isMoving = (bikeDelta.x != 0.0f || bikeDelta.z != 0.0f);
+        AudioManager::Instance().PlayBicycleRoll(isMoving);
 
         // 移動入力がある場合
         if (bikeDelta.x != 0.0f || bikeDelta.z != 0.0f)
@@ -786,6 +791,7 @@ void Bicycle::Reset()
     );
     angle = DX_PI_F;
     isRiding = false;
+    AudioManager::Instance().StopBicycleRoll();
     canRide = false;
     oldEKey = false;
     headlightOn = true;

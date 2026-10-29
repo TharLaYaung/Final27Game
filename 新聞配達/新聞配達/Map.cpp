@@ -146,82 +146,82 @@ void MapInit()
     // 8棟の住宅データを初期化（リアルな住宅街配置・向き・アクセス可能なポスト）
     g_houses.clear();
 
-    // 住宅0: 西通り（X = -25）の西側、東向き（配達先0）
+    // 住宅0: 西通り（X = -25）の西側、東向き（配達先0・縁石際設置）
     g_houses.push_back({
         0, 0,
         VGet(-34.0f, 0.0f, 0.0f),
         DX_PI_F * 0.5f,
-        VGet(-26.0f, 0.0f, 1.5f),
+        VGet(-27.6f, 0.0f, 1.5f),
         DX_PI_F * 0.5f,
         true, 8.0f
     });
 
-    // 住宅1: 北横通り（Z = +15）の北西側、南向き（配達先1）
+    // 住宅1: 北横通り（Z = +15）の北西側、南向き（配達先1・縁石際設置）
     g_houses.push_back({
         1, 1,
         VGet(-13.0f, 0.0f, 25.0f),
         DX_PI_F,
-        VGet(-11.0f, 0.0f, 16.5f),
+        VGet(-11.0f, 0.0f, 18.4f),
         DX_PI_F,
         true, 8.0f
     });
 
-    // 住宅2: 北路地行き止まり（X = 0, Z = +38）の最奥、南向き（配達先2）
+    // 住宅2: 北路地行き止まり（X = 0, Z = +38）の最奥、南向き（配達先2・奥地縁石際設置）
     g_houses.push_back({
         2, 2,
         VGet(0.0f, 0.0f, 45.0f),
         DX_PI_F,
-        VGet(1.8f, 0.0f, 38.5f),
+        VGet(2.4f, 0.0f, 39.3f),
         DX_PI_F,
         true, 8.0f
     });
 
-    // 住宅3: 北横通り（Z = +15）の北東側、南向き（配達先3）
+    // 住宅3: 北横通り（Z = +15）の北東側、南向き（配達先3・縁石際設置）
     g_houses.push_back({
         3, 3,
         VGet(15.0f, 0.0f, 25.0f),
         DX_PI_F,
-        VGet(13.5f, 0.0f, 16.5f),
+        VGet(13.5f, 0.0f, 18.4f),
         DX_PI_F,
         true, 8.0f
     });
 
-    // 住宅4: 中央横通り（Z = -10）の北側街区、南向き（配達先4）
+    // 住宅4: 中央横通り（Z = -10）の北側街区、南向き（配達先4・縁石際設置）
     g_houses.push_back({
         4, 1,
         VGet(0.0f, 0.0f, -2.0f),
         DX_PI_F,
-        VGet(1.8f, 0.0f, -8.2f),
+        VGet(1.8f, 0.0f, -6.8f),
         DX_PI_F,
         true, 8.0f
     });
 
-    // 住宅5: 東通り（X = +25）の東側、西向き（配達先5）
+    // 住宅5: 東通り（X = +25）の東側、西向き（配達先5・縁石際設置）
     g_houses.push_back({
         5, 0,
         VGet(34.0f, 0.0f, 0.0f),
         -DX_PI_F * 0.5f,
-        VGet(26.0f, 0.0f, 1.5f),
+        VGet(27.6f, 0.0f, 1.5f),
         -DX_PI_F * 0.5f,
         true, 8.0f
     });
 
-    // 住宅6: 東通り南東（X = +25, Z = -25）の東側、西向き（配達先6）
+    // 住宅6: 東通り南東（X = +25, Z = -25）の東側、西向き（配達先6・縁石際設置）
     g_houses.push_back({
         6, 3,
         VGet(34.0f, 0.0f, -25.0f),
         -DX_PI_F * 0.5f,
-        VGet(26.0f, 0.0f, -23.5f),
+        VGet(27.6f, 0.0f, -23.5f),
         -DX_PI_F * 0.5f,
         true, 8.0f
     });
 
-    // 住宅7: 西通り南西（X = -25, Z = -25）の西側、東向き（配達先7）
+    // 住宅7: 西通り南西（X = -25, Z = -25）の西側、東向き（配達先7・縁石際設置）
     g_houses.push_back({
         7, 2,
         VGet(-34.0f, 0.0f, -25.0f),
         DX_PI_F * 0.5f,
-        VGet(-26.0f, 0.0f, -23.5f),
+        VGet(-27.6f, 0.0f, -23.5f),
         DX_PI_F * 0.5f,
         true, 8.0f
     });
@@ -398,6 +398,27 @@ void MapDraw()
             MV1DrawModel(g_houseHandles[i]);
         }
     }
+
+    // 住宅ごとの敷石エントランス舗装（玄関ポーチからポスト・道路縁石までを自然に接続）
+    unsigned int paveFaceCol = GetColor(36, 40, 42);
+    unsigned int paveTopCol = GetColor(48, 52, 54);
+
+    // 住宅0エントランス敷石（西通り）
+    DrawBlockWall(-30.8f, 0.02f, 1.5f, 3.2f, 0.02f, 1.4f, paveFaceCol, paveTopCol);
+    // 住宅1エントランス敷石（北横通り西）
+    DrawBlockWall(-11.0f, 0.02f, 21.6f, 1.4f, 0.02f, 3.2f, paveFaceCol, paveTopCol);
+    // 住宅2エントランス敷石（北路地行き止まり）
+    DrawBlockWall(2.4f, 0.02f, 42.1f, 1.4f, 0.02f, 2.8f, paveFaceCol, paveTopCol);
+    // 住宅3エントランス敷石（北横通り東）
+    DrawBlockWall(13.5f, 0.02f, 21.6f, 1.4f, 0.02f, 3.2f, paveFaceCol, paveTopCol);
+    // 住宅4エントランス敷石（中央横通り）
+    DrawBlockWall(1.8f, 0.02f, -4.5f, 1.4f, 0.02f, 2.4f, paveFaceCol, paveTopCol);
+    // 住宅5エントランス敷石（東通り）
+    DrawBlockWall(30.8f, 0.02f, 1.5f, 3.2f, 0.02f, 1.4f, paveFaceCol, paveTopCol);
+    // 住宅6エントランス敷石（東通り南）
+    DrawBlockWall(30.8f, 0.02f, -23.5f, 3.2f, 0.02f, 1.4f, paveFaceCol, paveTopCol);
+    // 住宅7エントランス敷石（西通り南）
+    DrawBlockWall(-30.8f, 0.02f, -23.5f, 3.2f, 0.02f, 1.4f, paveFaceCol, paveTopCol);
 
     // 敷地ブロック塀（ブロック塀・フェンス）の3D描画
     unsigned int wallFaceCol = GetColor(26, 30, 32);

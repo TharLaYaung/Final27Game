@@ -1,3 +1,4 @@
+#include "AudioManager.h"
 #include "HorrorManager.h"
 #include "Player.h"
 #include "Bicycle.h"
@@ -24,12 +25,12 @@ HorrorManager::HorrorManager()
     , searchStateTimer(0.0f)
     , currentSearchNodeIndex(0)
     , darknessTimeAccumulator(0.0f)
-    , cachedBicycleBattery(100.0f)
-    , cachedMonsterDist(-1.0f)
     , playerWasVisible(false)
     , lastLOSState(false)
     , lastSafeReason("NONE")
     , currentNavTargetNodeId(-1)
+    , cachedBicycleBattery(100.0f)
+    , cachedMonsterDist(-1.0f)
     , fearLevel(0.0f)
     , inSafeLight(true)
     , safeGraceTimer(0.8f)
@@ -59,6 +60,11 @@ HorrorManager::HorrorManager()
     , spawnCheckTimer(10.0f)
     , lastSpawnId(-1)
     , showDebugHUD(false)
+    , chaseLightHandle(-1)
+    , crawlLightHandle(-1)
+    , jumpscareLightHandle(-1)
+    , killerIsCrawl(false)
+    , bloodSplatterIntensity(0.0f)
 {
 }
 
@@ -188,8 +194,8 @@ const char* HorrorManager::GetChaseStateName() const
     }
 }
 
-// 初期化処理
-bool HorrorManager::Initialize()
+// 状態リセット（リトライ・新日開始・怪異モデルの完全退避）
+void HorrorManager::Reset()
 {
     fearLevel = 0.0f;
     inSafeLight = true;
@@ -224,26 +230,77 @@ bool HorrorManager::Initialize()
     // 追跡システム初期化
     isChaseUnlocked = false;
     chaseState = MonsterChaseState::Dormant;
-    lastKnownPlayerPos = VGet(0.0f, 0.0f, 0.0f);
+    lastKnownPlayerPos = VGet(0.0f, -999.0f, 0.0f);
     lostSightTimer = 0.0f;
     chaseCooldownTimer = 0.0f;
     campingTimer = 0.0f;
     searchStateTimer = 0.0f;
     currentSearchNodeIndex = 0;
     darknessTimeAccumulator = 0.0f;
+    bloodSplatterIntensity = 0.0f;
     playerWasVisible = false;
     lastLOSState = false;
     lastSafeReason = "NONE";
     currentNavTargetNodeId = -1;
+    cachedBicycleBattery = 100.0f;
+    cachedMonsterDist = -1.0f;
+    killerIsCrawl = false;
+
+    // 2体の怪異モデルをリセット＆画面外へ完全退避
+    crawlEntity.Reset();
+    crawlEntity.SetModelType(HorrorModelType::Crawl);
+
+    chaseEntity.Reset();
+    chaseEntity.SetModelType(HorrorModelType::Idle);
+
+    // ポイントライト消灯
+    if (chaseLightHandle != -1) SetLightEnableHandle(chaseLightHandle, FALSE);
+    if (crawlLightHandle != -1) SetLightEnableHandle(crawlLightHandle, FALSE);
+    if (jumpscareLightHandle != -1) SetLightEnableHandle(jumpscareLightHandle, FALSE);
+
+    // ホラー演出視覚パラメータのリセット
+    HorrorUI::Instance().SetHorrorVisualParams(0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f);
+}
+
+// 初期化処理
+bool HorrorManager::Initialize()
+{
+    // 全状態および怪異モデルを安全にリセット
+    Reset();
 
     // ナビゲーションノードの生成
     InitializeNavNodes();
 
     // 難易度設定
-    SetDayDifficulty(1);
+    SetDayDifficulty(currentDay > 0 ? currentDay : 1);
 
-    // 3D怪異モデルの初期化
-    entity.Initialize();
+    // 怪異の自律光および襲撃時スポットライトの生成（未生成時のみ生成、既存時は再利用）
+    if (chaseLightHandle == -1)
+    {
+        chaseLightHandle = CreatePointLightHandle(VGet(0.0f, -999.0f, 0.0f), 9.5f, 1.0f, 0.10f, 0.03f);
+    }
+    SetLightEnableHandle(chaseLightHandle, FALSE);
+
+    if (crawlLightHandle == -1)
+    {
+        crawlLightHandle = CreatePointLightHandle(VGet(0.0f, -999.0f, 0.0f), 8.0f, 1.0f, 0.12f, 0.04f);
+    }
+    SetLightEnableHandle(crawlLightHandle, FALSE);
+
+    if (jumpscareLightHandle == -1)
+    {
+        jumpscareLightHandle = CreatePointLightHandle(VGet(0.0f, -999.0f, 0.0f), 6.5f, 0.8f, 0.06f, 0.02f);
+    }
+    SetLightEnableHandle(jumpscareLightHandle, FALSE);
+
+    // 2体の怪異モデルの初期化
+    // 1. 恐怖度100%時・ジャンプスケア用這いずり怪異（RunningCrawl.mv1）
+    crawlEntity.Initialize();
+    crawlEntity.SetModelType(HorrorModelType::Crawl);
+
+    // 2. 配達半分完了追跡モンスター（MonsterIdle.mv1 / MonsterRun.mv1）
+    chaseEntity.Initialize();
+    chaseEntity.SetModelType(HorrorModelType::Idle);
 
     // 雰囲気演出用の固定出現候補地点登録
     spawnPoints.clear();
@@ -402,7 +459,7 @@ bool HorrorManager::FindValidMonsterSpawn(const Player& player, const NightEnvir
 void HorrorManager::NavigateTowards(const VECTOR& targetPos, float speed, float dt)
 {
     // 建物を避けながらプレイヤーの位置へ移動する
-    VECTOR pos = entity.GetPosition();
+    VECTOR pos = chaseEntity.GetPosition();
 
     // 目的地への直線レイキャスト（障害物がないか確認）
     VECTOR fromEye = VGet(pos.x, pos.y + 0.6f, pos.z);
@@ -459,18 +516,14 @@ void HorrorManager::NavigateTowards(const VECTOR& targetPos, float speed, float 
 
         pos.x += dirX * step;
         pos.z += dirZ * step;
-
-        // モデルの進行方向回転
-        float moveAngle = std::atan2(dirX, dirZ);
-        entity.SetYaw(moveAngle + entity.GetModelForwardOffset());
     }
 
     // 障害物とのめり込み解決（壁抜け防止）
     WorldCollision::Instance().ResolveCollision(pos, 0.40f);
-    entity.SetPosition(pos);
+    chaseEntity.SetPosition(pos);
 }
 
-// モンスター追跡AIの更新
+// 配達半分完了モンスター追跡AIの更新
 void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& bicycle, const NightEnvironment& nightEnv, const DeliveryManager* deliveryManager)
 {
     // 配達が半分完了したら追跡システムを有効にする
@@ -495,7 +548,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
     }
 
     VECTOR playerPos = player.GetPosition();
-    VECTOR monsterPos = entity.GetPosition();
+    VECTOR monsterPos = chaseEntity.GetPosition();
 
     // プレイヤーの安全保護状態を判定
     const char* reason = "NONE";
@@ -517,7 +570,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
     bool inRange = false;
     bool inFOV = false;
 
-    if (entity.IsActive())
+    if (chaseEntity.IsActive())
     {
         VECTOR mEye = VGet(monsterPos.x, monsterPos.y + 1.6f, monsterPos.z);
         VECTOR pEye = VGet(playerPos.x, playerPos.y + 1.4f, playerPos.z);
@@ -533,7 +586,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
         inRange = (dist <= currentParams.detectRange);
 
         // モンスターの視覚視野角（140度コーン、または至近距離5m以内の気配察知）
-        float mYaw = entity.GetYaw() - entity.GetModelForwardOffset();
+        float mYaw = chaseEntity.GetYaw() - chaseEntity.GetModelForwardOffset();
         VECTOR mFwd = VGet(std::sin(mYaw), 0.0f, std::cos(mYaw));
         float dot = (dist > 0.01f) ? (dx / dist * mFwd.x + dz / dist * mFwd.z) : 1.0f;
         inFOV = (dot >= 0.34f) || (dist <= 5.0f);
@@ -543,7 +596,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
         lastLOSState = false;
     }
 
-    bool canSeePlayer = (entity.IsActive() && hasLOS && inRange && inFOV);
+    bool canSeePlayer = (chaseEntity.IsActive() && hasLOS && inRange && inFOV);
     playerWasVisible = canSeePlayer;
 
     // 状態マシン処理
@@ -559,7 +612,9 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
             {
                 float yaw = std::atan2(playerPos.x - spawnPos.x, playerPos.z - spawnPos.z);
                 // 待機モデルで初期出現
-                entity.Spawn(spawnPos, yaw, 9999.0f, 0.0f, HorrorModelType::Idle);
+                chaseEntity.Spawn(spawnPos, yaw, 9999.0f, 0.0f, HorrorModelType::Idle);
+                // プレイヤーの方向を正面に見据える
+                chaseEntity.SetLookAtTarget(playerPos);
                 chaseState = MonsterChaseState::Idle;
                 searchStateTimer = 2.0f;
             }
@@ -581,16 +636,20 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
     case MonsterChaseState::Idle:
     {
         // 待機モデルのアニメーション進行
-        entity.SetModelType(HorrorModelType::Idle);
-        entity.AdvanceAnim(dt, 1.0f);
+        chaseEntity.SetModelType(HorrorModelType::Idle);
+        chaseEntity.AdvanceAnim(dt, 1.0f);
 
         if (canSeePlayer)
         {
+            // プレイヤーの方向を正面に見据える
+            chaseEntity.SetLookAtTarget(playerPos);
+
             if (!playerIsSafe)
             {
                 // 追跡中は走行モデルを使用する
-                entity.SetModelType(HorrorModelType::Run);
+                chaseEntity.SetModelType(HorrorModelType::Run);
                 chaseState = MonsterChaseState::Chasing;
+                AudioManager::Instance().PlayMonsterRoar();
                 // 最後に確認したプレイヤーの位置を記録する
                 lastKnownPlayerPos = playerPos;
             }
@@ -619,16 +678,20 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
 
     case MonsterChaseState::Searching:
     {
-        entity.SetModelType(HorrorModelType::Idle);
-        entity.AdvanceAnim(dt, 1.1f);
+        chaseEntity.SetModelType(HorrorModelType::Idle);
+        chaseEntity.AdvanceAnim(dt, 1.1f);
 
         if (canSeePlayer)
         {
+            // プレイヤーの方向を正面に見据える
+            chaseEntity.SetLookAtTarget(playerPos);
+
             if (!playerIsSafe)
             {
                 // 追跡中は走行モデルを使用する
-                entity.SetModelType(HorrorModelType::Run);
+                chaseEntity.SetModelType(HorrorModelType::Run);
                 chaseState = MonsterChaseState::Chasing;
+                AudioManager::Instance().PlayMonsterRoar();
                 // 最後に確認したプレイヤーの位置を記録する
                 lastKnownPlayerPos = playerPos;
             }
@@ -647,6 +710,15 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
             VECTOR targetNode = navNodes[currentSearchNodeIndex].pos;
             NavigateTowards(targetNode, currentParams.searchSpeed, dt);
 
+            // 移動方向を向く
+            float mdx = targetNode.x - monsterPos.x;
+            float mdz = targetNode.z - monsterPos.z;
+            if (std::sqrt(mdx * mdx + mdz * mdz) > 0.01f)
+            {
+                float moveAngle = std::atan2(mdx, mdz);
+                chaseEntity.SetYaw(moveAngle + chaseEntity.GetModelForwardOffset());
+            }
+
             float d = std::sqrt((targetNode.x - monsterPos.x) * (targetNode.x - monsterPos.x) +
                                 (targetNode.z - monsterPos.z) * (targetNode.z - monsterPos.z));
             if (d < 1.5f)
@@ -661,8 +733,17 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
     case MonsterChaseState::Chasing:
     {
         // 追跡中は走行モデルを使用する
-        entity.SetModelType(HorrorModelType::Run);
-        entity.AdvanceAnim(dt, 1.4f);
+        chaseEntity.SetModelType(HorrorModelType::Run);
+        chaseEntity.AdvanceAnim(dt, 1.4f);
+
+        // 追跡中は確実にプレイヤーの方向を正面に見据える（顔をつねにプレイヤーへ向ける）
+        float toPX = playerPos.x - monsterPos.x;
+        float toPZ = playerPos.z - monsterPos.z;
+        if (std::sqrt(toPX * toPX + toPZ * toPZ) > 0.01f)
+        {
+            float angleToPlayer = std::atan2(toPX, toPZ);
+            chaseEntity.SetYaw(angleToPlayer + chaseEntity.GetModelForwardOffset());
+        }
 
         if (hasLOS)
         {
@@ -688,7 +769,8 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
             if (lightBarrier)
             {
                 // 安全な光の外側でプレイヤーを待つ
-                entity.SetModelType(HorrorModelType::Idle);
+                chaseEntity.SetModelType(HorrorModelType::Idle);
+                chaseEntity.SetLookAtTarget(playerPos);
                 chaseState = MonsterChaseState::AvoidingLight;
                 campingTimer = 0.0f;
                 break;
@@ -700,12 +782,12 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
             // 接触・攻撃判定
             float distToP = std::sqrt((playerPos.x - monsterPos.x) * (playerPos.x - monsterPos.x) +
                                       (playerPos.z - monsterPos.z) * (playerPos.z - monsterPos.z));
-            if (distToP <= 1.35f)
+            if (distToP <= 1.50f)
             {
                 if (!playerIsSafe)
                 {
-                    // 暗闇の中での接触：ジャンプスケア演出から死亡シーケンスへ移行
-                    TriggerMaxFearSequence(player);
+                    // 暗闇での接触：追跡モンスター自身による至近距離強襲死亡シークエンスへ突入
+                    TriggerCaughtByMonster(player, false);
                     return;
                 }
                 else
@@ -726,22 +808,34 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
     case MonsterChaseState::LostPlayer:
     {
         // 見失い中：最後に確認した位置へ急行
-        entity.SetModelType(HorrorModelType::Run);
-        entity.AdvanceAnim(dt, 1.2f);
+        chaseEntity.SetModelType(HorrorModelType::Run);
+        chaseEntity.AdvanceAnim(dt, 1.2f);
+
+        // 最後に確認した位置を正面に見据えて前進
+        float toLastX = lastKnownPlayerPos.x - monsterPos.x;
+        float toLastZ = lastKnownPlayerPos.z - monsterPos.z;
+        if (std::sqrt(toLastX * toLastX + toLastZ * toLastZ) > 0.01f)
+        {
+            float angleToLast = std::atan2(toLastX, toLastZ);
+            chaseEntity.SetYaw(angleToLast + chaseEntity.GetModelForwardOffset());
+        }
 
         if (canSeePlayer)
         {
+            chaseEntity.SetLookAtTarget(playerPos);
+
             if (!playerIsSafe)
             {
                 // 追跡再開
-                entity.SetModelType(HorrorModelType::Run);
+                chaseEntity.SetModelType(HorrorModelType::Run);
                 chaseState = MonsterChaseState::Chasing;
+                AudioManager::Instance().PlayMonsterRoar();
                 lastKnownPlayerPos = playerPos;
                 break;
             }
             else
             {
-                entity.SetModelType(HorrorModelType::Idle);
+                chaseEntity.SetModelType(HorrorModelType::Idle);
                 chaseState = MonsterChaseState::AvoidingLight;
                 campingTimer = 0.0f;
                 break;
@@ -758,7 +852,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
         // プレイヤーを見失った場合は待機モデルへ切り替える
         if (lostSightTimer <= 0.0f || distToLast <= 1.2f)
         {
-            entity.SetModelType(HorrorModelType::Idle);
+            chaseEntity.SetModelType(HorrorModelType::Idle);
             chaseState = MonsterChaseState::Idle;
             searchStateTimer = 4.5f;
         }
@@ -768,18 +862,19 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
     case MonsterChaseState::AvoidingLight:
     {
         // 待機モデルで安全光の外側に立ち、プレイヤーを見据える
-        entity.SetModelType(HorrorModelType::Idle);
-        entity.AdvanceAnim(dt, 0.8f);
+        chaseEntity.SetModelType(HorrorModelType::Idle);
+        chaseEntity.AdvanceAnim(dt, 0.8f);
         // 安全な光の外側でプレイヤーを待つ
-        entity.SetLookAtTarget(playerPos);
+        chaseEntity.SetLookAtTarget(playerPos);
 
         campingTimer += dt;
 
         if (!playerIsSafe && canSeePlayer)
         {
             // プレイヤーが安全光から出た：追跡再開
-            entity.SetModelType(HorrorModelType::Run);
+            chaseEntity.SetModelType(HorrorModelType::Run);
             chaseState = MonsterChaseState::Chasing;
+                AudioManager::Instance().PlayMonsterRoar();
             lastKnownPlayerPos = playerPos;
             break;
         }
@@ -787,7 +882,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
         // 待機限界時間を超えたら霧の中へ退散し、クールダウンに入る
         if (campingTimer >= currentParams.campingMaxDuration)
         {
-            entity.Despawn();
+            chaseEntity.Despawn();
             chaseState = MonsterChaseState::Despawned;
             chaseCooldownTimer = currentParams.cooldownDuration;
         }
@@ -796,132 +891,219 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
     }
 }
 
-// 最大恐怖時のジャンプスケア演出開始
-void HorrorManager::TriggerMaxFearSequence(Player& player)
+// 最大恐怖時のジャンプスケア演出開始（恐怖度100%で這いずり怪異が出現）
+// 恐怖度100%または追跡モンスター接触によるリアルな死亡シークエンス開始
+void HorrorManager::TriggerCaughtByMonster(Player& player, bool isCrawlMonster)
 {
-    if (gameState != HorrorGameState::Normal)
+    if (gameState == HorrorGameState::Jumpscare || gameState == HorrorGameState::GameOver)
     {
         return;
     }
 
-    // ゲームオーバー演出移行時に時計の進行を停止
-    HorrorUI::Instance().SetTimePaused(true);
-
+    killerIsCrawl = isCrawlMonster;
     fearLevel = 1.0f;
     gameState = HorrorGameState::Jumpscare;
     jumpscareState = JumpscareState::Pause;
-    scareTimer = 0.35f;
+    scareTimer = 0.28f;
     screenFadeAlpha = 0.0f;
-
     deathFallProgress = 0.0f;
     deathBlinkTimer = 0.0f;
     deathBlinkFactor = 1.0f;
+    bloodSplatterIntensity = 0.0f;
 
-    // 現在のカメラ位置・前方を記憶
-    scareCamPos = player.GetPosition();
-    scareCamForward = player.GetForward();
-    scareCamForward.y = 0.0f;
-    float len = VSize(scareCamForward);
-    if (len > 0.001f) scareCamForward = VScale(scareCamForward, 1.0f / len);
-    else scareCamForward = VGet(0.0f, 0.0f, 1.0f);
+    // ゲームオーバー演出移行時に時計の進行を停止
+    HorrorUI::Instance().SetTimePaused(true);
 
-    // ジャンプスケア時は這いずり怪異または疾走怪異を正面に出現
-    entity.SetModelType(HorrorModelType::Run);
-    VECTOR facePos = VAdd(scareCamPos, VScale(scareCamForward, 2.8f));
-    facePos.y = 0.0f;
-    float yaw = std::atan2(-scareCamForward.x, -scareCamForward.z);
-    entity.Spawn(facePos, yaw, 10.0f, 0.0f, HorrorModelType::Run);
+    // 叫び声・急襲音再生
+    AudioManager::Instance().PlayMonsterRoar();
+    AudioManager::Instance().PlayJumpscare();
+
+    VECTOR pPos = player.GetPosition();
+
+    if (!killerIsCrawl)
+    {
+        // 追跡モンスターによる捕獲：モンスターの方向へカメラを強制瞬時旋回
+        float angleToMonster = 0.0f;
+        if (chaseEntity.IsActive())
+        {
+            VECTOR mPos = chaseEntity.GetPosition();
+            float dx = mPos.x - pPos.x;
+            float dz = mPos.z - pPos.z;
+            angleToMonster = std::atan2(dx, dz);
+        }
+        else
+        {
+            VECTOR fwd = player.GetForward();
+            fwd.y = 0.0f;
+            float len = VSize(fwd);
+            if (len > 0.001f) fwd = VScale(fwd, 1.0f / len);
+            else fwd = VGet(0.0f, 0.0f, 1.0f);
+            angleToMonster = std::atan2(fwd.x, fwd.z);
+        }
+
+        player.SetYaw(angleToMonster);
+        player.SetPitch(0.04f);
+
+        scareCamPos = pPos;
+        scareCamForward = VGet(std::sin(angleToMonster), 0.0f, std::cos(angleToMonster));
+
+        // モンスターをプレイヤー正面至近距離（約1.55m）に配置して注視
+        VECTOR facePos = VAdd(pPos, VScale(scareCamForward, 1.55f));
+        facePos.y = 0.0f;
+        chaseEntity.Spawn(facePos, 0.0f, 60.0f, 0.0f, HorrorModelType::Run);
+        chaseEntity.SetLookAtTarget(scareCamPos);
+        crawlEntity.Despawn();
+    }
+    else
+    {
+        // 恐怖度100%による這いずり怪異の正面急襲
+        crawlEntity.SetModelType(HorrorModelType::Crawl);
+        VECTOR fwd = player.GetForward();
+        fwd.y = 0.0f;
+        float len = VSize(fwd);
+        if (len > 0.001f) fwd = VScale(fwd, 1.0f / len);
+        else fwd = VGet(0.0f, 0.0f, 1.0f);
+
+        float angleToMonster = std::atan2(fwd.x, fwd.z);
+        player.SetYaw(angleToMonster);
+        player.SetPitch(-0.12f);
+
+        scareCamPos = pPos;
+        scareCamForward = fwd;
+
+        VECTOR facePos = VAdd(pPos, VScale(fwd, 1.8f));
+        facePos.y = 0.0f;
+        crawlEntity.Spawn(facePos, 0.0f, 60.0f, 0.0f, HorrorModelType::Crawl);
+        crawlEntity.SetLookAtTarget(scareCamPos);
+        chaseEntity.Despawn();
+    }
 }
 
-// ジャンプスケア演出の進行更新
+void HorrorManager::TriggerMaxFearSequence(Player& player)
+{
+    TriggerCaughtByMonster(player, true);
+}
+
+// デバッグ用ゲームオーバートリガー互換
+void HorrorManager::DebugTriggerMaxFearGameOver(Player& player)
+{
+    TriggerCaughtByMonster(player, false);
+}
+
+// ジャンプスケア・死亡シークエンスのリアルな進行更新
 void HorrorManager::UpdateJumpscareSequence(float dt, Player& player)
 {
     scareTimer -= dt;
+    HorrorEntity* killer = killerIsCrawl ? &crawlEntity : &chaseEntity;
 
     switch (jumpscareState)
     {
     case JumpscareState::Pause:
         player.SetEyeHeightOffset(0.0f);
         player.SetCameraRoll(0.0f);
-        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.05f, 1.0f, 0.15f, 0.20f, 0.30f);
+        killer->AdvanceAnim(dt, 1.2f);
+        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.10f);
 
         if (scareTimer <= 0.0f)
         {
             jumpscareState = JumpscareState::Reveal;
-            scareTimer = 0.40f;
-            VECTOR revealPos = VAdd(scareCamPos, VScale(scareCamForward, 3.2f));
-            revealPos.y = 0.0f;
-            float yaw = std::atan2(-scareCamForward.x, -scareCamForward.z);
-            entity.SetDirectTransform(revealPos, yaw);
+            scareTimer = 0.35f;
         }
         break;
 
     case JumpscareState::Reveal:
-        entity.AdvanceAnim(dt, 1.5f);
-        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.15f, 1.0f, 0.35f, 0.35f, 0.50f);
+        killer->AdvanceAnim(dt, 2.0f);
+        // カメラの小刻みな恐怖振動
+        player.SetCameraShakeOffset(VGet(
+            ((std::rand() % 100) / 50.0f - 1.0f) * 0.03f,
+            ((std::rand() % 100) / 50.0f - 1.0f) * 0.03f,
+            0.0f
+        ));
+        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.15f);
 
         if (scareTimer <= 0.0f)
         {
             jumpscareState = JumpscareState::Rush;
-            scareTimer = 0.38f;
+            scareTimer = 0.32f;
         }
         break;
 
     case JumpscareState::Rush:
     {
-        entity.AdvanceAnim(dt, 2.5f);
-        float progress = 1.0f - (scareTimer / 0.38f);
+        killer->AdvanceAnim(dt, 3.2f);
+        float progress = 1.0f - (scareTimer / 0.32f);
         if (progress > 1.0f) progress = 1.0f;
 
-        float dist = 3.2f * (1.0f - progress) + 0.65f * progress;
+        // プレイヤー眼前に一気に飛びかかる（距離 1.55m -> 0.42m へ急接近）
+        float dist = 1.55f * (1.0f - progress) + 0.42f * progress;
         VECTOR rushPos = VAdd(scareCamPos, VScale(scareCamForward, dist));
         rushPos.y = 0.0f;
-        float yaw = std::atan2(-scareCamForward.x, -scareCamForward.z);
-        entity.SetDirectTransform(rushPos, yaw);
 
-        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.30f, 1.0f, 0.55f, 0.40f, 0.80f);
+        killer->SetDirectTransform(rushPos, 0.0f);
+        killer->SetLookAtTarget(scareCamPos);
+
+        // 猛烈なカメラ振動
+        float shake = progress * 0.07f;
+        player.SetCameraShakeOffset(VGet(
+            ((std::rand() % 100) / 50.0f - 1.0f) * shake,
+            ((std::rand() % 100) / 50.0f - 1.0f) * shake,
+            0.0f
+        ));
+
+        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.20f);
 
         if (scareTimer <= 0.0f)
         {
             jumpscareState = JumpscareState::Impact;
             scareTimer = 0.22f;
+            bloodSplatterIntensity = 1.0f;
+            AudioManager::Instance().PlayJumpscare();
         }
         break;
     }
 
     case JumpscareState::Impact:
-        entity.AdvanceAnim(dt, 3.0f);
-        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.50f, 1.0f, 0.85f, 0.60f, 1.0f);
+    {
+        killer->AdvanceAnim(dt, 3.5f);
+        // 強烈な打撃衝撃と画面ブレ
+        player.SetCameraShakeOffset(VGet(
+            ((std::rand() % 100) / 50.0f - 1.0f) * 0.12f,
+            ((std::rand() % 100) / 50.0f - 1.0f) * 0.12f,
+            0.0f
+        ));
+        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.20f);
 
         if (scareTimer <= 0.0f)
         {
             jumpscareState = JumpscareState::Fall;
-            scareTimer = 0.75f;
+            scareTimer = 0.70f;
             deathFallProgress = 0.0f;
         }
         break;
+    }
 
     case JumpscareState::Fall:
     {
-        deathFallProgress += dt / 0.75f;
+        deathFallProgress += dt / 0.70f;
         if (deathFallProgress > 1.0f) deathFallProgress = 1.0f;
 
-        float dropY = -1.35f * (deathFallProgress * deathFallProgress);
+        // リアルな倒れ込み：足元から崩れ落ち、頭部がアスファルトに激突する（落下-1.42m）
+        float dropY = -1.42f * (deathFallProgress * deathFallProgress);
         player.SetEyeHeightOffset(dropY);
 
-        float rollAngle = 0.75f * std::sin(deathFallProgress * DX_PI_F * 0.5f);
+        // 体が横倒しになるロール回転（約75度）
+        float rollAngle = 1.30f * std::sin(deathFallProgress * DX_PI_F * 0.5f);
         player.SetCameraRoll(rollAngle);
 
-        float shake = (1.0f - deathFallProgress) * 0.04f;
-        VECTOR shakeOff = VGet(
+        float shake = (1.0f - deathFallProgress) * 0.05f;
+        player.SetCameraShakeOffset(VGet(
             ((std::rand() % 100) / 50.0f - 1.0f) * shake,
             ((std::rand() % 100) / 50.0f - 1.0f) * shake,
-            ((std::rand() % 100) / 50.0f - 1.0f) * shake
-        );
-        player.SetCameraShakeOffset(shakeOff);
+            0.0f
+        ));
 
-        entity.AdvanceAnim(dt, 1.0f);
-        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.60f + deathFallProgress * 0.15f, 1.0f, 0.70f, 0.50f, 0.90f);
+        killer->AdvanceAnim(dt, 1.2f);
+        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.15f);
 
         if (scareTimer <= 0.0f)
         {
@@ -933,17 +1115,18 @@ void HorrorManager::UpdateJumpscareSequence(float dt, Player& player)
 
     case JumpscareState::GroundImpact:
     {
-        player.SetEyeHeightOffset(-1.38f);
-        player.SetCameraRoll(0.78f);
-        player.SetCameraShakeOffset(VGet(0.0f, 0.0f, 0.0f));
+        // 地面激突の反動
+        player.SetEyeHeightOffset(-1.45f);
+        player.SetCameraRoll(1.32f);
+        player.SetCameraShakeOffset(VGet(0.0f, -0.04f, 0.0f));
 
-        entity.AdvanceAnim(dt, 0.4f);
-        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.80f, 1.0f, 0.60f, 0.60f, 0.85f);
+        killer->AdvanceAnim(dt, 0.5f);
+        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.12f);
 
         if (scareTimer <= 0.0f)
         {
             jumpscareState = JumpscareState::GroundedStare;
-            scareTimer = 1.50f;
+            scareTimer = 1.60f;
             deathBlinkTimer = 0.0f;
             deathBlinkFactor = 1.0f;
         }
@@ -952,41 +1135,45 @@ void HorrorManager::UpdateJumpscareSequence(float dt, Player& player)
 
     case JumpscareState::GroundedStare:
     {
-        entity.AdvanceAnim(dt, 0.2f);
+        // 地面に横倒しのまま、すぐ眼前で見下ろす怪異を見上げるリアルな死の間際
+        player.SetEyeHeightOffset(-1.45f);
+        player.SetCameraRoll(1.32f);
+        player.SetCameraShakeOffset(VGet(0.0f, 0.0f, 0.0f));
+        killer->AdvanceAnim(dt, 0.25f);
 
         deathBlinkTimer += dt;
-        if (deathBlinkTimer < 0.25f)
+        if (deathBlinkTimer < 0.30f)
         {
-            deathBlinkFactor = 1.0f - (deathBlinkTimer / 0.25f);
+            deathBlinkFactor = 1.0f - (deathBlinkTimer / 0.30f);
         }
-        else if (deathBlinkTimer < 0.50f)
+        else if (deathBlinkTimer < 0.60f)
         {
-            deathBlinkFactor = (deathBlinkTimer - 0.25f) / 0.25f;
+            deathBlinkFactor = (deathBlinkTimer - 0.30f) / 0.30f;
         }
-        else if (deathBlinkTimer < 0.80f)
+        else if (deathBlinkTimer < 0.95f)
         {
-            deathBlinkFactor = 0.70f + 0.30f * std::sin((deathBlinkTimer - 0.50f) * 10.0f);
+            deathBlinkFactor = 0.65f + 0.35f * std::sin((deathBlinkTimer - 0.60f) * 12.0f);
         }
         else
         {
-            float closeT = (deathBlinkTimer - 0.80f) / 0.70f;
+            float closeT = (deathBlinkTimer - 0.95f) / 0.65f;
             if (closeT > 1.0f) closeT = 1.0f;
             deathBlinkFactor = 1.0f - closeT;
         }
 
-        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.88f, deathBlinkFactor, 0.50f, 0.70f, 0.80f);
+        HorrorUI::Instance().SetHorrorVisualParams(1.0f, 0.0f, deathBlinkFactor, 0.0f, 0.0f, 0.10f);
 
         if (scareTimer <= 0.0f)
         {
             jumpscareState = JumpscareState::VisionClosing;
-            scareTimer = 2.00f;
+            scareTimer = 1.80f;
         }
         break;
     }
 
     case JumpscareState::VisionClosing:
     {
-        float fade = 1.0f - (scareTimer / 2.00f);
+        float fade = 1.0f - (scareTimer / 1.80f);
         if (fade > 1.0f) fade = 1.0f;
         screenFadeAlpha = fade;
 
@@ -1000,7 +1187,8 @@ void HorrorManager::UpdateJumpscareSequence(float dt, Player& player)
         {
             jumpscareState = JumpscareState::GameOver;
             gameState = HorrorGameState::GameOver;
-            entity.Despawn();
+            crawlEntity.Despawn();
+            chaseEntity.Despawn();
         }
         break;
     }
@@ -1014,7 +1202,6 @@ void HorrorManager::UpdateJumpscareSequence(float dt, Player& player)
     }
 }
 
-// 恐怖段階に応じた怪異の自動出現判定（配達前半・未解禁時および追跡非アクティブ時）
 void HorrorManager::UpdateAutoSpawns(float dt, const Player& player, const NightEnvironment& nightEnv)
 {
     // モンスター追跡中または演出中は通常出現を抑制
@@ -1025,7 +1212,7 @@ void HorrorManager::UpdateAutoSpawns(float dt, const Player& player, const Night
         return;
     }
 
-    if (entity.IsActive() || gameState != HorrorGameState::Normal)
+    if (crawlEntity.IsActive() || gameState != HorrorGameState::Normal)
     {
         return;
     }
@@ -1092,7 +1279,7 @@ void HorrorManager::UpdateAutoSpawns(float dt, const Player& player, const Night
         return;
     }
 
-    // 視覚的霧の端点手前に怪異を出現
+    // 視覚的霧の端点手前に這いずり怪異を出現
     float fogStart = nightEnv.GetFogStart();
     float fogEnd = nightEnv.GetFogEnd();
     float targetDist = baseDist;
@@ -1109,7 +1296,7 @@ void HorrorManager::UpdateAutoSpawns(float dt, const Player& player, const Night
     dynamicPos.y = 0.0f;
 
     float yaw = std::atan2(playerPos.x - dynamicPos.x, playerPos.z - dynamicPos.z);
-    entity.Spawn(dynamicPos, yaw, duration, crawlSpeed, HorrorModelType::Crawl);
+    crawlEntity.Spawn(dynamicPos, yaw, duration, crawlSpeed, HorrorModelType::Crawl);
 }
 
 // 視界端（周辺視野）での怪異出現・直視時消滅の更新
@@ -1124,7 +1311,7 @@ void HorrorManager::UpdatePeripheralScares(float dt, const Player& player)
 
     if (isPeripheralActive)
     {
-        if (!entity.IsActive())
+        if (!crawlEntity.IsActive())
         {
             isPeripheralActive = false;
             return;
@@ -1136,7 +1323,7 @@ void HorrorManager::UpdatePeripheralScares(float dt, const Player& player)
         if (flen > 0.001f) fwd = VScale(fwd, 1.0f / flen);
 
         VECTOR pPos = player.GetPosition();
-        VECTOR ePos = entity.GetPosition();
+        VECTOR ePos = crawlEntity.GetPosition();
         VECTOR toE = VSub(ePos, pPos);
         toE.y = 0.0f;
         float elen = VSize(toE);
@@ -1145,10 +1332,9 @@ void HorrorManager::UpdatePeripheralScares(float dt, const Player& player)
         {
             toE = VScale(toE, 1.0f / elen);
             float dot = VDot(fwd, toE);
-            // プレイヤーがカメラを正面に向けたら瞬時に消滅
             if (dot > 0.55f)
             {
-                entity.Despawn();
+                crawlEntity.Despawn();
                 isPeripheralActive = false;
             }
         }
@@ -1179,11 +1365,71 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
         currentCombinedTension = 0.55f * timeTension + 0.45f * deliveryTension;
         if (currentCombinedTension > 1.0f) currentCombinedTension = 1.0f;
 
+    // 1. 追跡モンスターの周囲光（暗闇の中でも不気味な姿と地面を照らし出し視認性を大幅向上）
+    if (chaseEntity.IsActive() && chaseLightHandle != -1)
+    {
+        VECTOR cPos = chaseEntity.GetPosition();
+        SetLightPositionHandle(chaseLightHandle, VGet(cPos.x, cPos.y + 1.60f, cPos.z));
+        SetLightEnableHandle(chaseLightHandle, TRUE);
+        SetLightRangeAttenHandle(chaseLightHandle, 9.5f, 1.0f, 0.12f, 0.03f);
+
+        if (chaseState == MonsterChaseState::Chasing)
+        {
+            // 疾走追跡中：激しい殺気と血の気配を帯びた赤橙光
+            SetLightDifColorHandle(chaseLightHandle, GetColorF(0.85f, 0.45f, 0.40f, 1.0f));
+            SetLightSpcColorHandle(chaseLightHandle, GetColorF(0.60f, 0.30f, 0.30f, 1.0f));
+        }
+        else
+        {
+            // 待機・探索・観察中：冷たい月光のような燐光
+            SetLightDifColorHandle(chaseLightHandle, GetColorF(0.65f, 0.70f, 0.78f, 1.0f));
+            SetLightSpcColorHandle(chaseLightHandle, GetColorF(0.40f, 0.45f, 0.50f, 1.0f));
+        }
+    }
+    else if (chaseLightHandle != -1)
+    {
+        SetLightEnableHandle(chaseLightHandle, FALSE);
+    }
+
+    // 2. 這いずり怪異の周囲光
+    if (crawlEntity.IsActive() && crawlLightHandle != -1)
+    {
+        VECTOR crPos = crawlEntity.GetPosition();
+        SetLightPositionHandle(crawlLightHandle, VGet(crPos.x, crPos.y + 0.75f, crPos.z));
+        SetLightEnableHandle(crawlLightHandle, TRUE);
+        SetLightDifColorHandle(crawlLightHandle, GetColorF(0.68f, 0.76f, 0.70f, 1.0f));
+        SetLightSpcColorHandle(crawlLightHandle, GetColorF(0.40f, 0.45f, 0.40f, 1.0f));
+    }
+    else if (crawlLightHandle != -1)
+    {
+        SetLightEnableHandle(crawlLightHandle, FALSE);
+    }
+
+    // 3. 襲撃・ジャンプスケア演出時の至近距離ホラースポットライト
+    if (gameState == HorrorGameState::Jumpscare && jumpscareLightHandle != -1)
+    {
+        VECTOR pPos = player.GetPosition();
+        VECTOR mPos = killerIsCrawl ? crawlEntity.GetPosition() : chaseEntity.GetPosition();
+        // プレイヤーと怪異の顔面を強烈に照らすホラースポット光
+        VECTOR lightPos = VAdd(VScale(pPos, 0.35f), VScale(mPos, 0.65f));
+        lightPos.y = 1.65f;
+        SetLightPositionHandle(jumpscareLightHandle, lightPos);
+        SetLightEnableHandle(jumpscareLightHandle, TRUE);
+        SetLightRangeAttenHandle(jumpscareLightHandle, 4.5f, 1.0f, 0.22f, 0.08f);
+        SetLightDifColorHandle(jumpscareLightHandle, GetColorF(0.85f, 0.75f, 0.70f, 1.0f));
+        SetLightSpcColorHandle(jumpscareLightHandle, GetColorF(0.90f, 0.80f, 0.75f, 1.0f));
+    }
+    else if (jumpscareLightHandle != -1)
+    {
+        SetLightEnableHandle(jumpscareLightHandle, FALSE);
+    }
+
+        // 自転車バッテリーおよびモンスター距離のキャッシュ更新
         cachedBicycleBattery = bicycle.GetBatteryPercent();
-        if (entity.IsActive())
+        if (chaseEntity.IsActive())
         {
             VECTOR pPos = player.GetPosition();
-            VECTOR mPos = entity.GetPosition();
+            VECTOR mPos = chaseEntity.GetPosition();
             cachedMonsterDist = std::sqrt((pPos.x - mPos.x) * (pPos.x - mPos.x) + (pPos.z - mPos.z) * (pPos.z - mPos.z));
         }
         else
@@ -1230,15 +1476,26 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
             currentSwayFactor += (fearLevel - currentSwayFactor) * 0.12f;
         }
 
-        // 怪異が接近している場合の恐怖度上昇
-        if (entity.IsActive())
+        // 2体の怪異モデルの接近に応じた恐怖度上昇
+        VECTOR playerPos = player.GetPosition();
+        if (chaseEntity.IsActive())
         {
-            VECTOR playerPos = player.GetPosition();
-            VECTOR entityPos = entity.GetPosition();
-            float dx = playerPos.x - entityPos.x;
-            float dz = playerPos.z - entityPos.z;
+            VECTOR ep = chaseEntity.GetPosition();
+            float dx = playerPos.x - ep.x;
+            float dz = playerPos.z - ep.z;
             float dist = std::sqrt(dx * dx + dz * dz);
-
+            if (dist < 18.0f)
+            {
+                float proximityFactor = (1.0f - (dist / 18.0f));
+                fearLevel += (0.04f + 0.08f * proximityFactor) * fearRiseMultiplier * dt;
+            }
+        }
+        if (crawlEntity.IsActive())
+        {
+            VECTOR ep = crawlEntity.GetPosition();
+            float dx = playerPos.x - ep.x;
+            float dz = playerPos.z - ep.z;
+            float dist = std::sqrt(dx * dx + dz * dz);
             if (dist < 18.0f)
             {
                 float proximityFactor = (1.0f - (dist / 18.0f));
@@ -1246,7 +1503,7 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
             }
         }
 
-        // 恐怖度100%到達時にゲームオーバー演出へ移行
+        // 恐怖度100%到達時に這いずり怪異が出現してゲームオーバー演出へ移行
         if (fearLevel >= 1.0f)
         {
             fearLevel = 1.0f;
@@ -1318,33 +1575,38 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
 
         // ホラー視覚パラメータのUI伝達
         float fearNorm = fearLevel;
-        float vignette = currentVignetteFactor;
-        float blur = currentBlurFactor * 0.6f;
-        HorrorUI::Instance().SetHorrorVisualParams(fearNorm, vignette, 1.0f, 0.0f, 0.0f, blur);
+        float blur = currentBlurFactor * 0.20f;
+        // モンスター接近中・追跡中でも画面縮小は一切行わず視界をクリアに確保
+        HorrorUI::Instance().SetHorrorVisualParams(fearNorm, 0.0f, 1.0f, 0.0f, 0.0f, blur);
 
-        // モンスター追跡AIの更新
+        // 配達半分完了モンスター追跡AIの更新
         UpdateMonsterChase(dt, player, bicycle, nightEnv, deliveryManager);
 
-        // 前半および追跡非アクティブ時の演出更新
+        // 這いずり怪異の自動出現更新（追跡非アクティブ時）
         UpdateAutoSpawns(dt, player, nightEnv);
         UpdatePeripheralScares(dt, player);
+        AudioManager::Instance().PlayHeartbeat(fearLevel);
     }
     else if (gameState == HorrorGameState::Jumpscare)
     {
-        // ジャンプスケア演出の進行
+        // ジャンプスケア演出の進行（這いずり怪異）
         UpdateJumpscareSequence(dt, player);
     }
 }
 
-// 3D怪異モデルの描画
+// 3D怪異モデルの描画（2体の怪異モデルを描画）
 void HorrorManager::Draw3D()
 {
-    entity.Draw();
+    // 1. 恐怖度100%時・ジャンプスケア用の這いずり怪異
+    crawlEntity.Draw();
+
+    // 2. 配達半分完了追跡モンスター
+    chaseEntity.Draw();
 
     // デバッグ表示時の3D視覚化ガイド描画
-    if (showDebugHUD && entity.IsActive())
+    if (showDebugHUD && chaseEntity.IsActive())
     {
-        VECTOR mPos = entity.GetPosition();
+        VECTOR mPos = chaseEntity.GetPosition();
         VECTOR mEye = VGet(mPos.x, mPos.y + 1.6f, mPos.z);
 
         // 1. 視線レイ（LOS Ray: 障害物なし=緑、遮断=赤）
@@ -1361,8 +1623,8 @@ void HorrorManager::Draw3D()
         }
 
         // 4. モンスター視野コーン（黄色）
-        float mYaw = entity.GetYaw() - entity.GetModelForwardOffset();
-        float leftYaw = mYaw - 1.22f; // ~70 deg
+        float mYaw = chaseEntity.GetYaw() - chaseEntity.GetModelForwardOffset();
+        float leftYaw = mYaw - 1.22f;
         float rightYaw = mYaw + 1.22f;
         float fovRange = currentParams.detectRange;
         VECTOR leftDir = VGet(std::sin(leftYaw) * fovRange, 0.0f, std::cos(leftYaw) * fovRange);
@@ -1395,21 +1657,23 @@ void HorrorManager::DrawUI()
             break;
         case JumpscareState::Impact:
             HorrorUI::Instance().DrawScareDistortion(1.0f);
-            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 140);
-            DrawBox(0, 0, 1280, 720, GetColor(160, 20, 20), TRUE);
-            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+            if (bloodSplatterIntensity > 0.0f) HorrorUI::Instance().DrawBloodSplatter(bloodSplatterIntensity);
             break;
         case JumpscareState::Fall:
             HorrorUI::Instance().DrawScareDistortion(0.70f);
+            if (bloodSplatterIntensity > 0.0f) HorrorUI::Instance().DrawBloodSplatter(bloodSplatterIntensity * 0.95f);
             break;
         case JumpscareState::GroundImpact:
             HorrorUI::Instance().DrawScareDistortion(0.50f);
+            if (bloodSplatterIntensity > 0.0f) HorrorUI::Instance().DrawBloodSplatter(bloodSplatterIntensity * 0.95f);
             break;
         case JumpscareState::GroundedStare:
             HorrorUI::Instance().DrawScareDistortion(0.30f);
+            if (bloodSplatterIntensity > 0.0f) HorrorUI::Instance().DrawBloodSplatter(bloodSplatterIntensity * 0.90f);
             break;
         case JumpscareState::VisionClosing:
         {
+            if (bloodSplatterIntensity > 0.0f) HorrorUI::Instance().DrawBloodSplatter(bloodSplatterIntensity * 0.85f * (1.0f - screenFadeAlpha));
             int alpha = static_cast<int>(screenFadeAlpha * 255.0f);
             if (alpha > 0)
             {
@@ -1428,19 +1692,19 @@ void HorrorManager::DrawUI()
         HorrorUI::Instance().DrawGameOver(1.0f, true);
     }
 
-    // デバッグHUD描画 (F11キー)
+    // デバッグHUD描画 (F11 / F6キー)
     if (showDebugHUD)
     {
-        HorrorUI::Instance().DrawRetroPanel(18, 320, 440, 700,
+        HorrorUI::Instance().DrawRetroPanel(18, 300, 460, 705,
             GetColor(90, 45, 45), HorrorUI::COL_PANEL_BG, 230);
 
-        int lineY = 328;
-        HorrorUI::Instance().DrawJitterString(26, lineY, "[ CHASE & HORROR DEBUG (F11) ]",
+        int lineY = 308;
+        HorrorUI::Instance().DrawJitterString(26, lineY, "[ TWO MONSTERS & CHASE DEBUG (F11/F6) ]",
             GetColor(235, 100, 85), HorrorUI::Instance().GetFontSmall());
         lineY += 20;
 
         char buf[128];
-        snprintf(buf, sizeof(buf), "CHASE UNLOCKED:   %s", isChaseUnlocked ? "YES (>=4/8 Deliveries)" : "NO (Locked)");
+        snprintf(buf, sizeof(buf), "CHASE UNLOCKED:   %s", isChaseUnlocked ? "YES (>=4/8 Deliveries)" : "NO (Locked <4/8)");
         HorrorUI::Instance().DrawJitterString(26, lineY, buf,
             isChaseUnlocked ? GetColor(110, 240, 140) : GetColor(180, 180, 180), HorrorUI::Instance().GetFontSmall());
         lineY += 18;
@@ -1452,10 +1716,14 @@ void HorrorManager::DrawUI()
         HorrorUI::Instance().DrawJitterString(26, lineY, buf, stateCol, HorrorUI::Instance().GetFontSmall());
         lineY += 18;
 
-        const char* modelName = (entity.GetModelType() == HorrorModelType::Run) ? "MonsterRun.mv1" :
-                                (entity.GetModelType() == HorrorModelType::Idle) ? "MonsterIdle.mv1" : "RunningCrawl.mv1";
-        snprintf(buf, sizeof(buf), "MODEL:            %s", modelName);
+        const char* modelName = (chaseEntity.GetModelType() == HorrorModelType::Run) ? "MonsterRun.mv1" : "MonsterIdle.mv1";
+        snprintf(buf, sizeof(buf), "CHASE MODEL:      %s (%s)", modelName, chaseEntity.IsActive() ? "ACTIVE" : "INACTIVE");
         HorrorUI::Instance().DrawJitterString(26, lineY, buf, HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
+        lineY += 18;
+
+        snprintf(buf, sizeof(buf), "CRAWL MONSTER:    RunningCrawl.mv1 (%s)", crawlEntity.IsActive() ? "ACTIVE" : "INACTIVE");
+        HorrorUI::Instance().DrawJitterString(26, lineY, buf,
+            crawlEntity.IsActive() ? GetColor(255, 120, 120) : HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
         lineY += 18;
 
         snprintf(buf, sizeof(buf), "PLAYER VISIBLE:   %s", playerWasVisible ? "YES" : "NO");
@@ -1488,10 +1756,6 @@ void HorrorManager::DrawUI()
         HorrorUI::Instance().DrawJitterString(26, lineY, buf, HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
         lineY += 18;
 
-        snprintf(buf, sizeof(buf), "BICYCLE BATTERY:  %.0f%%", cachedBicycleBattery);
-        HorrorUI::Instance().DrawJitterString(26, lineY, buf, HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
-        lineY += 18;
-
         snprintf(buf, sizeof(buf), "PLAYER SAFE:      %s", inSafeLight ? "YES" : "NO (Danger Darkness)");
         HorrorUI::Instance().DrawJitterString(26, lineY, buf,
             inSafeLight ? GetColor(110, 230, 160) : GetColor(255, 80, 80), HorrorUI::Instance().GetFontSmall());
@@ -1499,6 +1763,10 @@ void HorrorManager::DrawUI()
 
         snprintf(buf, sizeof(buf), "SAFE SOURCE:      %s", lastSafeReason);
         HorrorUI::Instance().DrawJitterString(26, lineY, buf, GetColor(245, 230, 140), HorrorUI::Instance().GetFontSmall());
+        lineY += 18;
+
+        snprintf(buf, sizeof(buf), "BICYCLE BATTERY:  %.0f%%", cachedBicycleBattery);
+        HorrorUI::Instance().DrawJitterString(26, lineY, buf, HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
         lineY += 18;
 
         snprintf(buf, sizeof(buf), "NAV NODE TARGET:  #%d", currentNavTargetNodeId);
@@ -1518,36 +1786,9 @@ void HorrorManager::DrawUI()
 // リトライ処理（恐怖度・プレイヤー位置・怪異状態のリセット）
 void HorrorManager::RetryGame(Player& player)
 {
-    fearLevel = 0.0f;
-    inSafeLight = true;
+    // 全状態および怪異モデルをリセット＆完全退避
+    Reset();
     safeGraceTimer = 3.0f;
-    currentCombinedTension = 0.0f;
-    gameState = HorrorGameState::Normal;
-    jumpscareState = JumpscareState::None;
-    scareTimer = 0.0f;
-    screenFadeAlpha = 0.0f;
-    deathFallProgress = 0.0f;
-    deathBlinkTimer = 0.0f;
-    deathBlinkFactor = 1.0f;
-    currentVignetteFactor = 0.0f;
-    currentBlurFactor = 0.0f;
-    currentSwayFactor = 0.0f;
-    focusBlurActiveTimer = 0.0f;
-    doubleVisionActiveTimer = 0.0f;
-    isPeripheralActive = false;
-
-    // 追跡状態のリセット
-    isChaseUnlocked = false;
-    chaseState = MonsterChaseState::Dormant;
-    chaseCooldownTimer = 0.0f;
-    campingTimer = 0.0f;
-    lostSightTimer = 0.0f;
-    darknessTimeAccumulator = 0.0f;
-
-    entity.Despawn();
-
-    // 視覚パラメータのリセット
-    HorrorUI::Instance().SetHorrorVisualParams(0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f);
 
     // 午前1:00にリセットし時計の進行を再開
     HorrorUI::Instance().SetGameTime(1, 0);
@@ -1604,7 +1845,8 @@ void HorrorManager::DebugTriggerSpawn(const Player& player)
     spawnPos.y = 0.0f;
 
     float yaw = std::atan2(playerPos.x - spawnPos.x, playerPos.z - spawnPos.z);
-    entity.Spawn(spawnPos, yaw, 6.0f, 1.8f, HorrorModelType::Idle);
+    chaseEntity.Spawn(spawnPos, yaw, 6.0f, 1.8f, HorrorModelType::Idle);
+    chaseEntity.SetLookAtTarget(playerPos);
 }
 
 // デバッグ用視界端怪異出現
@@ -1627,7 +1869,7 @@ void HorrorManager::DebugTriggerPeripheralScare(const Player& player)
     spawnPos.y = 0.0f;
 
     float yaw = std::atan2(pPos.x - spawnPos.x, pPos.z - spawnPos.z);
-    entity.Spawn(spawnPos, yaw, 5.0f, 0.0f, HorrorModelType::Idle);
+    crawlEntity.Spawn(spawnPos, yaw, 5.0f, 0.0f, HorrorModelType::Crawl);
     isPeripheralActive = true;
 }
 
@@ -1654,15 +1896,15 @@ void HorrorManager::DebugTriggerStreetLightEvent(NightEnvironment& nightEnv, con
     }
 }
 
-// デバッグ用即時ゲームオーバートリガー
-void HorrorManager::DebugTriggerMaxFearGameOver(Player& player)
-{
-    fearLevel = 1.0f;
-    TriggerMaxFearSequence(player);
-}
+
 
 // 終了処理
 void HorrorManager::Finalize()
 {
-    entity.Finalize();
+    crawlEntity.Finalize();
+    chaseEntity.Finalize();
+
+    if (chaseLightHandle != -1) { DeleteLightHandle(chaseLightHandle); chaseLightHandle = -1; }
+    if (crawlLightHandle != -1) { DeleteLightHandle(crawlLightHandle); crawlLightHandle = -1; }
+    if (jumpscareLightHandle != -1) { DeleteLightHandle(jumpscareLightHandle); jumpscareLightHandle = -1; }
 }

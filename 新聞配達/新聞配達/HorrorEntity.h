@@ -7,10 +7,10 @@ enum class HorrorModelType
 {
     Idle,           // 待機・観察・見失い探索用（MonsterIdle.mv1）
     Run,            // 追跡疾走用（MonsterRun.mv1）
-    Crawl           // 既存の這いずり怪異演出用（RunningCrawl.mv1）
+    Crawl           // 恐怖度100%時・ジャンプスケア用這いずり怪異（RunningCrawl.mv1）
 };
 
-// 深夜の徘徊・追跡怪異実体管理クラス
+// 深夜の怪異実体管理クラス
 class HorrorEntity
 {
 public:
@@ -33,6 +33,9 @@ public:
 
     // 指定位置への出現
     void Spawn(const VECTOR& pos, float angle, float durationSeconds, float moveSpeed = 0.0f, HorrorModelType modelType = HorrorModelType::Crawl);
+
+    // 完全な非アクティブ化と初期状態へのリセット
+    void Reset();
 
     // 強制消滅
     void Despawn();
@@ -68,6 +71,9 @@ public:
     float GetRemainingTime() const { return lifeTimer; }
     float GetScale() const { return scale; }
     float GetAfterimageTimer() const { return afterimageTimer; }
+
+    // 発光双眸（デモニックアイズ）の描画
+    void DrawGlowingEyes();
 
 private:
     // モデルハンドル群

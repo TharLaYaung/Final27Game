@@ -1,3 +1,4 @@
+#include "AudioManager.h"
 #include "BatteryManager.h"
 #include "Player.h"
 #include "Bicycle.h"
@@ -210,6 +211,7 @@ bool BatteryManager::ReplaceBicycleBattery(Bicycle& bicycle)
 
     // 自転車バッテリーを満充電（100%）に復帰
     bicycle.ReplaceBattery();
+    AudioManager::Instance().PlayBatteryReload();
 
     return true;
 }
@@ -279,6 +281,7 @@ void BatteryManager::Update(Player& player, Bicycle& bicycle)
         {
             // 予備バッテリーは最大2個まで所持できる
             spareBatteries++;
+            AudioManager::Instance().PlayBatteryPickup();
 
             // アイテムを回収済みに設定し、マップ上から非表示にする
             for (size_t i = 0; i < batteryItems.size(); ++i)
