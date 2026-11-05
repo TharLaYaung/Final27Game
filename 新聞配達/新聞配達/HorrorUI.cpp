@@ -725,14 +725,14 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
         int minX2 = 1255;
         int minY2 = 50;
         DrawRetroPanel(minX1, minY1, minX2, minY2, COL_BORDER_DIM, COL_PANEL_BG, 175);
-        DrawJitterString(minX1 + 10, minY1 + 5, "[ H ] GUIDE", COL_TEXT_DIM, fontKeyAction);
+        DrawJitterString(minX1 + 10, minY1 + 5, "[ TAB ] GUIDE", COL_TEXT_DIM, fontKeyAction);
         return;
     }
 
     int kx1 = 980;
     int ky1 = 20;
     int kx2 = 1255;
-    int ky2 = 298;
+    int ky2 = 326;
 
     // レトロ端末パネル枠と背景の描画
     DrawRetroPanel(kx1, ky1, kx2, ky2, COL_BORDER, COL_PANEL_BG, 195);
@@ -788,9 +788,10 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
         { "[ LMB ]", lmbAction, lmbKeyCol, lmbActCol },
         { "[ R ]", rAction, rKeyCol, rActCol },
         { "[ F ]", fAction, fKeyCol, fActCol },
+        { "[ H ]", "How to Play", activeKeyCol, activeActCol },
         { "[ ESC ]", "Pause Menu", defaultKeyCol, defaultActCol },
         { "[ F6 ]", f6Action, f6KeyCol, f6ActCol },
-        { "[ H ]", "Hide Guide", activeKeyCol, activeActCol }
+        { "[ TAB ]", "Hide Guide", defaultKeyCol, defaultActCol }
     };
 
     int startY = ky1 + 31;

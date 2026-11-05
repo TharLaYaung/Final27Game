@@ -116,11 +116,16 @@ public:
     // トランジション中か
     bool IsTransitioning() const { return transitionState != TransitionState::None; }
 
-    // ポーズ中か
-    bool IsPaused() const { return isPaused; }
+    // ポーズ中か（ルール説明ポップアップ表示中もゲームプレイを停止するためポーズ扱いとする）
+    bool IsPaused() const { return isPaused || showRulePopup; }
 
     // ポーズ状態の切り替え
     void SetPaused(bool paused);
+
+    // ルール説明ポップアップの開閉および状態取得
+    void OpenRulePopup(bool fromManual = false);
+    void CloseRulePopup();
+    bool IsRulePopupVisible() const { return showRulePopup; }
 
     // タイトルサブメニュー制御
     TitleSubMenu GetTitleSubMenu() const { return titleSubMenu; }
@@ -254,6 +259,21 @@ private:
 
     // ポーズメニュー描画
     void DrawPauseMenu(const DeliveryManager& deliveryManager);
+
+    // ルール説明ポップアップ管理
+    bool showRulePopup;              // ポップアップ表示中フラグ
+    bool rulePopupFromManual;        // 手動ヘルプキー(H)で開かれたか
+    bool hasShownInitialRulePopup;   // 初回Day1開始時の自動表示済みフラグ
+    bool oldHKey;                    // Hキー前フレーム状態
+
+    // ルール説明ポップアップ用日本語フォントハンドル
+    int fontPopupTitle;
+    int fontPopupSection;
+    int fontPopupBody;
+    int fontPopupSub;
+
+    // ルール説明ポップアップ描画
+    void DrawRulePopup();
 
     // CRT・VHSノイズ演出描画
     void DrawScanlinesAndNoise(int alpha = 20);

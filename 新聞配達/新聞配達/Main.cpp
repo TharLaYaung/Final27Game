@@ -193,7 +193,7 @@ int WINAPI WinMain(
     bool oldKey9 = false;
     bool oldKey0 = false;
     bool oldKeyJ = false;
-    bool oldHKey = false;
+    bool oldTabKey = false;
     bool mapDebugEnabled = false;
 
     // メインゲームループ
@@ -414,14 +414,14 @@ int WINAPI WinMain(
             }
             oldKey0 = curK0;
 
-            // Hキー / TABキー: 操作ガイドHUDの表示/非表示トグル切り替え
-            bool curH = (CheckHitKey(KEY_INPUT_H) != 0 || CheckHitKey(KEY_INPUT_TAB) != 0);
-            if (curH && !oldHKey)
+            // TABキー: 操作ガイドHUDの表示/非表示トグル切り替え（※HキーはSceneManager側で遊び方ルールポップアップ表示に使用）
+            bool curTab = (CheckHitKey(KEY_INPUT_TAB) != 0);
+            if (curTab && !oldTabKey)
             {
                 HorrorUI::Instance().ToggleKeyGuide();
                 AudioManager::Instance().PlayMenuClick();
             }
-            oldHKey = curH;
+            oldTabKey = curTab;
 
             
             // ホラーUI状態更新（デルタ秒対応: 時計・プロンプトフェードなど）

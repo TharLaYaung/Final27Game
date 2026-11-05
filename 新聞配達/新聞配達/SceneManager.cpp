@@ -112,6 +112,14 @@ SceneManager::SceneManager()
     , oldDownKey(false)
     , oldLeftKey(false)
     , oldRightKey(false)
+    , showRulePopup(false)
+    , rulePopupFromManual(false)
+    , hasShownInitialRulePopup(false)
+    , oldHKey(false)
+    , fontPopupTitle(-1)
+    , fontPopupSection(-1)
+    , fontPopupBody(-1)
+    , fontPopupSub(-1)
 {
 }
 
@@ -176,7 +184,6 @@ bool SceneManager::Initialize()
     // タイトル画面でマウス操作を可能にするためマウスカーソルを表示
     SetMouseDispFlag(TRUE);
 
-    // クリーピーホラーフォント生成
     // 大見出しホラーロゴ（Chiller優先、フォールバックでMS Gothicエッジ）
     fontTitleKanji = CreateFontToHandle("Chiller", 68, 4, DX_FONTTYPE_ANTIALIASING);
     if (fontTitleKanji == -1) fontTitleKanji = CreateFontToHandle("MS Gothic", 56, 6, DX_FONTTYPE_ANTIALIASING_EDGE_8X8);
@@ -201,6 +208,24 @@ bool SceneManager::Initialize()
     fontReportBody = CreateFontToHandle("Consolas", 18, 2, DX_FONTTYPE_NORMAL);
     if (fontReportBody == -1) fontReportBody = CreateFontToHandle("MS Gothic", 18, 2, DX_FONTTYPE_NORMAL);
 
+    // Keep popup text ASCII-only and use a common Latin font to avoid code-page garbling.
+    fontPopupTitle = CreateFontToHandle("Arial", 30, 4, DX_FONTTYPE_ANTIALIASING);
+    if (fontPopupTitle == -1) fontPopupTitle = CreateFontToHandle("MS Gothic", 28, 4, DX_FONTTYPE_NORMAL);
+
+    fontPopupSection = CreateFontToHandle("Arial", 21, 4, DX_FONTTYPE_ANTIALIASING);
+    if (fontPopupSection == -1) fontPopupSection = CreateFontToHandle("MS Gothic", 20, 4, DX_FONTTYPE_NORMAL);
+
+    fontPopupBody = CreateFontToHandle("Arial", 17, 2, DX_FONTTYPE_ANTIALIASING);
+    if (fontPopupBody == -1) fontPopupBody = CreateFontToHandle("MS Gothic", 15, 2, DX_FONTTYPE_NORMAL);
+
+    fontPopupSub = CreateFontToHandle("Arial", 15, 2, DX_FONTTYPE_ANTIALIASING);
+    if (fontPopupSub == -1) fontPopupSub = CreateFontToHandle("MS Gothic", 13, 2, DX_FONTTYPE_NORMAL);
+
+    showRulePopup = false;
+    rulePopupFromManual = false;
+    hasShownInitialRulePopup = false;
+    oldHKey = false;
+
     AudioManager::Instance().PlayTitleBgm();
     return true;
 }
@@ -214,6 +239,11 @@ void SceneManager::Finalize()
     if (fontMenu != -1) { DeleteFontToHandle(fontMenu); fontMenu = -1; }
     if (fontReportTitle != -1) { DeleteFontToHandle(fontReportTitle); fontReportTitle = -1; }
     if (fontReportBody != -1) { DeleteFontToHandle(fontReportBody); fontReportBody = -1; }
+
+    if (fontPopupTitle != -1) { DeleteFontToHandle(fontPopupTitle); fontPopupTitle = -1; }
+    if (fontPopupSection != -1) { DeleteFontToHandle(fontPopupSection); fontPopupSection = -1; }
+    if (fontPopupBody != -1) { DeleteFontToHandle(fontPopupBody); fontPopupBody = -1; }
+    if (fontPopupSub != -1) { DeleteFontToHandle(fontPopupSub); fontPopupSub = -1; }
 
     if (soundMenuSelect != -1) { DeleteSoundMem(soundMenuSelect); soundMenuSelect = -1; }
     if (soundMenuAdjust != -1) { DeleteSoundMem(soundMenuAdjust); soundMenuAdjust = -1; }
@@ -278,6 +308,55 @@ void SceneManager::SetPaused(bool paused)
         SetMouseDispFlag(FALSE);
         SetMousePoint(640, 360);
     }
+}
+
+// ルール説明ポップアップを開く
+// fromManual: プレイ中にHキーで開かれた場合はtrue、開始時の自動表示はfalse
+void SceneManager::OpenRulePopup(bool fromManual)
+{
+    showRulePopup = true;
+    rulePopupFromManual = fromManual;
+
+    // ポップアップ表示中はゲーム内時刻の進行を完全に停止
+    HorrorUI::Instance().SetTimePaused(true);
+
+    // ポップアップ内ボタン・UI操作のためマウスカーソルを表示
+    SetMouseDispFlag(TRUE);
+
+    // 開いた瞬間のキー・クリック誤伝達を防止
+    oldEnterKey = true;
+    oldSpaceKey = true;
+    oldEscKey = true;
+    oldHKey = true;
+    oldMouseLeft = true;
+    mouseClicked = false;
+}
+
+// ルール説明ポップアップを閉じてゲームプレイを再開
+void SceneManager::CloseRulePopup()
+{
+    showRulePopup = false;
+
+    // 通常のポーズ中でなければゲーム内時刻の進行を再開
+    if (!isPaused)
+    {
+        HorrorUI::Instance().SetTimePaused(false);
+    }
+
+    // ゲームプレイ操作への復帰：マウスカーソルを非表示にし画面中央へ戻す
+    if (!isPaused && currentScene == SceneType::Game)
+    {
+        SetMouseDispFlag(FALSE);
+        SetMousePoint(640, 360);
+    }
+
+    // 閉じた直後のキー・クリックがゲーム内操作（新聞受取・配達・自転車乗車・ポーズ等）へ誤伝達しないよう入力状態を消費
+    oldEnterKey = true;
+    oldSpaceKey = true;
+    oldEscKey = true;
+    oldHKey = true;
+    oldMouseLeft = true;
+    mouseClicked = false;
 }
 
 // シーン遷移の開始
@@ -598,6 +677,11 @@ void SceneManager::Update(
     bool rightDown = curRight && !oldRightKey;
     oldRightKey = curRight;
 
+    // Hキー（ヘルプ・遊び方ポップアップトグル用エッジトリガー）
+    bool curH = (CheckHitKey(KEY_INPUT_H) != 0);
+    bool hDown = curH && !oldHKey;
+    oldHKey = curH;
+
     // トランジション進行処理
     if (transitionState == TransitionState::FadeOut)
     {
@@ -617,6 +701,13 @@ void SceneManager::Update(
                 SetMouseDispFlag(FALSE);
                 SetMousePoint(640, 360);
                 AudioManager::Instance().PlayGameAmbienceBgm();
+
+                // 【最重要仕様】タイトル画面から初めてDay 1を開始した時のみルール説明を自動表示
+                if (currentDay == 1 && !hasShownInitialRulePopup)
+                {
+                    OpenRulePopup(false);
+                    hasShownInitialRulePopup = true;
+                }
             }
             else if (currentScene == SceneType::Title)
             {
@@ -747,6 +838,47 @@ void SceneManager::Update(
         {
             // プレイヤーのマウス感度を常に同期
             player.SetMouseSensitivity(GetCalculatedMouseSensitivity());
+
+            // ルール説明ポップアップ表示中の入力制御（ゲームプレイは完全停止）
+            if (showRulePopup)
+            {
+                SetMouseDispFlag(TRUE);
+
+                // Keep input hit-testing aligned with the exact button rectangle drawn below.
+                const int btnX1 = cx - 110;
+                const int btnY1 = cy - 360 + 406;
+                const int btnX2 = cx + 110;
+                const int btnY2 = btnY1 + 40;
+                bool hitButton = CheckButtonHit(btnX1, btnY1, btnX2, btnY2);
+
+                // Accept a click anywhere in the popup as an accessible mouse fallback.
+                bool popupClicked = mouseClicked && mouseX >= cx - 420 && mouseX <= cx + 420
+                    && mouseY >= cy - 270 && mouseY <= cy + 270;
+
+                // Both the first-run help and manual help can be dismissed with Escape.
+                bool closeRequested = hitButton || popupClicked || enterDown || escDown;
+
+                if (closeRequested)
+                {
+                    PlayMenuClick();
+                    CloseRulePopup();
+                }
+
+                // ポップアップ表示中は以降のゲームプレイ処理・ポーズ切り替えをすべて遮断
+                return;
+            }
+
+            // Hキー: プレイ中のルール説明ポップアップ手動表示（第4段階仕様）
+            if (hDown && !IsTransitioning() && !horrorManager.IsControlRestricted())
+            {
+                if (isPaused)
+                {
+                    SetPaused(false);
+                }
+                PlayMenuClick();
+                OpenRulePopup(true);
+                return;
+            }
 
             // ESCキーでポーズメニュー切り替え
             if (escDown && !IsTransitioning() && !horrorManager.IsControlRestricted())
@@ -1083,10 +1215,16 @@ void SceneManager::Draw(
 
             DrawScanlinesAndNoise(12);
 
-            // ポーズメニュー表示（最前面）
+            // ポーズメニュー表示
             if (isPaused)
             {
                 DrawPauseMenu(deliveryManager);
+            }
+
+            // 【最重要仕様】ルール説明ポップアップ表示（ポーズメニューや右側HUDより最前面に表示）
+            if (showRulePopup)
+            {
+                DrawRulePopup();
             }
         }
         break;
@@ -1811,4 +1949,195 @@ void SceneManager::DrawTransitionOverlay()
 
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
+}
+
+// ルール説明ポップアップの描画処理（第2段階仕様）
+void SceneManager::DrawRulePopup()
+{
+    int cx = 640;
+    int cy = 360;
+
+    // 1. 背景のゲーム画面を少し暗くするオーバーレイ
+    SetDrawBlendMode(DX_BLENDMODE_ALPHA, 205);
+    DrawBox(0, 0, 1280, 720, GetColor(4, 7, 9), TRUE);
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+
+    // 2. 画面中央の暗い半透明背景パネル（適切な余白と既存ホラーデザインを両立）
+    int pw = 840;
+    int ph = 540;
+    int x1 = cx - pw / 2;
+    int y1 = cy - ph / 2;
+    int x2 = cx + pw / 2;
+    int y2 = cy + ph / 2;
+
+    HorrorUI::Instance().DrawRetroPanel(x1, y1, x2, y2,
+        GetColor(70, 88, 80), GetColor(12, 16, 15), 245);
+
+    // 3. English-only copy avoids narrow-code-page conversion issues in DxLib.
+    const char* titleText = "NEWSPAPER DELIVERY - HOW TO PLAY";
+    if (fontPopupTitle != -1)
+    {
+        int tw = GetDrawStringWidthToHandle(titleText, (int)strlen(titleText), fontPopupTitle);
+        DrawStringToHandle(cx - tw / 2, y1 + 18, titleText, GetColor(235, 245, 240), fontPopupTitle);
+    }
+    else
+    {
+        int tw = GetDrawStringWidth(titleText, (int)strlen(titleText));
+        DrawString(cx - tw / 2, y1 + 18, titleText, GetColor(235, 245, 240));
+    }
+
+    const char* subTitleEn = "DELIVER EVERY PAPER BEFORE DAWN";
+    if (fontPopupSub != -1)
+    {
+        int stw = GetDrawStringWidthToHandle(subTitleEn, (int)strlen(subTitleEn), fontPopupSub);
+        DrawStringToHandle(cx - stw / 2, y1 + 50, subTitleEn, GetColor(140, 160, 150), fontPopupSub);
+    }
+
+    // 装飾区切り線
+    DrawLine(x1 + 35, y1 + 72, x2 - 35, y1 + 72, GetColor(50, 68, 62));
+
+    // 4. 導入文
+    const char* introText = "Deliver newspapers to every marked house before dawn.";
+    if (fontPopupBody != -1)
+    {
+        int iw = GetDrawStringWidthToHandle(introText, (int)strlen(introText), fontPopupBody);
+        DrawStringToHandle(cx - iw / 2, y1 + 84, introText, GetColor(190, 220, 210), fontPopupBody);
+    }
+    else
+    {
+        int iw = GetDrawStringWidth(introText, (int)strlen(introText));
+        DrawString(cx - iw / 2, y1 + 84, introText, GetColor(190, 220, 210));
+    }
+
+    // 5. 説明セクション共通描画ラムダ
+    auto DrawSection = [&](int secY, int secH, const char* secTitle, const char* bodyText, const char* hintText, unsigned int titleCol) {
+        int sx1 = x1 + 35;
+        int sx2 = x2 - 35;
+        int sy1 = secY;
+        int sy2 = secY + secH;
+
+        // セクション枠背景
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 120);
+        DrawBox(sx1, sy1, sx2, sy2, GetColor(18, 24, 22), TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        DrawBox(sx1, sy1, sx2, sy2, GetColor(45, 60, 55), FALSE);
+
+        // 見出し（明確な文字サイズ差）
+        if (fontPopupSection != -1)
+        {
+            DrawStringToHandle(sx1 + 18, sy1 + 7, secTitle, titleCol, fontPopupSection);
+        }
+        else
+        {
+            DrawString(sx1 + 18, sy1 + 7, secTitle, titleCol);
+        }
+
+        // 本文（読みやすい白色／薄灰）
+        if (fontPopupBody != -1)
+        {
+            DrawStringToHandle(sx1 + 22, sy1 + 32, bodyText, GetColor(215, 225, 220), fontPopupBody);
+        }
+        else
+        {
+            DrawString(sx1 + 22, sy1 + 32, bodyText, GetColor(215, 225, 220));
+        }
+
+        // 補足・操作方法
+        if (hintText && fontPopupSub != -1)
+        {
+            DrawStringToHandle(sx1 + 22, sy1 + 54, hintText, GetColor(150, 175, 168), fontPopupSub);
+        }
+    };
+
+    // 説明1：新聞の配達
+    DrawSection(
+        y1 + 112, 78,
+        "1. DELIVER THE PAPERS",
+        "Take a paper from your bicycle basket, then deliver it to the next marked mailbox.",
+        "Look at the basket or mailbox and LEFT CLICK to interact.",
+        GetColor(245, 230, 175)
+    );
+
+    // 説明2：暗闇と恐怖
+    DrawSection(
+        y1 + 198, 78,
+        "2. STAY IN THE LIGHT",
+        "Fear rises in darkness. Streetlights and your bicycle headlight can keep you safer.",
+        "Stay within safe light to let fear subside.",
+        GetColor(245, 175, 160)
+    );
+
+    // 説明3：バッテリー
+    DrawSection(
+        y1 + 284, 78,
+        "3. MANAGE YOUR BATTERY",
+        "Your bicycle headlight uses battery power. Find spare batteries around town and replace it when needed.",
+        "Look at a spare battery and LEFT CLICK to collect it. Press R near your bicycle to replace the battery.",
+        GetColor(170, 230, 205)
+    );
+
+    // 補足：ゲームオーバー条件
+    const char* warnText = "If fear reaches its limit, you will be caught. The night ends in game over.";
+    if (fontPopupBody != -1)
+    {
+        int ww = GetDrawStringWidthToHandle(warnText, (int)strlen(warnText), fontPopupBody);
+        DrawStringToHandle(cx - ww / 2, y1 + 372, warnText, GetColor(235, 105, 95), fontPopupBody);
+    }
+    else
+    {
+        int ww = GetDrawStringWidth(warnText, (int)strlen(warnText));
+        DrawString(cx - ww / 2, y1 + 372, warnText, GetColor(235, 105, 95));
+    }
+
+    // 6. アクションボタン
+    const char* btnLabel = (!rulePopupFromManual) ? "START DELIVERY" : "RETURN TO GAME";
+    int btnW = 220;
+    int btnH = 40;
+    int btnX1 = cx - btnW / 2;
+    int btnY1 = y1 + 406;
+    int btnX2 = cx + btnW / 2;
+    int btnY2 = btnY1 + btnH;
+
+    bool isHover = (mouseX >= btnX1 && mouseX <= btnX2 && mouseY >= btnY1 && mouseY <= btnY2);
+    unsigned int btnBorder = isHover ? GetColor(180, 80, 70) : GetColor(70, 95, 85);
+    unsigned int btnBg = isHover ? GetColor(32, 18, 20) : GetColor(18, 26, 22);
+
+    HorrorUI::Instance().DrawRetroPanel(btnX1, btnY1, btnX2, btnY2, btnBorder, btnBg, 240);
+
+    unsigned int btnTextCol = isHover ? GetColor(255, 255, 240) : GetColor(210, 230, 220);
+    if (fontPopupSection != -1)
+    {
+        int bw = GetDrawStringWidthToHandle(btnLabel, (int)strlen(btnLabel), fontPopupSection);
+        DrawStringToHandle(cx - bw / 2, btnY1 + 9, btnLabel, btnTextCol, fontPopupSection);
+    }
+    else
+    {
+        int bw = GetDrawStringWidth(btnLabel, (int)strlen(btnLabel));
+        DrawString(cx - bw / 2, btnY1 + 11, btnLabel, btnTextCol);
+    }
+
+    if (isHover)
+    {
+        DrawString(btnX1 + 12, btnY1 + 11, ">", GetColor(230, 70, 60));
+        DrawString(btnX2 - 20, btnY1 + 11, "<", GetColor(230, 70, 60));
+    }
+
+    // 7. ボタン下ガイド案内
+    const char* keyGuideText = (!rulePopupFromManual)
+        ? "Press ENTER, ESC, or click to begin"
+        : "Press ENTER, ESC, or click to return";
+
+    if (fontPopupSub != -1)
+    {
+        int kw = GetDrawStringWidthToHandle(keyGuideText, (int)strlen(keyGuideText), fontPopupSub);
+        DrawStringToHandle(cx - kw / 2, y1 + 458, keyGuideText, GetColor(150, 175, 165), fontPopupSub);
+    }
+    else
+    {
+        int kw = GetDrawStringWidth(keyGuideText, (int)strlen(keyGuideText));
+        DrawString(cx - kw / 2, y1 + 458, keyGuideText, GetColor(150, 175, 165));
+    }
+
+    // アナログCRT走査線エフェクト
+    DrawScanlinesAndNoise(18);
 }

@@ -423,7 +423,7 @@ void NightEnvironment::ApplyLightingAndFog()
 }
 
 // 街灯3Dポールとランプヘッドを描画（リアルな根巻きコンクリート基礎・警戒帯・接地影付き）
-void NightEnvironment::DrawPoleModel(const VECTOR& pos, float intensity, COLOR_F color)
+void NightEnvironment::DrawPoleModel(const VECTOR& pos, float intensity, COLOR_F color, StreetLightState state)
 {
     float poleRadius = 0.10f;
     float poleHeight = 4.2f;
