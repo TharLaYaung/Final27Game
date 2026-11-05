@@ -60,6 +60,9 @@ int WINAPI WinMain(
         32
     );
 
+    // 文字列引数の文字コード形式をUTF-8に設定
+    SetUseCharCodeFormat(DX_CHARCODEFORMAT_UTF8);
+
     // DxLib初期化
     if (DxLib_Init() == -1)
     {

@@ -303,8 +303,8 @@ void Minimap::Draw(
     int textY1 = dividerY + 5;
     int textY2 = dividerY + 24;
 
-    // 配達先距離（左側: TARGET、右側: 距離数値で分離）
-    ui.DrawJitterString(px1 + 10, textY1, "TARGET", HorrorUI::COL_TEXT, ui.GetFontSmall());
+    // 配達先距離（左側: 目的地、右側: 距離数値で分離）
+    ui.DrawJitterString(px1 + 10, textY1, "目的地", HorrorUI::COL_TEXT, ui.GetFontSmall());
     char distValStr[32];
     if (deliveryManager.HasActiveTarget())
     {
@@ -317,8 +317,8 @@ void Minimap::Draw(
     int distW = (ui.GetFontSmall() != -1) ? GetDrawStringWidthToHandle(distValStr, (int)strlen(distValStr), ui.GetFontSmall()) : 36;
     ui.DrawJitterString(px2 - distW - 10, textY1, distValStr, HorrorUI::COL_TEXT, ui.GetFontSmall());
 
-    // 配達進行状況（左側: DELIVERY、右側: 完了数/必要数で分離）
-    ui.DrawJitterString(px1 + 10, textY2, "DELIVERY", HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
+    // 配達進行状況（左側: 配達、右側: 完了数/必要数で分離）
+    ui.DrawJitterString(px1 + 10, textY2, "配達", HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
     char progValStr[32];
     if (!deliveryManager.IsAllDeliveriesComplete())
     {
@@ -333,7 +333,7 @@ void Minimap::Draw(
     }
     else
     {
-        snprintf(progValStr, sizeof(progValStr), "COMPLETE");
+        snprintf(progValStr, sizeof(progValStr), "完了");
     }
     int progW = (ui.GetFontSmall() != -1) ? GetDrawStringWidthToHandle(progValStr, (int)strlen(progValStr), ui.GetFontSmall()) : 65;
     ui.DrawJitterString(px2 - progW - 10, textY2, progValStr, HorrorUI::COL_TEXT_DIM, ui.GetFontSmall());
@@ -341,7 +341,7 @@ void Minimap::Draw(
     // 各種センターメッセージ演出（文字幅に応じた動的センタリング・枠自動フィッティング）
     int screenCenterX = 640;
 
-    // 配達成功: DELIVERED
+    // 配達成功: 配達完了
     if (deliveryManager.IsFeedbackActive())
     {
         feedbackAlpha += 0.15f;
@@ -357,7 +357,7 @@ void Minimap::Draw(
     {
         int msgY = 320;
         int a = (int)(feedbackAlpha * 220.0f);
-        const char* msgStr = "DELIVERED";
+        const char* msgStr = "配達完了";
         int tw = (ui.GetFontMedium() != -1) ? GetDrawStringWidthToHandle(msgStr, (int)strlen(msgStr), ui.GetFontMedium()) : 120;
         int bw = tw + 44;
 
@@ -368,7 +368,7 @@ void Minimap::Draw(
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 
-    // 誤配先: WRONG ADDRESS
+    // 誤配先: 配達先が違います
     if (deliveryManager.IsWrongDeliveryActive())
     {
         wrongAlpha += 0.15f;
@@ -384,7 +384,7 @@ void Minimap::Draw(
     {
         int msgY = 320;
         int a = (int)(wrongAlpha * 220.0f);
-        const char* msgStr = "WRONG ADDRESS";
+        const char* msgStr = "配達先が違います";
         int tw = (ui.GetFontMedium() != -1) ? GetDrawStringWidthToHandle(msgStr, (int)strlen(msgStr), ui.GetFontMedium()) : 160;
         int bw = tw + 44;
 
@@ -395,7 +395,7 @@ void Minimap::Draw(
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 
-    // 全配達完了: DELIVERIES COMPLETE
+    // 全配達完了: 本日の配達完了
     if (deliveryManager.IsAllDeliveriesComplete() && deliveryManager.GetAllCompleteTimer() > 0)
     {
         allCompleteAlpha += 0.08f;
@@ -411,9 +411,9 @@ void Minimap::Draw(
     {
         int msgY = 260;
         int a = (int)(allCompleteAlpha * 230.0f);
-        const char* titleMsg = "DELIVERIES COMPLETE";
+        const char* titleMsg = "本日の配達完了";
         char subMsg[64];
-        snprintf(subMsg, sizeof(subMsg), "%02d / %02d HOUSES",
+        snprintf(subMsg, sizeof(subMsg), "%02d / %02d 軒",
             deliveryManager.GetCompletedDeliveries(), deliveryManager.GetTotalDeliveries());
 
         int tw1 = (ui.GetFontMedium() != -1) ? GetDrawStringWidthToHandle(titleMsg, (int)strlen(titleMsg), ui.GetFontMedium()) : 200;
@@ -437,7 +437,7 @@ void Minimap::Draw(
         if (blink)
         {
             int msgY = 380;
-            const char* warnStr = "NO NEWSPAPERS REMAINING";
+            const char* warnStr = "新聞が残っていません";
             int tw = (ui.GetFontSmall() != -1) ? GetDrawStringWidthToHandle(warnStr, (int)strlen(warnStr), ui.GetFontSmall()) : 200;
             int bw = tw + 40;
 

@@ -184,42 +184,43 @@ bool SceneManager::Initialize()
     // タイトル画面でマウス操作を可能にするためマウスカーソルを表示
     SetMouseDispFlag(TRUE);
 
-    // 大見出しホラーロゴ（Chiller優先、フォールバックでMS Gothicエッジ）
+    // 日本語フォント生成ヘルパー（Meiryo -> Yu Gothic -> MS Gothic の順で安全に生成）
+    auto CreateJPFont = [](const char* name1, const char* name2, int size, int thick, int fontType) -> int {
+        int h = CreateFontToHandle(name1, size, thick, fontType);
+        if (h == -1 && name2 != nullptr) {
+            h = CreateFontToHandle(name2, size, thick, fontType);
+        }
+        if (h == -1) {
+            h = CreateFontToHandle("MS Gothic", size, thick, DX_FONTTYPE_NORMAL);
+        }
+        return h;
+    };
+
+    // 大見出しホラーロゴ（Chiller優先：英語演出用メインタイトル）
     fontTitleKanji = CreateFontToHandle("Chiller", 68, 4, DX_FONTTYPE_ANTIALIASING);
     if (fontTitleKanji == -1) fontTitleKanji = CreateFontToHandle("MS Gothic", 56, 6, DX_FONTTYPE_ANTIALIASING_EDGE_8X8);
 
-    // サブタイトル
+    // サブタイトル（英語演出用）
     fontTitleEnglish = CreateFontToHandle("Chiller", 28, 2, DX_FONTTYPE_ANTIALIASING);
     if (fontTitleEnglish == -1) fontTitleEnglish = CreateFontToHandle("MS Gothic", 22, 3, DX_FONTTYPE_NORMAL);
 
-    // 説明文・キャッチコピー（Chillerホラーフォント）
-    fontSubText = CreateFontToHandle("Chiller", 22, 2, DX_FONTTYPE_ANTIALIASING);
-    if (fontSubText == -1) fontSubText = CreateFontToHandle("MS Gothic", 16, 2, DX_FONTTYPE_NORMAL);
+    // 説明文・キャッチコピー用日本語フォント
+    fontSubText = CreateJPFont("Meiryo", "Yu Gothic", 16, 2, DX_FONTTYPE_ANTIALIASING);
 
-    // ボタンメニュー用（Chillerホラーフォント）
-    fontMenu = CreateFontToHandle("Chiller", 26, 3, DX_FONTTYPE_ANTIALIASING);
-    if (fontMenu == -1) fontMenu = CreateFontToHandle("MS Gothic", 19, 2, DX_FONTTYPE_NORMAL);
+    // ボタンメニュー用日本語フォント（タイトル、ポーズ、ゲームオーバー等のボタン項目）
+    fontMenu = CreateJPFont("Meiryo", "Yu Gothic", 18, 3, DX_FONTTYPE_ANTIALIASING);
 
-    // レポート見出し
-    fontReportTitle = CreateFontToHandle("Chiller", 34, 3, DX_FONTTYPE_ANTIALIASING);
-    if (fontReportTitle == -1) fontReportTitle = CreateFontToHandle("MS Gothic", 24, 3, DX_FONTTYPE_NORMAL);
+    // レポート・設定・ポーズ見出し用日本語フォント
+    fontReportTitle = CreateJPFont("Meiryo", "Yu Gothic", 22, 3, DX_FONTTYPE_ANTIALIASING);
 
-    // レポート本文（報告書タイプライター調）
-    fontReportBody = CreateFontToHandle("Consolas", 18, 2, DX_FONTTYPE_NORMAL);
-    if (fontReportBody == -1) fontReportBody = CreateFontToHandle("MS Gothic", 18, 2, DX_FONTTYPE_NORMAL);
+    // レポート本文用日本語フォント
+    fontReportBody = CreateJPFont("Meiryo", "Yu Gothic", 15, 2, DX_FONTTYPE_ANTIALIASING);
 
-    // Keep popup text ASCII-only and use a common Latin font to avoid code-page garbling.
-    fontPopupTitle = CreateFontToHandle("Arial", 30, 4, DX_FONTTYPE_ANTIALIASING);
-    if (fontPopupTitle == -1) fontPopupTitle = CreateFontToHandle("MS Gothic", 28, 4, DX_FONTTYPE_NORMAL);
-
-    fontPopupSection = CreateFontToHandle("Arial", 21, 4, DX_FONTTYPE_ANTIALIASING);
-    if (fontPopupSection == -1) fontPopupSection = CreateFontToHandle("MS Gothic", 20, 4, DX_FONTTYPE_NORMAL);
-
-    fontPopupBody = CreateFontToHandle("Arial", 17, 2, DX_FONTTYPE_ANTIALIASING);
-    if (fontPopupBody == -1) fontPopupBody = CreateFontToHandle("MS Gothic", 15, 2, DX_FONTTYPE_NORMAL);
-
-    fontPopupSub = CreateFontToHandle("Arial", 15, 2, DX_FONTTYPE_ANTIALIASING);
-    if (fontPopupSub == -1) fontPopupSub = CreateFontToHandle("MS Gothic", 13, 2, DX_FONTTYPE_NORMAL);
+    // ルール説明ポップアップ用日本語フォント
+    fontPopupTitle = CreateJPFont("Meiryo", "Yu Gothic", 24, 4, DX_FONTTYPE_ANTIALIASING);
+    fontPopupSection = CreateJPFont("Meiryo", "Yu Gothic", 17, 3, DX_FONTTYPE_ANTIALIASING);
+    fontPopupBody = CreateJPFont("Meiryo", "Yu Gothic", 15, 2, DX_FONTTYPE_ANTIALIASING);
+    fontPopupSub = CreateJPFont("Meiryo", "Yu Gothic", 13, 2, DX_FONTTYPE_ANTIALIASING);
 
     showRulePopup = false;
     rulePopupFromManual = false;
@@ -793,6 +794,7 @@ void SceneManager::Update(
                 if (((titleMenuSelection == 0 && (enterDown || spaceDown)) || hitStart) && !IsTransitioning())
                 {
                     PlayMenuClick();
+                    hasShownInitialRulePopup = false;
                     ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
                     StartTransition(SceneType::Game, 0.8f);
                 }
@@ -1407,7 +1409,7 @@ void SceneManager::DrawTitleMainMenu(int cx, float jitterSine)
     (void)jitterSine;
 
     // キャッチコピー
-    const char* tagline = "The silence of 1:00 AM, and the horrors lurking in the alley.";
+    const char* tagline = "午前1時の静寂、そして路地裏に潜む恐怖。";
     if (fontSubText != -1)
     {
         int tagW = GetDrawStringWidthToHandle(tagline, (int)strlen(tagline), fontSubText);
@@ -1451,24 +1453,24 @@ void SceneManager::DrawTitleMainMenu(int cx, float jitterSine)
     };
 
     // 1. 配達開始
-    DrawMenuRow(menuY + 20, "START DELIVERY", (titleMenuSelection == 0));
+    DrawMenuRow(menuY + 20, "配達開始", (titleMenuSelection == 0));
 
     // 2. 音声・環境設定
-    DrawMenuRow(menuY + 74, "AUDIO SETTINGS", (titleMenuSelection == 1));
+    DrawMenuRow(menuY + 74, "音量・操作設定", (titleMenuSelection == 1));
 
     // 3. 操作・サバイバルガイド
-    DrawMenuRow(menuY + 128, "CONTROLS & SURVIVAL GUIDE", (titleMenuSelection == 2));
+    DrawMenuRow(menuY + 128, "操作説明・サバイバル規則", (titleMenuSelection == 2));
 
     // 4. ゲーム終了
-    DrawMenuRow(menuY + 182, "QUIT GAME", (titleMenuSelection == 3));
+    DrawMenuRow(menuY + 182, "ゲーム終了", (titleMenuSelection == 3));
 
     // 画面最下部の簡易操作インフォバー
     int helpY = 665;
     HorrorUI::Instance().DrawRetroPanel(26, helpY, 1254, helpY + 34,
         HorrorUI::COL_BORDER_DIM, HorrorUI::COL_BG, 190);
     HorrorUI::Instance().DrawJitterString(42, helpY + 9,
-        "[ CONTROLS ]  WASD / Mouse: Navigate  |  ENTER / Click: Select  |  < >: Adjust Volume in Settings  |  ESC: Quit",
-        GetColor(150, 165, 160), HorrorUI::Instance().GetFontKeyGuide());
+        "[ 操作方法 ]  WASD / マウス: 移動・視線  |  Enter / クリック: 決定  |  < >: 音量調整  |  Esc: 終了",
+        GetColor(150, 165, 160), HorrorUI::Instance().GetFontKeyAction());
 }
 
 // 共通設定パネル描画（タイトル・ポーズ共用）
@@ -1505,10 +1507,10 @@ void SceneManager::DrawSettingsPanel(int cx, int setY, const char* headerTitle, 
 
     // 4本のスライダーバー描画
     bool dummyDec = false, dummyInc = false;
-    DrawVolumeSlider(cx - 280, setY + 65,  560, 28, masterVolume,           "MASTER VOLUME",     (settingsSelection == 0), dummyDec, dummyInc);
-    DrawVolumeSlider(cx - 280, setY + 125, 560, 28, bgmVolume,              "BGM / AMBIENCE",    (settingsSelection == 1), dummyDec, dummyInc);
-    DrawVolumeSlider(cx - 280, setY + 185, 560, 28, sfxVolume,              "SFX / EFFECTS",     (settingsSelection == 2), dummyDec, dummyInc);
-    DrawVolumeSlider(cx - 280, setY + 245, 560, 28, mouseSensitivityLevel, "MOUSE SENSITIVITY", (settingsSelection == 3), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 65,  560, 28, masterVolume,           "マスター音量",     (settingsSelection == 0), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 125, 560, 28, bgmVolume,              "BGM・環境音",      (settingsSelection == 1), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 185, 560, 28, sfxVolume,              "効果音 (SE)",       (settingsSelection == 2), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 245, 560, 28, mouseSensitivityLevel, "マウス感度",       (settingsSelection == 3), dummyDec, dummyInc);
 
     // サウンドテストボタン
     int testBtnY = setY + 315;
@@ -1522,7 +1524,7 @@ void SceneManager::DrawSettingsPanel(int cx, int setY, const char* headerTitle, 
 
     DrawBox(cx - 160, testBtnY, cx + 160, testBtnY + 36, testBg, TRUE);
     DrawBox(cx - 160, testBtnY, cx + 160, testBtnY + 36, testBorder, FALSE);
-    const char* testLabel = pulseFlashing ? "[ ! AUDIO PULSE PLAYING ! ]" : "TEST AUDIO PULSE";
+    const char* testLabel = pulseFlashing ? "[ ! 音声再生中 ! ]" : "テスト音声を再生";
     int tlw = GetDrawStringWidth(testLabel, (int)strlen(testLabel));
     DrawString(cx - tlw / 2, testBtnY + 10, testLabel, testTxt);
 
@@ -1533,19 +1535,19 @@ void SceneManager::DrawSettingsPanel(int cx, int setY, const char* headerTitle, 
 
     DrawBox(cx - 160, backBtnY, cx + 160, backBtnY + 36, backActive ? GetColor(50, 22, 24) : GetColor(24, 26, 30), TRUE);
     DrawBox(cx - 160, backBtnY, cx + 160, backBtnY + 36, backActive ? GetColor(200, 75, 65) : GetColor(60, 65, 70), FALSE);
-    const char* backLabel = inPause ? "BACK TO PAUSE MENU [ESC]" : "BACK TO TITLE MENU [ESC]";
+    const char* backLabel = inPause ? "ポーズメニューへ戻る [ESC]" : "タイトルへ戻る [ESC]";
     int blw = GetDrawStringWidth(backLabel, (int)strlen(backLabel));
     DrawString(cx - blw / 2, backBtnY + 10, backLabel, backActive ? GetColor(255, 135, 110) : GetColor(190, 200, 195));
 
     // 操作ガイド注釈
-    const char* guide = "Use Arrow Keys < > or Drag to Adjust, ENTER to Test, ESC to Return";
+    const char* guide = "矢印キー < > またはドラッグで調整、Enterでテスト、Escで戻る";
     int gw = GetDrawStringWidth(guide, (int)strlen(guide));
     DrawString(cx - gw / 2, setY + sh - 24, guide, GetColor(130, 140, 135));
 }
 
 void SceneManager::DrawTitleSettings(int cx)
 {
-    DrawSettingsPanel(cx, 130, "AUDIO & CONTROLS SETTINGS", false);
+    DrawSettingsPanel(cx, 130, "音量・操作設定", false);
 }
 
 // 操作説明・サバイバル規則サブメニュー画面描画
@@ -1560,7 +1562,7 @@ void SceneManager::DrawTitleKeyGuide(int cx)
         GetColor(90, 50, 50), GetColor(14, 12, 16), 242);
 
     // ヘッダータイトル
-    const char* guideTitle = "FIELD COURIER HANDBOOK - 1:00 AM PROTOCOL";
+    const char* guideTitle = "配達員必携ハンドブック — 午前1時のサバイバル規則";
     if (fontReportTitle != -1)
     {
         int tw = GetDrawStringWidthToHandle(guideTitle, (int)strlen(guideTitle), fontReportTitle);
@@ -1568,7 +1570,8 @@ void SceneManager::DrawTitleKeyGuide(int cx)
     }
     else
     {
-        DrawString(cx - 180, py + 16, guideTitle, GetColor(240, 190, 130));
+        int tw = GetDrawStringWidth(guideTitle, (int)strlen(guideTitle));
+        DrawString(cx - tw / 2, py + 16, guideTitle, GetColor(240, 190, 130));
     }
 
     DrawLine(cx - pw / 2 + 25, py + 48, cx + pw / 2 - 25, py + 48, GetColor(75, 42, 42));
@@ -1576,7 +1579,7 @@ void SceneManager::DrawTitleKeyGuide(int cx)
 
     // 第1列：キーバインド
     int col1X = cx - pw / 2 + 35;
-    DrawString(col1X, py + 58, "[ 1. KEY BINDINGS & CONTROLS ]", GetColor(240, 200, 140));
+    DrawString(col1X, py + 58, "[ 1. 基本操作・キー設定 ]", GetColor(240, 200, 140));
 
     auto DrawKeyRow = [&](int y, const char* key, const char* desc) {
         DrawBox(col1X, y, col1X + 130, y + 25, GetColor(30, 34, 38), TRUE);
@@ -1585,21 +1588,21 @@ void SceneManager::DrawTitleKeyGuide(int cx)
         DrawString(col1X + 145, y + 5, desc, GetColor(190, 200, 195));
     };
 
-    DrawKeyRow(py + 90,  "W / A / S / D", "Move / Steer Bicycle");
-    DrawKeyRow(py + 122, "MOUSE",         "Look / Aim Flashlight");
-    DrawKeyRow(py + 154, "LEFT CLICK",    "Deliver Paper / Take Item");
-    DrawKeyRow(py + 186, "E KEY",         "Ride / Dismount Bicycle");
-    DrawKeyRow(py + 218, "F KEY",         "Bicycle Headlight ON/OFF");
-    DrawKeyRow(py + 250, "R KEY",         "Replace Battery from Spare");
-    DrawKeyRow(py + 282, "SPACE",         "Bicycle Bell / Brake");
-    DrawKeyRow(py + 314, "SHIFT",         "Sprint (Consumes Stamina)");
-    DrawKeyRow(py + 346, "ESC KEY",       "Pause Menu / Dispatch Log");
-    DrawKeyRow(py + 378, "< > ARROWS",    "Adjust Volume / Sensitivity");
-    DrawKeyRow(py + 410, "H / TAB",       "Toggle Control Guide");
+    DrawKeyRow(py + 90,  "W / A / S / D", "移動 / 自転車の操縦");
+    DrawKeyRow(py + 122, "マウス",         "視点移動 / ライトを向ける");
+    DrawKeyRow(py + 154, "左クリック",     "新聞を配達 / 新聞・アイテムを取る");
+    DrawKeyRow(py + 186, "E キー",         "自転車の乗り降り");
+    DrawKeyRow(py + 218, "F キー",         "自転車ライトの点灯・消灯");
+    DrawKeyRow(py + 250, "R キー",         "予備バッテリーを交換");
+    DrawKeyRow(py + 282, "スペース",       "ブレーキ / ベル");
+    DrawKeyRow(py + 314, "Shift",          "ダッシュ (スタミナ消費)");
+    DrawKeyRow(py + 346, "Esc キー",       "ポーズメニュー");
+    DrawKeyRow(py + 378, "< > 矢印",       "音量・感度の調整");
+    DrawKeyRow(py + 410, "H / Tab",        "遊び方・操作ガイド切替");
 
     // 第2列：深夜配達サバイバル指示（枠内に完全に収まる文字幅設計）
     int col2X = cx + 15;
-    DrawString(col2X, py + 58, "[ 2. MIDNIGHT SURVIVAL DIRECTIVES ]", GetColor(240, 110, 95));
+    DrawString(col2X, py + 58, "[ 2. 深夜配達サバイバル指示 ]", GetColor(240, 110, 95));
 
     auto DrawRule = [&](int y, const char* title, const char* desc, const char* desc2) {
         DrawString(col2X, y, title, GetColor(230, 90, 75));
@@ -1607,25 +1610,25 @@ void SceneManager::DrawTitleKeyGuide(int cx)
         if (desc2) DrawString(col2X + 10, y + 34, desc2, GetColor(140, 155, 150));
     };
 
-    DrawRule(py + 90,  "1. SAFE LIGHT (STREET LAMPS)",
-        "- Street lights repel entities (safety radius 6.5m).",
-        "- If a lamp flickers, prepare to leave immediately.");
+    DrawRule(py + 90,  "1. 街灯の安全な光",
+        "・街灯は怪異を遠ざけます (安全範囲 約6.5m)。",
+        "・街灯が激しく明滅したら、すぐに離れてください。");
 
-    DrawRule(py + 152, "2. BICYCLE HEADLIGHT & BATTERY",
-        "- Riding with battery > 0% shields against attacks.",
-        "- Battery at 0% leaves you exposed to fatal death.");
+    DrawRule(py + 152, "2. 自転車ライトとバッテリー",
+        "・バッテリー残量がある状態の乗車中は襲撃を防げます。",
+        "・バッテリーが0%になると無防備になり極めて危険です。");
 
-    DrawRule(py + 214, "3. FEAR & THE CRAWL MONSTER",
-        "- Fear rises in darkness; at 100%, Crawl strikes.",
-        "- Face street lights to lower your Fear Meter.");
+    DrawRule(py + 214, "3. 恐怖度と怪異",
+        "・暗闇にいると恐怖度が上昇し、100%で襲撃されます。",
+        "・街灯などの安全な光の方を向いて恐怖度を下げてください。");
 
-    DrawRule(py + 276, "4. HALFWAY HUNT (DELIVERY 4/8)",
-        "- Halfway delivered, Chasing Monster begins hunt.",
-        "- Stay in light; monster faces you when chasing.");
+    DrawRule(py + 276, "4. 中盤の追跡者 (配達4軒目〜)",
+        "・配達が半分進むと、追跡型モンスターが出現します。",
+        "・光の中に留まってください。追跡中はプレイヤーを直視します。");
 
-    DrawRule(py + 338, "5. SPARE BATTERIES LIMIT (MAX 2)",
-        "- You can carry up to 2 spare batteries.",
-        "- Press [R] near bicycle to reload 100% battery.");
+    DrawRule(py + 338, "5. 予備バッテリー (最大2個)",
+        "・予備バッテリーは最大2個まで持ち歩けます。",
+        "・自転車の近くで [R] を押すとバッテリーが100%回復します。");
 
     // 戻るボタン
     int btnY = py + ph - 52;
@@ -1633,7 +1636,7 @@ void SceneManager::DrawTitleKeyGuide(int cx)
 
     DrawBox(cx - 140, btnY, cx + 140, btnY + 36, hBack ? GetColor(50, 22, 24) : GetColor(25, 28, 30), TRUE);
     DrawBox(cx - 140, btnY, cx + 140, btnY + 36, hBack ? GetColor(200, 75, 65) : GetColor(65, 70, 75), FALSE);
-    const char* backTxt = "RETURN TO MENU [ESC]";
+    const char* backTxt = "メニューへ戻る [ESC]";
     int bw = GetDrawStringWidth(backTxt, (int)strlen(backTxt));
     DrawString(cx - bw / 2, btnY + 10, backTxt, hBack ? GetColor(255, 135, 110) : GetColor(190, 200, 195));
 }
@@ -1648,7 +1651,7 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
     // ポーズ設定画面が開いている場合は設定パネルを描画
     if (pauseSubMenu == PauseSubMenu::Settings)
     {
-        DrawSettingsPanel(cx, 130, "PAUSE SETTINGS - AUDIO & CONTROLS", true);
+        DrawSettingsPanel(cx, 130, "ポーズ設定 - 音量・マウス感度", true);
         return;
     }
 
@@ -1665,7 +1668,7 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
 
     // タイトル（現在の日数を明記）
     char pauseTitle[64];
-    snprintf(pauseTitle, sizeof(pauseTitle), "PAUSE MENU - DAY %d / 7", currentDay);
+    snprintf(pauseTitle, sizeof(pauseTitle), "一時停止 - DAY %d / 7", currentDay);
     if (fontReportTitle != -1)
     {
         int tw = GetDrawStringWidthToHandle(pauseTitle, (int)strlen(pauseTitle), fontReportTitle);
@@ -1687,13 +1690,13 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
     bool sel4 = (pauseMenuSelection == 4);
 
     char retryLabel[32];
-    snprintf(retryLabel, sizeof(retryLabel), "RETRY DAY %d", currentDay);
+    snprintf(retryLabel, sizeof(retryLabel), "Day %d をリトライ", currentDay);
 
-    DrawButton(cx - 190, cy - 105, cx + 190, cy - 65, "RESUME GAME",
+    DrawButton(cx - 190, cy - 105, cx + 190, cy - 65, "ゲームを再開",
         sel0 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
-    DrawButton(cx - 190, cy - 55, cx + 190, cy - 15, "SETTINGS (AUDIO & MOUSE)",
+    DrawButton(cx - 190, cy - 55, cx + 190, cy - 15, "音量・マウス設定",
         sel1 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
@@ -1701,11 +1704,11 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
         sel2 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
-    DrawButton(cx - 190, cy + 45, cx + 190, cy + 85, "RETURN TO TITLE",
+    DrawButton(cx - 190, cy + 45, cx + 190, cy + 85, "タイトルへ戻る",
         sel3 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
-    DrawButton(cx - 190, cy + 95, cx + 190, cy + 135, "QUIT GAME",
+    DrawButton(cx - 190, cy + 95, cx + 190, cy + 135, "ゲーム終了",
         sel4 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
@@ -1714,7 +1717,7 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
     DrawString(cx - 208, arrowY[pauseMenuSelection], ">", GetColor(220, 240, 230));
 
     // ガイドテキスト
-    const char* pauseGuide = "[ CONTROLS ] Click with Mouse or use Arrow Keys / ENTER";
+    const char* pauseGuide = "[ 操作方法 ] マウスまたは矢印キー / Enter で選択";
     int gw = GetDrawStringWidthToHandle(pauseGuide, (int)strlen(pauseGuide), HorrorUI::Instance().GetFontKeyGuide());
     HorrorUI::Instance().DrawJitterString(cx - gw / 2, cy + ph / 2 - 28, pauseGuide,
         GetColor(120, 135, 130), HorrorUI::Instance().GetFontKeyGuide());
@@ -1744,7 +1747,7 @@ void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager, const 
     {
         // 1〜6日目：日ごとのクリア黒画面テキストUI
         char titleStr[64];
-        snprintf(titleStr, sizeof(titleStr), "DAY %d COMPLETED", currentDay);
+        snprintf(titleStr, sizeof(titleStr), "DAY %d クリア", currentDay);
 
         if (fontReportTitle != -1)
         {
@@ -1758,16 +1761,16 @@ void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager, const 
         }
 
         char delivStr[64];
-        snprintf(delivStr, sizeof(delivStr), "ALL %d HOUSES DELIVERED", deliveryManager.GetTotalDeliveries());
+        snprintf(delivStr, sizeof(delivStr), "全 %d 軒への配達完了", deliveryManager.GetTotalDeliveries());
         int dw = GetDrawStringWidth(delivStr, (int)strlen(delivStr));
         DrawString(cx - dw / 2, cy - 15, delivStr, GetColor(215, 150, 90));
 
-        const char* survStr = "SURVIVED THE NIGHT.";
+        const char* survStr = "夜を生き延びた。";
         int sw = GetDrawStringWidth(survStr, (int)strlen(survStr));
         DrawString(cx - sw / 2, cy + 20, survStr, GetColor(140, 195, 165));
 
         char nextStr[64];
-        snprintf(nextStr, sizeof(nextStr), "Preparing Day %d Route...", currentDay + 1);
+        snprintf(nextStr, sizeof(nextStr), "翌日（Day %d）の配達ルートを準備中...", currentDay + 1);
         int nw = GetDrawStringWidth(nextStr, (int)strlen(nextStr));
         DrawString(cx - nw / 2, cy + 60, nextStr, GetColor(165, 180, 175));
 
@@ -1775,7 +1778,7 @@ void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager, const 
         bool blink = (((int)(clearTimer * 2.5f)) % 2) == 0;
         if (blink)
         {
-            const char* prompt = "[ PRESS ENTER OR WAIT TO PROCEED ]";
+            const char* prompt = "[ ENTERキーで進む (または自動進行) ]";
             int pw = GetDrawStringWidth(prompt, (int)strlen(prompt));
             DrawString(cx - pw / 2, cy + 125, prompt, GetColor(180, 210, 200));
         }
@@ -1783,7 +1786,7 @@ void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager, const 
     else
     {
         // 最終7日目クリア：全7夜生存達成テキストUI
-        const char* titleStr = "FINAL DAY COMPLETED";
+        const char* titleStr = "FINAL DAY クリア";
         if (fontReportTitle != -1)
         {
             int tw = GetDrawStringWidthToHandle(titleStr, (int)strlen(titleStr), fontReportTitle);
@@ -1795,18 +1798,18 @@ void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager, const 
             DrawString(cx - tw / 2, cy - 90, titleStr, GetColor(245, 220, 150));
         }
 
-        const char* sub1 = "ALL 7 NIGHTS SURVIVED";
+        const char* sub1 = "全7夜 生還達成";
         int s1w = GetDrawStringWidth(sub1, (int)strlen(sub1));
         DrawString(cx - s1w / 2, cy - 35, sub1, GetColor(140, 235, 185));
 
-        const char* sub2 = "The dawn finally breaks. You made it through the nightmare alive.";
+        const char* sub2 = "夜が明けた。あなたは悪夢の夜を生き延びた。";
         int s2w = GetDrawStringWidth(sub2, (int)strlen(sub2));
         DrawString(cx - s2w / 2, cy + 5, sub2, GetColor(190, 205, 200));
 
         // ボタン
-        DrawButton(cx - 180, cy + 60, cx + 180, cy + 100, "RETURN TO TITLE [ENTER]",
+        DrawButton(cx - 180, cy + 60, cx + 180, cy + 100, "タイトルへ戻る [ENTER]",
             GetColor(35, 75, 65), GetColor(60, 130, 110));
-        DrawButton(cx - 180, cy + 115, cx + 180, cy + 155, "QUIT GAME [ESC]",
+        DrawButton(cx - 180, cy + 115, cx + 180, cy + 155, "ゲーム終了 [ESC]",
             GetColor(50, 30, 35), GetColor(120, 50, 60));
     }
 
@@ -1870,8 +1873,8 @@ void SceneManager::DrawGameOverScene(const DeliveryManager& deliveryManager)
 
     // ホラーテキスト（フォントを適用して中央揃え）
     char line1[64];
-    snprintf(line1, sizeof(line1), "Failed to survive Night %d of 7...", currentDay);
-    const char* line2 = "The delivery courier went missing in the midnight streets.";
+    snprintf(line1, sizeof(line1), "第 %d 夜を生き延びることはできなかった...", currentDay);
+    const char* line2 = "配達員は深夜の街から消息を絶った。";
     if (fontSubText != -1)
     {
         int l1w = GetDrawStringWidthToHandle(line1, (int)strlen(line1), fontSubText);
@@ -1881,20 +1884,22 @@ void SceneManager::DrawGameOverScene(const DeliveryManager& deliveryManager)
     }
     else
     {
-        DrawString(cx - 105, cy - 40, line1, GetColor(190, 110, 110));
-        DrawString(cx - 165, cy - 15, line2, GetColor(140, 110, 110));
+        int l1w = GetDrawStringWidth(line1, (int)strlen(line1));
+        int l2w = GetDrawStringWidth(line2, (int)strlen(line2));
+        DrawString(cx - l1w / 2, cy - 40, line1, GetColor(190, 110, 110));
+        DrawString(cx - l2w / 2, cy - 15, line2, GetColor(140, 110, 110));
     }
 
     // メニューボタン（マウスホバー＆キー選択両対応）
     char retryLabel[32];
-    snprintf(retryLabel, sizeof(retryLabel), "RETRY DAY %d", currentDay);
+    snprintf(retryLabel, sizeof(retryLabel), "Day %d をリトライ", currentDay);
     DrawButton(cx - 180, cy + 25, cx + 180, cy + 65, retryLabel,
         GetColor(230, 210, 150), GetColor(255, 245, 190), fontMenu);
 
-    DrawButton(cx - 180, cy + 75, cx + 180, cy + 115, "RETURN TO TITLE",
+    DrawButton(cx - 180, cy + 75, cx + 180, cy + 115, "タイトルへ戻る",
         GetColor(180, 170, 165), GetColor(240, 235, 230), fontMenu);
 
-    DrawButton(cx - 180, cy + 125, cx + 180, cy + 165, "QUIT GAME",
+    DrawButton(cx - 180, cy + 125, cx + 180, cy + 165, "ゲーム終了",
         GetColor(140, 130, 125), GetColor(220, 215, 210), fontMenu);
 
     DrawScanlinesAndNoise(26);
@@ -1973,8 +1978,8 @@ void SceneManager::DrawRulePopup()
     HorrorUI::Instance().DrawRetroPanel(x1, y1, x2, y2,
         GetColor(70, 88, 80), GetColor(12, 16, 15), 245);
 
-    // 3. English-only copy avoids narrow-code-page conversion issues in DxLib.
-    const char* titleText = "NEWSPAPER DELIVERY - HOW TO PLAY";
+    // 3. タイトル表示
+    const char* titleText = "新聞配達 — 遊び方";
     if (fontPopupTitle != -1)
     {
         int tw = GetDrawStringWidthToHandle(titleText, (int)strlen(titleText), fontPopupTitle);
@@ -1986,7 +1991,7 @@ void SceneManager::DrawRulePopup()
         DrawString(cx - tw / 2, y1 + 18, titleText, GetColor(235, 245, 240));
     }
 
-    const char* subTitleEn = "DELIVER EVERY PAPER BEFORE DAWN";
+    const char* subTitleEn = "午前1時の配達業務マニュアル";
     if (fontPopupSub != -1)
     {
         int stw = GetDrawStringWidthToHandle(subTitleEn, (int)strlen(subTitleEn), fontPopupSub);
@@ -1997,7 +2002,7 @@ void SceneManager::DrawRulePopup()
     DrawLine(x1 + 35, y1 + 72, x2 - 35, y1 + 72, GetColor(50, 68, 62));
 
     // 4. 導入文
-    const char* introText = "Deliver newspapers to every marked house before dawn.";
+    const char* introText = "夜が明ける前に、指定された家へ新聞を届けてください。";
     if (fontPopupBody != -1)
     {
         int iw = GetDrawStringWidthToHandle(introText, (int)strlen(introText), fontPopupBody);
@@ -2052,32 +2057,32 @@ void SceneManager::DrawRulePopup()
     // 説明1：新聞の配達
     DrawSection(
         y1 + 112, 78,
-        "1. DELIVER THE PAPERS",
-        "Take a paper from your bicycle basket, then deliver it to the next marked mailbox.",
-        "Look at the basket or mailbox and LEFT CLICK to interact.",
+        "1. 新聞を配達する",
+        "自転車のカゴから新聞を取り、指定されたポストへ順番に届けてください。",
+        "カゴやポストを見て左クリックで新聞を取る／配達します。",
         GetColor(245, 230, 175)
     );
 
     // 説明2：暗闇と恐怖
     DrawSection(
         y1 + 198, 78,
-        "2. STAY IN THE LIGHT",
-        "Fear rises in darkness. Streetlights and your bicycle headlight can keep you safer.",
-        "Stay within safe light to let fear subside.",
+        "2. 暗闇を避ける",
+        "暗闇にいると恐怖度が上昇します。街灯や自転車のライトを利用して、危険から身を守ってください。",
+        "安全な光の中に留まると恐怖度が低下します。",
         GetColor(245, 175, 160)
     );
 
     // 説明3：バッテリー
     DrawSection(
         y1 + 284, 78,
-        "3. MANAGE YOUR BATTERY",
-        "Your bicycle headlight uses battery power. Find spare batteries around town and replace it when needed.",
-        "Look at a spare battery and LEFT CLICK to collect it. Press R near your bicycle to replace the battery.",
+        "3. バッテリーを管理する",
+        "自転車のライトはバッテリーを消費します。街中で予備バッテリーを探し、必要に応じて交換してください。",
+        "落ちているバッテリーを見て左クリックで拾い、自転車の近くでRキーを押して交換します。",
         GetColor(170, 230, 205)
     );
 
     // 補足：ゲームオーバー条件
-    const char* warnText = "If fear reaches its limit, you will be caught. The night ends in game over.";
+    const char* warnText = "※ 恐怖度が限界に達するとゲームオーバーになります。";
     if (fontPopupBody != -1)
     {
         int ww = GetDrawStringWidthToHandle(warnText, (int)strlen(warnText), fontPopupBody);
@@ -2090,7 +2095,7 @@ void SceneManager::DrawRulePopup()
     }
 
     // 6. アクションボタン
-    const char* btnLabel = (!rulePopupFromManual) ? "START DELIVERY" : "RETURN TO GAME";
+    const char* btnLabel = (!rulePopupFromManual) ? "配達を開始" : "ゲームに戻る";
     int btnW = 220;
     int btnH = 40;
     int btnX1 = cx - btnW / 2;
@@ -2124,8 +2129,8 @@ void SceneManager::DrawRulePopup()
 
     // 7. ボタン下ガイド案内
     const char* keyGuideText = (!rulePopupFromManual)
-        ? "Press ENTER, ESC, or click to begin"
-        : "Press ENTER, ESC, or click to return";
+        ? "Enterキーまたはクリックで開始"
+        : "Enterキー、Escキー、またはクリックで戻る";
 
     if (fontPopupSub != -1)
     {

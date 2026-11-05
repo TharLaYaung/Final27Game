@@ -37,7 +37,7 @@ void Interaction::Draw()
         DrawString(
             570,
             500,
-            "E : Interact",
+            "E : 調べる",
             GetColor(
                 255,
                 255,
@@ -52,7 +52,7 @@ void Interaction::Draw()
         DrawString(
             570,
             550,
-            "Interacted!",
+            "調べました",
             GetColor(
                 255,
                 255,

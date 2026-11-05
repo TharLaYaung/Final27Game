@@ -86,34 +86,41 @@ void HorrorUI::Initialize()
         bloodSplatterGraph = LoadGraph("Data/blood_splatter.png");
     }
 
-    // ホラー演出に特化した擦れ・不気味な筆跡フォント "Chiller" を全UIフォントの基調として生成
-    // 小型UI用（ミニマップ、バッテリー、所持数、恐怖度など全HUD表示用）
-    fontSmall = CreateFontToHandle("Chiller", 20, 2, DX_FONTTYPE_ANTIALIASING);
-    if (fontSmall == -1) fontSmall = CreateFontToHandle("MS Gothic", 14, 2, DX_FONTTYPE_NORMAL);
+    // 日本語フォント生成ヘルパー（Meiryo -> Yu Gothic -> MS Gothic の順で安全に生成）
+    auto CreateJPFont = [](const char* name1, const char* name2, int size, int thick, int fontType) -> int {
+        int h = CreateFontToHandle(name1, size, thick, fontType);
+        if (h == -1 && name2 != nullptr) {
+            h = CreateFontToHandle(name2, size, thick, fontType);
+        }
+        if (h == -1) {
+            h = CreateFontToHandle("MS Gothic", size, thick, DX_FONTTYPE_NORMAL);
+        }
+        return h;
+    };
 
-    // 中型UI用（プロンプト等）
-    fontMedium = CreateFontToHandle("Chiller", 26, 3, DX_FONTTYPE_ANTIALIASING);
-    if (fontMedium == -1) fontMedium = CreateFontToHandle("MS Gothic", 18, 2, DX_FONTTYPE_NORMAL);
+    // 小型UI用（ミニマップ、バッテリー、所持数、恐怖度など全HUD表示用日本語フォント）
+    fontSmall = CreateJPFont("Meiryo", "Yu Gothic", 16, 2, DX_FONTTYPE_ANTIALIASING);
 
-    // 大型UI用
-    fontLarge = CreateFontToHandle("Chiller", 34, 4, DX_FONTTYPE_ANTIALIASING);
-    if (fontLarge == -1) fontLarge = CreateFontToHandle("MS Gothic", 26, 3, DX_FONTTYPE_NORMAL);
+    // 中型UI用（プロンプト・通知用日本語フォント）
+    fontMedium = CreateJPFont("Meiryo", "Yu Gothic", 20, 3, DX_FONTTYPE_ANTIALIASING);
 
-    // 時計フォント（不気味なChillerホラー時計）
+    // 大型UI用（バナー見出し等用日本語フォント）
+    fontLarge = CreateJPFont("Meiryo", "Yu Gothic", 26, 3, DX_FONTTYPE_ANTIALIASING);
+
+    // 時計フォント（英数字専用・不気味なChillerホラー時計）
     fontClock = CreateFontToHandle("Chiller", 26, 3, DX_FONTTYPE_ANTIALIASING);
     if (fontClock == -1) fontClock = CreateFontToHandle("Consolas", 20, 2, DX_FONTTYPE_NORMAL);
 
-    // 大見出しホラー専用フォント（タイトル、GAME OVER）
+    // 大見出しホラー専用フォント（タイトル、GAME OVERなどの英語演出用）
     fontTitleHorror = CreateFontToHandle("Chiller", 64, 4, DX_FONTTYPE_ANTIALIASING);
     if (fontTitleHorror == -1) fontTitleHorror = CreateFontToHandle("MS Gothic", 48, 5, DX_FONTTYPE_ANTIALIASING_EDGE_8X8);
 
-    // 操作方法 [KEY] 表記用（Chillerホラーフォント）
+    // 操作方法 [KEY] 表記用（英数字キー名用）
     fontKeyGuide = CreateFontToHandle("Chiller", 21, 3, DX_FONTTYPE_ANTIALIASING);
     if (fontKeyGuide == -1) fontKeyGuide = CreateFontToHandle("Consolas", 14, 2, DX_FONTTYPE_NORMAL);
 
-    // 操作方法アクション説明用（Chillerホラーフォント）
-    fontKeyAction = CreateFontToHandle("Chiller", 21, 3, DX_FONTTYPE_ANTIALIASING);
-    if (fontKeyAction == -1) fontKeyAction = CreateFontToHandle("MS Gothic", 15, 1, DX_FONTTYPE_NORMAL);
+    // 操作方法アクション説明用（日本語操作案内フォント）
+    fontKeyAction = CreateJPFont("Meiryo", "Yu Gothic", 16, 2, DX_FONTTYPE_ANTIALIASING);
 }
 
 // 終了処理（フォントハンドルおよびエフェクト画面の破棄）
@@ -536,22 +543,22 @@ void HorrorUI::DrawInteractionPrompt()
     switch (currentPrompt)
     {
     case PromptType::RideBicycle:
-        promptText = "[ E ] RIDE";
+        promptText = "[ E ] 自転車に乗る";
         break;
     case PromptType::DismountBicycle:
-        promptText = "[ E ] DISMOUNT";
+        promptText = "[ E ] 自転車から降りる";
         break;
     case PromptType::TakeNewspaper:
-        promptText = "[ LMB ] TAKE";
+        promptText = "[ LMB ] 新聞を取る";
         break;
     case PromptType::DeliverNewspaper:
-        promptText = "[ LMB ] DELIVER";
+        promptText = "[ LMB ] 新聞を配達する";
         break;
     case PromptType::TakeBattery:
-        promptText = "[ LMB ] TAKE BATTERY";
+        promptText = "[ LMB ] バッテリーを拾う";
         break;
     case PromptType::ReplaceBattery:
-        promptText = "[ R ] REPLACE BATTERY";
+        promptText = "[ R ] バッテリーを交換する";
         break;
     default:
         return;
@@ -559,8 +566,8 @@ void HorrorUI::DrawInteractionPrompt()
 
     if (currentPrompt == PromptType::BatteryFull)
     {
-        const char* line1 = "BATTERY FULL";
-        const char* line2 = "SPARE 2/2";
+        const char* line1 = "バッテリー満杯";
+        const char* line2 = "予備 2/2";
         int w1 = (fontMedium != -1) ? GetDrawStringWidthToHandle(line1, (int)strlen(line1), fontMedium) : 130;
         int w2 = (fontSmall != -1) ? GetDrawStringWidthToHandle(line2, (int)strlen(line2), fontSmall) : 80;
         int maxW = (w1 > w2) ? w1 : w2;
@@ -679,7 +686,7 @@ void HorrorUI::DrawDayBanner(const char* dayName, const char* subtitle, int quot
     DrawJitterString(cx - tw / 2, by1 + 6, titleBuf, COL_TARGET, fontLarge);
 
     char subBuf[128];
-    snprintf(subBuf, sizeof(subBuf), "QUOTA: %02d HOUSES  |  %s", quota, subtitle ? subtitle : "");
+    snprintf(subBuf, sizeof(subBuf), "配達目標: %02d軒  |  %s", quota, subtitle ? subtitle : "");
     int sw = (fontSmall != -1) ? GetDrawStringWidthToHandle(subBuf, (int)strlen(subBuf), fontSmall) : 200;
     DrawJitterString(cx - sw / 2, by1 + 34, subBuf, COL_TEXT, fontSmall);
 
@@ -690,7 +697,7 @@ void HorrorUI::DrawDayBanner(const char* dayName, const char* subtitle, int quot
 void HorrorUI::DrawPaperCargo(int paperCount, bool isHolding)
 {
     char paperStr[32];
-    snprintf(paperStr, sizeof(paperStr), "PAPERS  %02d", paperCount);
+    snprintf(paperStr, sizeof(paperStr), "新聞  %02d部", paperCount);
 
     int panelX1 = 26;
     int panelY1 = 668;
@@ -706,7 +713,7 @@ void HorrorUI::DrawPaperCargo(int paperCount, bool isHolding)
     // 右側：手持ち状態の表示（右揃え配置で重なりを完全排除）
     if (isHolding)
     {
-        const char* holdStr = "[HOLDING]";
+        const char* holdStr = "[手持ち]";
         int holdW = (fontSmall != -1) ? GetDrawStringWidthToHandle(holdStr, (int)strlen(holdStr), fontSmall) : 60;
         bool blink = ((frameCount / 25) % 2) == 0;
         unsigned int col = blink ? COL_TARGET : COL_TEXT_DIM;
@@ -720,16 +727,16 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
     if (!showKeyGuide)
     {
         // 操作ガイド非表示時は右上端に最小限のトグル案内のみ表示
-        int minX1 = 1105;
+        int minX1 = 1085;
         int minY1 = 20;
         int minX2 = 1255;
         int minY2 = 50;
         DrawRetroPanel(minX1, minY1, minX2, minY2, COL_BORDER_DIM, COL_PANEL_BG, 175);
-        DrawJitterString(minX1 + 10, minY1 + 5, "[ TAB ] GUIDE", COL_TEXT_DIM, fontKeyAction);
+        DrawJitterString(minX1 + 10, minY1 + 5, "[ TAB ] 操作説明", COL_TEXT_DIM, fontKeyAction);
         return;
     }
 
-    int kx1 = 980;
+    int kx1 = 960;
     int ky1 = 20;
     int kx2 = 1255;
     int ky2 = 326;
@@ -737,8 +744,8 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
     // レトロ端末パネル枠と背景の描画
     DrawRetroPanel(kx1, ky1, kx2, ky2, COL_BORDER, COL_PANEL_BG, 195);
 
-    // 見出しタイトル（不気味なホラー筆跡 Chiller）
-    DrawJitterString(kx1 + 10, ky1 + 4, "CONTROLS GUIDE", GetColor(200, 160, 150), fontKeyAction);
+    // 見出しタイトル
+    DrawJitterString(kx1 + 10, ky1 + 4, "操作方法", GetColor(200, 160, 150), fontKeyAction);
 
     // 区切り線
     DrawLine(kx1 + 4, ky1 + 25, kx2 - 4, ky1 + 25, COL_BORDER_DIM);
@@ -758,40 +765,40 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
     unsigned int bikeCol = COL_BIKE;
 
     // Eキー（乗車／降車）
-    const char* eAction = isRiding ? "Dismount" : "Ride Bike";
+    const char* eAction = isRiding ? "自転車から降りる" : "自転車に乗る";
     unsigned int eKeyCol = isRiding ? bikeCol : defaultKeyCol;
     unsigned int eActCol = isRiding ? bikeCol : defaultActCol;
 
     // 左クリック（受取／配達）
-    const char* lmbAction = isHoldingPaper ? "Deliver" : "Take Paper";
+    const char* lmbAction = isHoldingPaper ? "配達する" : "新聞を取る";
     unsigned int lmbKeyCol = canTakeOrDeliver ? activeKeyCol : defaultKeyCol;
     unsigned int lmbActCol = canTakeOrDeliver ? activeActCol : defaultActCol;
 
     // Fキー（ライト点消灯）
-    const char* fAction = isHeadlightOn ? "Light (ON)" : "Headlight";
+    const char* fAction = isHeadlightOn ? "ライト (点灯中)" : "ライト点灯";
     unsigned int fKeyCol = isHeadlightOn ? GetColor(240, 220, 140) : defaultKeyCol;
     unsigned int fActCol = isHeadlightOn ? GetColor(220, 205, 150) : defaultActCol;
 
     // F6キー（マップ表示）
-    const char* f6Action = isMapDebugOn ? "Map (ON)" : "Map Info";
+    const char* f6Action = isMapDebugOn ? "マップ (表示中)" : "マップ情報";
     unsigned int f6KeyCol = isMapDebugOn ? GetColor(150, 215, 185) : defaultKeyCol;
     unsigned int f6ActCol = isMapDebugOn ? GetColor(135, 185, 165) : defaultActCol;
 
-    const char* rAction = canReplaceBattery ? "Replace Bat" : "Replace Bat";
+    const char* rAction = "バッテリー交換";
     unsigned int rKeyCol = canReplaceBattery ? activeKeyCol : defaultKeyCol;
     unsigned int rActCol = canReplaceBattery ? activeActCol : defaultActCol;
 
     KeyItem items[] = {
-        { "[ WASD ]", isRiding ? "Pedal / Steer" : "Move", defaultKeyCol, defaultActCol },
-        { "[ MOUSE ]", "Look", defaultKeyCol, defaultActCol },
+        { "[ WASD ]", isRiding ? "ペダル / 操縦" : "移動", defaultKeyCol, defaultActCol },
+        { "[ MOUSE ]", "視線移動", defaultKeyCol, defaultActCol },
         { "[ E ]", eAction, eKeyCol, eActCol },
         { "[ LMB ]", lmbAction, lmbKeyCol, lmbActCol },
         { "[ R ]", rAction, rKeyCol, rActCol },
         { "[ F ]", fAction, fKeyCol, fActCol },
-        { "[ H ]", "How to Play", activeKeyCol, activeActCol },
-        { "[ ESC ]", "Pause Menu", defaultKeyCol, defaultActCol },
+        { "[ H ]", "遊び方", activeKeyCol, activeActCol },
+        { "[ ESC ]", "ポーズメニュー", defaultKeyCol, defaultActCol },
         { "[ F6 ]", f6Action, f6KeyCol, f6ActCol },
-        { "[ TAB ]", "Hide Guide", defaultKeyCol, defaultActCol }
+        { "[ TAB ]", "ガイド非表示", defaultKeyCol, defaultActCol }
     };
 
     int startY = ky1 + 31;
@@ -807,7 +814,7 @@ void HorrorUI::DrawKeyGuide(bool isRiding, bool isHoldingPaper, bool canTakeOrDe
         DrawJitterString(curX, curY, items[i].key, items[i].keyCol, fontKeyGuide);
 
         // アクション表記（十分な水平オフセットで重なりを完全排除）
-        DrawJitterString(kx1 + 108, curY, items[i].action, items[i].actCol, fontKeyAction);
+        DrawJitterString(kx1 + 95, curY, items[i].action, items[i].actCol, fontKeyAction);
     }
 }
 
@@ -828,26 +835,26 @@ void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isR
     // 上段：ラベル・点灯状態・残量パーセント表示
     int textY = panelY1 + 5;
 
-    // 「LIGHT」固定ラベル
-    DrawJitterString(panelX1 + 10, textY, "LIGHT", COL_TEXT_DIM, fontSmall);
+    // 「ライト」固定ラベル
+    DrawJitterString(panelX1 + 10, textY, "ライト", COL_TEXT_DIM, fontSmall);
 
     // 点灯状態インジケータ
     if (batteryPercent <= 0.0f)
     {
-        // バッテリー完全枯渇時は点滅表示（DEAD）
+        // バッテリー完全枯渇時は点滅表示（充電切）
         bool blink = ((frameCount / 20) % 2) == 0;
         unsigned int deadCol = blink ? COL_WARNING : GetColor(90, 30, 25);
-        DrawJitterString(panelX1 + 56, textY, "DEAD", deadCol, fontSmall);
+        DrawJitterString(panelX1 + 62, textY, "充電切", deadCol, fontSmall);
     }
     else if (isLightOn)
     {
         // 点灯中
-        DrawJitterString(panelX1 + 56, textY, "ON", GetColor(210, 220, 210), fontSmall);
+        DrawJitterString(panelX1 + 62, textY, "点灯", GetColor(210, 220, 210), fontSmall);
     }
     else
     {
         // 消灯中
-        DrawJitterString(panelX1 + 56, textY, "OFF", COL_TEXT_DIM, fontSmall);
+        DrawJitterString(panelX1 + 62, textY, "消灯", COL_TEXT_DIM, fontSmall);
     }
 
     // デバッグ高速消費インジケータ（F8有効時）
@@ -948,9 +955,9 @@ void HorrorUI::DrawBicycleBattery(float batteryPercent, bool isLightOn, bool isR
     // 予備バッテリー区切り線
     DrawLine(panelX1 + 6, panelY1 + 41, panelX2 - 6, panelY1 + 41, COL_BORDER_DIM);
 
-    // 予備バッテリー所持数表示（SPARE 0/2, SPARE 1/2, SPARE 2/2）
+    // 予備バッテリー所持数表示（予備 0/2, 予備 1/2, 予備 2/2）
     char spareStr[32];
-    snprintf(spareStr, sizeof(spareStr), "SPARE %d/%d", spareBatteries, maxSpareBatteries);
+    snprintf(spareStr, sizeof(spareStr), "予備 %d/%d", spareBatteries, maxSpareBatteries);
 
     unsigned int spareCol = COL_TEXT_DIM;
     if (spareBatteries >= maxSpareBatteries)
@@ -1043,21 +1050,21 @@ void HorrorUI::DrawFearMeter(float fearPercent, bool inSafeLight)
         fearColor = COL_TEXT_DIM;
     }
 
-    // 上段左側：恐怖度数値ラベル（Chillerホラーフォント）
+    // 上段左側：恐怖度数値ラベル
     char fearStr[32];
-    snprintf(fearStr, sizeof(fearStr), "FEAR %02d%%", static_cast<int>(displayedFearPercent));
+    snprintf(fearStr, sizeof(fearStr), "恐怖度 %02d%%", static_cast<int>(displayedFearPercent));
     DrawJitterString(panelX1 + 10 + jitterX, panelY1 + 3 + jitterY, fearStr, fearColor, fontSmall);
 
-    // 上段右側：安全光判定インジケータ（SAFE: 穏やかな緑 / DARK: 危険な赤橙点滅、右揃え配置で重なりを排除）
+    // 上段右側：安全光判定インジケータ（安全: 穏やかな緑 / 暗闇: 危険な赤橙点滅、右揃え配置で重なりを排除）
     if (inSafeLight)
     {
-        const char* safeStr = "SAFE";
+        const char* safeStr = "安全";
         int strW = (fontSmall != -1) ? GetDrawStringWidthToHandle(safeStr, (int)strlen(safeStr), fontSmall) : 36;
         DrawJitterString(panelX2 - strW - 10, panelY1 + 3, safeStr, GetColor(110, 185, 140), fontSmall);
     }
     else
     {
-        const char* darkStr = "DARK";
+        const char* darkStr = "暗闇";
         int strW = (fontSmall != -1) ? GetDrawStringWidthToHandle(darkStr, (int)strlen(darkStr), fontSmall) : 36;
         bool blink = ((frameCount / 20) % 2) == 0;
         unsigned int darkCol = blink ? GetColor(220, 70, 60) : GetColor(160, 45, 40);
@@ -1139,18 +1146,18 @@ void HorrorUI::DrawGameOver(float fadeAlpha, bool isInteractive)
     }
 
     // ホラー演出テキスト（動的センタリング）
-    const char* darkMsg = "CONSUMED BY THE DARKNESS...";
+    const char* darkMsg = "暗闇に呑み込まれた...";
     int dw = GetDrawStringWidth(darkMsg, (int)strlen(darkMsg));
     DrawString(cx - dw / 2, cy - 10, darkMsg, COL_TEXT_DIM);
 
     // 操作案内（リトライ・終了・動的センタリング）
     bool blink = ((frameCount / 30) % 2) == 0;
     unsigned int promptCol = blink ? COL_TEXT : COL_TEXT_DIM;
-    const char* retryStr = "[ R ] RETRY DELIVERY";
+    const char* retryStr = "[ R ] 配達をやり直す";
     int rw = GetDrawStringWidth(retryStr, (int)strlen(retryStr));
     DrawString(cx - rw / 2, cy + 40, retryStr, promptCol);
 
-    const char* quitStr = "[ ESC ] QUIT";
+    const char* quitStr = "[ ESC ] ゲーム終了";
     int qw = GetDrawStringWidth(quitStr, (int)strlen(quitStr));
     DrawString(cx - qw / 2, cy + 65, quitStr, COL_TEXT_DIM);
 }
