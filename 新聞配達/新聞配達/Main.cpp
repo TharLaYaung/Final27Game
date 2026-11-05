@@ -161,11 +161,11 @@ int WINAPI WinMain(
     // ミニマップ初期化
     minimap.Initialize();
 
-    // シーン統合管理システム初期化
-    sceneManager.Initialize();
-
-    // 統合ホラー音響システムの初期化
+    // 統合ホラー音響システムの初期化（シーン初期化より先にロード完了させる）
     AudioManager::Instance().Initialize();
+
+    // シーン統合管理システム初期化（タイトルBGM再生開始）
+    sceneManager.Initialize();
 
     // 60FPS制御用の時間記録
     LONGLONG prevTime = GetNowHiPerformanceCount();

@@ -1,4 +1,4 @@
-#include "NightEnvironment.h"
+﻿#include "NightEnvironment.h"
 #include "Bicycle.h"
 #include "HorrorUI.h"
 #include "Map.h"
@@ -566,7 +566,7 @@ void NightEnvironment::DrawStreetLights()
             ? 0.0f
             : sl.currentIntensity;
 
-        DrawPoleModel(sl.position, intensity, sl.baseColor);
+        DrawPoleModel(sl.position, intensity, sl.baseColor, sl.state);
     }
 }
 

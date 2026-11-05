@@ -90,6 +90,10 @@ public:
     // 自転車との当たり判定を使うか設定する
     void SetBicycleCollisionEnabled(bool enabled);
 
+    // マウス感度を設定・取得する
+    void SetMouseSensitivity(float sens) { mouseSensitivity = sens; }
+    float GetMouseSensitivity() const { return mouseSensitivity; }
+
 private:
 
 

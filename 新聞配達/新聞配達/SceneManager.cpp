@@ -79,14 +79,16 @@ SceneManager::SceneManager()
     , titleSubMenu(TitleSubMenu::Main)
     , titleMenuSelection(0)
     , settingsSelection(0)
-    , masterVolume(80)
-    , bgmVolume(70)
-    , sfxVolume(85)
+    , masterVolume(95)
+    , bgmVolume(90)
+    , sfxVolume(90)
     , audioTestFeedbackTimer(0.0f)
+    , mouseSensitivityLevel(50)
     , soundMenuSelect(-1)
     , soundMenuAdjust(-1)
     , soundTestPulse(-1)
     , isPaused(false)
+    , pauseSubMenu(PauseSubMenu::Main)
     , pauseMenuSelection(0)
     , titleTimer(0.0f)
     , clearTimer(0.0f)
@@ -134,12 +136,18 @@ bool SceneManager::Initialize()
     titleSubMenu = TitleSubMenu::Main;
     titleMenuSelection = 0;
     settingsSelection = 0;
-    masterVolume = 80;
-    bgmVolume = 70;
-    sfxVolume = 85;
+    masterVolume = 95;
+    bgmVolume = 90;
+    sfxVolume = 90;
     audioTestFeedbackTimer = 0.0f;
+    mouseSensitivityLevel = 50;
     isPaused = false;
+    pauseSubMenu = PauseSubMenu::Main;
     pauseMenuSelection = 0;
+
+    SetMasterVolume(masterVolume);
+    SetBgmVolume(bgmVolume);
+    SetSfxVolume(sfxVolume);
 
     // プロシージャルUI音声の合成
     soundMenuSelect = CreateProceduralSound(650.0f, 0.05f, 40.0f);
@@ -230,6 +238,11 @@ void SceneManager::SetSfxVolume(int vol)
     AudioManager::Instance().SetSfxVolume(sfxVolume);
 }
 
+void SceneManager::SetMouseSensitivityLevel(int lvl)
+{
+    mouseSensitivityLevel = (lvl < 1) ? 1 : (lvl > 100 ? 100 : lvl);
+}
+
 void SceneManager::PlayMenuClick()
 {
     AudioManager::Instance().PlayMenuClick();
@@ -249,6 +262,7 @@ void SceneManager::SetPaused(bool paused)
 {
     isPaused = paused;
     pauseMenuSelection = 0;
+    pauseSubMenu = PauseSubMenu::Main;
 
     // ポーズ中はゲーム内時刻の進行を一時停止
     HorrorUI::Instance().SetTimePaused(paused);
@@ -420,6 +434,112 @@ bool SceneManager::DrawButton(int x1, int y1, int x2, int y2, const char* label,
     return isHover && mouseClicked;
 }
 
+// 共通設定入力処理（タイトル・ポーズ共用）
+void SceneManager::HandleSettingsInput(
+    bool upDown, bool downDown, bool leftDown, bool rightDown,
+    bool enterDown, bool spaceDown, bool escDown,
+    Player& player, bool inPause
+)
+{
+    // 設定項目カーソル移動（6項目：0〜5）
+    if (upDown)
+    {
+        settingsSelection = (settingsSelection <= 0) ? 5 : settingsSelection - 1;
+        PlayMenuAdjust();
+    }
+    if (downDown)
+    {
+        settingsSelection = (settingsSelection >= 5) ? 0 : settingsSelection + 1;
+        PlayMenuAdjust();
+    }
+
+    int cx = 640;
+    int setY = 130;
+    int barW = 240;
+    int btnW = 28;
+    int barX = cx - 280 + 160;
+    int sliderX = barX + btnW + 8;
+    int rightBtnX = sliderX + barW + 8;
+
+    // スライダー操作のラムダ（矢印キー・クリック・ドラッグ完全対応）
+    auto HandleSlider = [&](int row, int& val, int minVal, int maxVal, int y) {
+        bool hitLeftBtn = CheckButtonHit(barX, y, barX + btnW, y + 28);
+        bool hitRightBtn = CheckButtonHit(rightBtnX, y, rightBtnX + btnW, y + 28);
+        bool hoverBar = CheckButtonHover(sliderX, y + 2, sliderX + barW, y + 26);
+
+        bool dec = hitLeftBtn || (settingsSelection == row && leftDown);
+        bool inc = hitRightBtn || (settingsSelection == row && rightDown);
+
+        bool changed = false;
+        if (dec)
+        {
+            val = (val - 5 < minVal) ? minVal : val - 5;
+            changed = true;
+        }
+        if (inc)
+        {
+            val = (val + 5 > maxVal) ? maxVal : val + 5;
+            changed = true;
+        }
+        if (hoverBar && isMouseLeft)
+        {
+            int relX = mouseX - sliderX;
+            float rate = (float)relX / (float)barW;
+            rate = (rate < 0.0f) ? 0.0f : (rate > 1.0f ? 1.0f : rate);
+            int newVal = minVal + (int)(rate * (maxVal - minVal) + 0.5f);
+            if (newVal != val)
+            {
+                val = newVal;
+                changed = true;
+            }
+        }
+
+        if (changed)
+        {
+            if (row == 0) SetMasterVolume(val);
+            else if (row == 1) SetBgmVolume(val);
+            else if (row == 2) SetSfxVolume(val);
+            else if (row == 3)
+            {
+                SetMouseSensitivityLevel(val);
+                player.SetMouseSensitivity(GetCalculatedMouseSensitivity());
+            }
+            PlayMenuAdjust();
+        }
+    };
+
+    HandleSlider(0, masterVolume,           0, 100, setY + 65);
+    HandleSlider(1, bgmVolume,              0, 100, setY + 125);
+    HandleSlider(2, sfxVolume,              0, 100, setY + 185);
+    HandleSlider(3, mouseSensitivityLevel, 1, 100, setY + 245);
+
+    int testBtnY = setY + 315;
+    int backBtnY = setY + 365;
+    bool hitTest = CheckButtonHit(cx - 160, testBtnY, cx + 160, testBtnY + 36);
+    bool hitBack = CheckButtonHit(cx - 160, backBtnY, cx + 160, backBtnY + 36);
+
+    if (hitTest) settingsSelection = 4;
+    if (hitBack) settingsSelection = 5;
+
+    if ((settingsSelection == 4 && (enterDown || spaceDown)) || hitTest)
+    {
+        PlayTestAudioPulse();
+        audioTestFeedbackTimer = 0.8f;
+    }
+    if ((settingsSelection == 5 && (enterDown || spaceDown)) || hitBack || escDown)
+    {
+        PlayMenuClick();
+        if (inPause)
+        {
+            pauseSubMenu = PauseSubMenu::Main;
+        }
+        else
+        {
+            titleSubMenu = TitleSubMenu::Main;
+        }
+    }
+}
+
 // シーン毎フレーム更新
 void SceneManager::Update(
     float dt,
@@ -534,6 +654,9 @@ void SceneManager::Update(
             SetMouseDispFlag(TRUE);
             titleTimer += dt;
 
+            // タイトルBGMの確実な再生維持
+            AudioManager::Instance().PlayTitleBgm();
+
             if (audioTestFeedbackTimer > 0.0f)
             {
                 audioTestFeedbackTimer -= dt;
@@ -601,74 +724,7 @@ void SceneManager::Update(
             }
             else if (titleSubMenu == TitleSubMenu::Settings)
             {
-                // 設定画面でのキーボードカーソル移動
-                if (upDown)
-                {
-                    settingsSelection = (settingsSelection <= 0) ? 4 : settingsSelection - 1;
-                    PlayMenuAdjust();
-                }
-                if (downDown)
-                {
-                    settingsSelection = (settingsSelection >= 4) ? 0 : settingsSelection + 1;
-                    PlayMenuAdjust();
-                }
-
-                int setY = 160;
-                int barW = 240;
-                int btnW = 28;
-                int barX = cx - 280 + 160;
-                int sliderX = barX + btnW + 8;
-                int rightBtnX = sliderX + barW + 8;
-
-                // スライダー操作のラムダ
-                auto HandleSlider = [&](int row, int& vol, int y) {
-                    bool hitLeftBtn = CheckButtonHit(barX, y, barX + btnW, y + 28);
-                    bool hitRightBtn = CheckButtonHit(rightBtnX, y, rightBtnX + btnW, y + 28);
-                    bool hitBar = CheckButtonHit(sliderX, y + 2, sliderX + barW, y + 26);
-
-                    bool dec = hitLeftBtn || (settingsSelection == row && leftDown);
-                    bool inc = hitRightBtn || (settingsSelection == row && rightDown);
-
-                    if (dec)
-                    {
-                        vol = (vol <= 5) ? 0 : vol - 5;
-                        PlayMenuAdjust();
-                    }
-                    if (inc)
-                    {
-                        vol = (vol >= 95) ? 100 : vol + 5;
-                        PlayMenuAdjust();
-                    }
-                    if (hitBar && mouseClicked)
-                    {
-                        int relX = mouseX - (barX + btnW + 10);
-                        float rate = (float)relX / (float)barW;
-                        rate = (rate < 0.0f) ? 0.0f : (rate > 1.0f ? 1.0f : rate);
-                        vol = (int)(rate * 100.0f);
-                        PlayMenuAdjust();
-                    }
-                };
-
-                HandleSlider(0, masterVolume, setY + 45);
-                HandleSlider(1, bgmVolume,    setY + 110);
-                HandleSlider(2, sfxVolume,    setY + 175);
-
-                bool hitTest = CheckButtonHit(cx - 150, setY + 245, cx + 150, setY + 285);
-                bool hitBack = CheckButtonHit(cx - 150, setY + 305, cx + 150, setY + 345);
-
-                if (hitTest) settingsSelection = 3;
-                if (hitBack) settingsSelection = 4;
-
-                if ((settingsSelection == 3 && (enterDown || spaceDown)) || hitTest)
-                {
-                    PlayTestAudioPulse();
-                    audioTestFeedbackTimer = 0.8f;
-                }
-                if ((settingsSelection == 4 && (enterDown || spaceDown)) || hitBack || escDown)
-                {
-                    PlayMenuClick();
-                    titleSubMenu = TitleSubMenu::Main;
-                }
+                HandleSettingsInput(upDown, downDown, leftDown, rightDown, enterDown, spaceDown, escDown, player, false);
             }
             else if (titleSubMenu == TitleSubMenu::KeyGuide)
             {
@@ -689,10 +745,21 @@ void SceneManager::Update(
 
     case SceneType::Game:
         {
+            // プレイヤーのマウス感度を常に同期
+            player.SetMouseSensitivity(GetCalculatedMouseSensitivity());
+
             // ESCキーでポーズメニュー切り替え
             if (escDown && !IsTransitioning() && !horrorManager.IsControlRestricted())
             {
-                SetPaused(!isPaused);
+                if (isPaused && pauseSubMenu == PauseSubMenu::Settings)
+                {
+                    PlayMenuClick();
+                    pauseSubMenu = PauseSubMenu::Main;
+                }
+                else
+                {
+                    SetPaused(!isPaused);
+                }
             }
 
             // ポーズ中のメニュー操作
@@ -700,39 +767,59 @@ void SceneManager::Update(
             {
                 SetMouseDispFlag(TRUE);
 
+                if (pauseSubMenu == PauseSubMenu::Settings)
+                {
+                    HandleSettingsInput(upDown, downDown, leftDown, rightDown, enterDown, spaceDown, escDown, player, true);
+                    return;
+                }
+
+                // ポーズメインメニュー操作（5項目：0〜4）
                 if (upDown)
                 {
-                    pauseMenuSelection = (pauseMenuSelection + 3) % 4;
+                    pauseMenuSelection = (pauseMenuSelection <= 0) ? 4 : pauseMenuSelection - 1;
+                    PlayMenuAdjust();
                 }
                 if (downDown)
                 {
-                    pauseMenuSelection = (pauseMenuSelection + 1) % 4;
+                    pauseMenuSelection = (pauseMenuSelection >= 4) ? 0 : pauseMenuSelection + 1;
+                    PlayMenuAdjust();
                 }
 
-                // ポーズメニューのボタン判定
-                bool hitResume = CheckButtonHit(cx - 180, cy - 80, cx + 180, cy - 38);
-                bool hitRetry = CheckButtonHit(cx - 180, cy - 26, cx + 180, cy + 16);
-                bool hitTitle = CheckButtonHit(cx - 180, cy + 28, cx + 180, cy + 70);
-                bool hitQuit = CheckButtonHit(cx - 180, cy + 82, cx + 180, cy + 124);
+                // ポーズメニューのボタン判定（5項目）
+                bool hitResume    = CheckButtonHit(cx - 190, cy - 105, cx + 190, cy - 65);
+                bool hitSettings  = CheckButtonHit(cx - 190, cy - 55,  cx + 190, cy - 15);
+                bool hitRetry     = CheckButtonHit(cx - 190, cy - 5,   cx + 190, cy + 35);
+                bool hitTitle     = CheckButtonHit(cx - 190, cy + 45,  cx + 190, cy + 85);
+                bool hitQuit      = CheckButtonHit(cx - 190, cy + 95,  cx + 190, cy + 135);
 
                 if (hitResume || (enterDown && pauseMenuSelection == 0))
                 {
+                    PlayMenuClick();
                     SetPaused(false);
                 }
-                else if (hitRetry || (enterDown && pauseMenuSelection == 1))
+                else if (hitSettings || (enterDown && pauseMenuSelection == 1))
                 {
+                    PlayMenuClick();
+                    pauseSubMenu = PauseSubMenu::Settings;
+                    settingsSelection = 0;
+                }
+                else if (hitRetry || (enterDown && pauseMenuSelection == 2))
+                {
+                    PlayMenuClick();
                     SetPaused(false);
                     ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, currentDay);
                     StartTransition(SceneType::Game, 0.6f);
                 }
-                else if (hitTitle || (enterDown && pauseMenuSelection == 2))
+                else if (hitTitle || (enterDown && pauseMenuSelection == 3))
                 {
+                    PlayMenuClick();
                     SetPaused(false);
                     ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, 1);
                     StartTransition(SceneType::Title, 0.8f);
                 }
-                else if (hitQuit || (enterDown && pauseMenuSelection == 3))
+                else if (hitQuit || (enterDown && pauseMenuSelection == 4))
                 {
+                    PlayMenuClick();
                     outQuitRequested = true;
                 }
 
@@ -1246,67 +1333,81 @@ void SceneManager::DrawTitleMainMenu(int cx, float jitterSine)
         GetColor(150, 165, 160), HorrorUI::Instance().GetFontKeyGuide());
 }
 
-void SceneManager::DrawTitleSettings(int cx)
+// 共通設定パネル描画（タイトル・ポーズ共用）
+void SceneManager::DrawSettingsPanel(int cx, int setY, const char* headerTitle, bool inPause)
 {
-    int setY = 160;
     int sw = 680;
-    int sh = 420;
+    int sh = 450;
+
+    // ポーズ時の暗転オーバーレイ
+    if (inPause)
+    {
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, 190);
+        DrawBox(0, 0, 1280, 720, GetColor(5, 8, 10), TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    }
 
     // 設定ウィンドウパネル
     HorrorUI::Instance().DrawRetroPanel(cx - sw / 2, setY, cx + sw / 2, setY + sh,
-        GetColor(90, 50, 50), GetColor(16, 14, 18), 240);
+        GetColor(90, 50, 50), GetColor(16, 14, 18), 245);
 
     // ヘッダータイトル
-    const char* setTitle = "AUDIO & ENVIRONMENT SETTINGS";
     if (fontReportTitle != -1)
     {
-        int tw = GetDrawStringWidthToHandle(setTitle, (int)strlen(setTitle), fontReportTitle);
-        DrawStringToHandle(cx - tw / 2, setY + 14, setTitle, GetColor(240, 185, 140), fontReportTitle);
+        int tw = GetDrawStringWidthToHandle(headerTitle, (int)strlen(headerTitle), fontReportTitle);
+        DrawStringToHandle(cx - tw / 2, setY + 14, headerTitle, GetColor(240, 185, 140), fontReportTitle);
     }
     else
     {
-        DrawString(cx - 130, setY + 16, setTitle, GetColor(240, 185, 140));
+        int tw = GetDrawStringWidth(headerTitle, (int)strlen(headerTitle));
+        DrawString(cx - tw / 2, setY + 16, headerTitle, GetColor(240, 185, 140));
     }
 
     DrawLine(cx - sw / 2 + 25, setY + 48, cx + sw / 2 - 25, setY + 48, GetColor(75, 42, 42));
 
-    // 3本のスライダーバー描画
+    // 4本のスライダーバー描画
     bool dummyDec = false, dummyInc = false;
-    DrawVolumeSlider(cx - 280, setY + 65,  560, 28, masterVolume, "MASTER VOLUME", (settingsSelection == 0), dummyDec, dummyInc);
-    DrawVolumeSlider(cx - 280, setY + 125, 560, 28, bgmVolume,    "BGM / AMBIENCE", (settingsSelection == 1), dummyDec, dummyInc);
-    DrawVolumeSlider(cx - 280, setY + 185, 560, 28, sfxVolume,    "SFX / EFFECTS",  (settingsSelection == 2), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 65,  560, 28, masterVolume,           "MASTER VOLUME",     (settingsSelection == 0), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 125, 560, 28, bgmVolume,              "BGM / AMBIENCE",    (settingsSelection == 1), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 185, 560, 28, sfxVolume,              "SFX / EFFECTS",     (settingsSelection == 2), dummyDec, dummyInc);
+    DrawVolumeSlider(cx - 280, setY + 245, 560, 28, mouseSensitivityLevel, "MOUSE SENSITIVITY", (settingsSelection == 3), dummyDec, dummyInc);
 
     // サウンドテストボタン
-    int testBtnY = setY + 250;
-    bool hTest = CheckButtonHover(cx - 150, testBtnY, cx + 150, testBtnY + 38);
-    bool testActive = (settingsSelection == 3) || hTest;
+    int testBtnY = setY + 315;
+    bool hTest = CheckButtonHover(cx - 160, testBtnY, cx + 160, testBtnY + 36);
+    bool testActive = (settingsSelection == 4) || hTest;
     bool pulseFlashing = (audioTestFeedbackTimer > 0.0f);
 
     unsigned int testBg = pulseFlashing ? GetColor(90, 25, 25) : (testActive ? GetColor(48, 22, 24) : GetColor(24, 26, 30));
     unsigned int testBorder = testActive ? GetColor(200, 75, 65) : GetColor(60, 65, 70);
     unsigned int testTxt = pulseFlashing ? GetColor(255, 255, 200) : (testActive ? GetColor(255, 135, 110) : GetColor(190, 200, 195));
 
-    DrawBox(cx - 150, testBtnY, cx + 150, testBtnY + 38, testBg, TRUE);
-    DrawBox(cx - 150, testBtnY, cx + 150, testBtnY + 38, testBorder, FALSE);
+    DrawBox(cx - 160, testBtnY, cx + 160, testBtnY + 36, testBg, TRUE);
+    DrawBox(cx - 160, testBtnY, cx + 160, testBtnY + 36, testBorder, FALSE);
     const char* testLabel = pulseFlashing ? "[ ! AUDIO PULSE PLAYING ! ]" : "TEST AUDIO PULSE";
     int tlw = GetDrawStringWidth(testLabel, (int)strlen(testLabel));
-    DrawString(cx - tlw / 2, testBtnY + 11, testLabel, testTxt);
+    DrawString(cx - tlw / 2, testBtnY + 10, testLabel, testTxt);
 
     // 戻るボタン
-    int backBtnY = setY + 305;
-    bool hBack = CheckButtonHover(cx - 150, backBtnY, cx + 150, backBtnY + 38);
-    bool backActive = (settingsSelection == 4) || hBack;
+    int backBtnY = setY + 365;
+    bool hBack = CheckButtonHover(cx - 160, backBtnY, cx + 160, backBtnY + 36);
+    bool backActive = (settingsSelection == 5) || hBack;
 
-    DrawBox(cx - 150, backBtnY, cx + 150, backBtnY + 38, backActive ? GetColor(50, 22, 24) : GetColor(24, 26, 30), TRUE);
-    DrawBox(cx - 150, backBtnY, cx + 150, backBtnY + 38, backActive ? GetColor(200, 75, 65) : GetColor(60, 65, 70), FALSE);
-    const char* backLabel = "BACK TO MENU [ESC]";
+    DrawBox(cx - 160, backBtnY, cx + 160, backBtnY + 36, backActive ? GetColor(50, 22, 24) : GetColor(24, 26, 30), TRUE);
+    DrawBox(cx - 160, backBtnY, cx + 160, backBtnY + 36, backActive ? GetColor(200, 75, 65) : GetColor(60, 65, 70), FALSE);
+    const char* backLabel = inPause ? "BACK TO PAUSE MENU [ESC]" : "BACK TO TITLE MENU [ESC]";
     int blw = GetDrawStringWidth(backLabel, (int)strlen(backLabel));
-    DrawString(cx - blw / 2, backBtnY + 11, backLabel, backActive ? GetColor(255, 135, 110) : GetColor(190, 200, 195));
+    DrawString(cx - blw / 2, backBtnY + 10, backLabel, backActive ? GetColor(255, 135, 110) : GetColor(190, 200, 195));
 
-    // ガイド注釈
-    const char* guide = "Use Arrow Keys < > to Adjust, ENTER to Test, ESC to Return";
+    // 操作ガイド注釈
+    const char* guide = "Use Arrow Keys < > or Drag to Adjust, ENTER to Test, ESC to Return";
     int gw = GetDrawStringWidth(guide, (int)strlen(guide));
-    DrawString(cx - gw / 2, setY + sh - 28, guide, GetColor(120, 135, 130));
+    DrawString(cx - gw / 2, setY + sh - 24, guide, GetColor(130, 140, 135));
+}
+
+void SceneManager::DrawTitleSettings(int cx)
+{
+    DrawSettingsPanel(cx, 130, "AUDIO & CONTROLS SETTINGS", false);
 }
 
 // 操作説明・サバイバル規則サブメニュー画面描画
@@ -1355,7 +1456,7 @@ void SceneManager::DrawTitleKeyGuide(int cx)
     DrawKeyRow(py + 282, "SPACE",         "Bicycle Bell / Brake");
     DrawKeyRow(py + 314, "SHIFT",         "Sprint (Consumes Stamina)");
     DrawKeyRow(py + 346, "ESC KEY",       "Pause Menu / Dispatch Log");
-    DrawKeyRow(py + 378, "< > ARROWS",    "Adjust Volume in Settings");
+    DrawKeyRow(py + 378, "< > ARROWS",    "Adjust Volume / Sensitivity");
     DrawKeyRow(py + 410, "H / TAB",       "Toggle Control Guide");
 
     // 第2列：深夜配達サバイバル指示（枠内に完全に収まる文字幅設計）
@@ -1406,14 +1507,21 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
     int cx = 640;
     int cy = 360;
 
+    // ポーズ設定画面が開いている場合は設定パネルを描画
+    if (pauseSubMenu == PauseSubMenu::Settings)
+    {
+        DrawSettingsPanel(cx, 130, "PAUSE SETTINGS - AUDIO & CONTROLS", true);
+        return;
+    }
+
     // 暗転オーバーレイ
     SetDrawBlendMode(DX_BLENDMODE_ALPHA, 190);
     DrawBox(0, 0, 1280, 720, GetColor(5, 8, 10), TRUE);
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
 
-    // ダイアログパネル
-    int pw = 460;
-    int ph = 350;
+    // ダイアログパネル（5項目対応）
+    int pw = 480;
+    int ph = 390;
     HorrorUI::Instance().DrawRetroPanel(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2,
         GetColor(75, 45, 45), GetColor(16, 12, 14), 240);
 
@@ -1427,45 +1535,51 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
     }
     else
     {
-        DrawString(cx - 65, cy - ph / 2 + 20, pauseTitle, GetColor(210, 230, 220));
+        int tw = GetDrawStringWidth(pauseTitle, (int)strlen(pauseTitle));
+        DrawString(cx - tw / 2, cy - ph / 2 + 20, pauseTitle, GetColor(210, 230, 220));
     }
 
     DrawLine(cx - pw / 2 + 25, cy - ph / 2 + 55, cx + pw / 2 - 25, cy - ph / 2 + 55, GetColor(60, 35, 35));
 
-    // ボタンの描画（マウスホバー＆キー選択両対応）
+    // ボタンの描画（マウスホバー＆キー選択両対応）5項目
     bool sel0 = (pauseMenuSelection == 0);
     bool sel1 = (pauseMenuSelection == 1);
     bool sel2 = (pauseMenuSelection == 2);
     bool sel3 = (pauseMenuSelection == 3);
+    bool sel4 = (pauseMenuSelection == 4);
 
     char retryLabel[32];
     snprintf(retryLabel, sizeof(retryLabel), "RETRY DAY %d", currentDay);
 
-    DrawButton(cx - 180, cy - 80, cx + 180, cy - 38, "RESUME GAME",
+    DrawButton(cx - 190, cy - 105, cx + 190, cy - 65, "RESUME GAME",
         sel0 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
-    DrawButton(cx - 180, cy - 26, cx + 180, cy + 16, retryLabel,
+    DrawButton(cx - 190, cy - 55, cx + 190, cy - 15, "SETTINGS (AUDIO & MOUSE)",
         sel1 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
-    DrawButton(cx - 180, cy + 28, cx + 180, cy + 70, "RETURN TO TITLE",
+    DrawButton(cx - 190, cy - 5, cx + 190, cy + 35, retryLabel,
         sel2 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
-    DrawButton(cx - 180, cy + 82, cx + 180, cy + 124, "QUIT GAME",
+    DrawButton(cx - 190, cy + 45, cx + 190, cy + 85, "RETURN TO TITLE",
         sel3 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
         GetColor(255, 255, 240), fontMenu);
 
+    DrawButton(cx - 190, cy + 95, cx + 190, cy + 135, "QUIT GAME",
+        sel4 ? GetColor(255, 255, 240) : GetColor(185, 195, 190),
+        GetColor(255, 255, 240), fontMenu);
+
     // キーボード選択時のカーソル表示
-    int arrowY[4] = { cy - 65, cy - 11, cy + 43, cy + 97 };
-    DrawString(cx - 198, arrowY[pauseMenuSelection], ">", GetColor(220, 240, 230));
+    int arrowY[5] = { cy - 90, cy - 40, cy + 10, cy + 60, cy + 110 };
+    DrawString(cx - 208, arrowY[pauseMenuSelection], ">", GetColor(220, 240, 230));
 
     // ガイドテキスト
     const char* pauseGuide = "[ CONTROLS ] Click with Mouse or use Arrow Keys / ENTER";
     int gw = GetDrawStringWidthToHandle(pauseGuide, (int)strlen(pauseGuide), HorrorUI::Instance().GetFontKeyGuide());
     HorrorUI::Instance().DrawJitterString(cx - gw / 2, cy + ph / 2 - 28, pauseGuide,
-        GetColor(120, 140, 135), HorrorUI::Instance().GetFontKeyGuide());
+        GetColor(120, 135, 130), HorrorUI::Instance().GetFontKeyGuide());
 
     DrawScanlinesAndNoise(22);
 }

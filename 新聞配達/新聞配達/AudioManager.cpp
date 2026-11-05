@@ -10,9 +10,9 @@ AudioManager& AudioManager::Instance()
 }
 
 AudioManager::AudioManager()
-    : masterVolume(80)
-    , bgmVolume(70)
-    , sfxVolume(85)
+    : masterVolume(95)
+    , bgmVolume(90)
+    , sfxVolume(90)
     , sndTitleAmbience(-1)
     , sndGameAmbience(-1)
     , sndFootstep(-1)
@@ -36,6 +36,26 @@ AudioManager::AudioManager()
 AudioManager::~AudioManager()
 {
     Finalize();
+}
+
+// 音声ファイルの探索フォールバック付き読み込み
+static int LoadSoundWithFallback(const char* relativePath)
+{
+    int handle = LoadSoundMem(relativePath);
+    if (handle != -1) return handle;
+
+    char buf[512];
+    snprintf(buf, sizeof(buf), "新聞配達/%s", relativePath);
+    handle = LoadSoundMem(buf);
+    if (handle != -1) return handle;
+
+    snprintf(buf, sizeof(buf), "../新聞配達/%s", relativePath);
+    handle = LoadSoundMem(buf);
+    if (handle != -1) return handle;
+
+    snprintf(buf, sizeof(buf), "../%s", relativePath);
+    handle = LoadSoundMem(buf);
+    return handle;
 }
 
 int AudioManager::CreateSineWav(float freq, float duration, float decay)
@@ -74,14 +94,16 @@ int AudioManager::CreateSineWav(float freq, float duration, float decay)
     memcpy(&wav[36], "data", 4);
     memcpy(&wav[40], &dataSize, 4);
 
-    // PCM波形合成
+    // ホラー調プロシージャル波形合成（低周波うなり＋減衰クリック）
     short* samples = (short*)&wav[44];
     for (int i = 0; i < numSamples; ++i)
     {
         float t = (float)i / (float)sampleRate;
         float env = std::exp(-t * decay);
-        float s = std::sin(2.0f * 3.14159265f * freq * t) * env;
-        int val = (int)(s * 32767.0f);
+        // 基本波＋わずかな低音ハーモニクス
+        float s = std::sin(2.0f * 3.14159265f * freq * t) * 0.7f
+                + std::sin(2.0f * 3.14159265f * (freq * 0.5f) * t) * 0.3f;
+        int val = (int)(s * env * 32767.0f);
         if (val > 32767) val = 32767;
         if (val < -32767) val = -32767;
         samples[i] = (short)val;
@@ -96,21 +118,22 @@ void AudioManager::Initialize()
     Finalize();
 
     // ホラーサウンドファイルの読み込み
-    sndTitleAmbience    = LoadSoundMem("Data/Audio/title_ambience.wav");
-    sndGameAmbience     = LoadSoundMem("Data/Audio/ambience_horror.wav");
-    sndFootstep         = LoadSoundMem("Data/Audio/footstep.wav");
-    sndBicycleRoll      = LoadSoundMem("Data/Audio/bicycle_roll.wav");
-    sndDeliverySuccess  = LoadSoundMem("Data/Audio/delivery_success.wav");
-    sndBatteryPickup    = LoadSoundMem("Data/Audio/battery_pickup.wav");
-    sndBatteryReload    = LoadSoundMem("Data/Audio/battery_reload.wav");
-    sndFearHeartbeat    = LoadSoundMem("Data/Audio/fear_heartbeat.wav");
-    sndMonsterRoar      = LoadSoundMem("Data/Audio/monster_roar_chase.wav");
-    sndMonsterJumpscare = LoadSoundMem("Data/Audio/monster_jumpscare.wav");
+    sndTitleAmbience    = LoadSoundWithFallback("Data/Audio/title_horror_bgm.wav");
+    if (sndTitleAmbience == -1) sndTitleAmbience = LoadSoundWithFallback("Data/Audio/title_ambience.wav");
+    sndGameAmbience     = LoadSoundWithFallback("Data/Audio/ambience_horror.wav");
+    sndFootstep         = LoadSoundWithFallback("Data/Audio/footstep.wav");
+    sndBicycleRoll      = LoadSoundWithFallback("Data/Audio/bicycle_roll.wav");
+    sndDeliverySuccess  = LoadSoundWithFallback("Data/Audio/delivery_success.wav");
+    sndBatteryPickup    = LoadSoundWithFallback("Data/Audio/battery_pickup.wav");
+    sndBatteryReload    = LoadSoundWithFallback("Data/Audio/battery_reload.wav");
+    sndFearHeartbeat    = LoadSoundWithFallback("Data/Audio/fear_heartbeat.wav");
+    sndMonsterRoar      = LoadSoundWithFallback("Data/Audio/monster_roar_chase.wav");
+    sndMonsterJumpscare = LoadSoundWithFallback("Data/Audio/monster_jumpscare.wav");
 
-    // プロシージャルUIサウンドの生成
-    sndMenuClick  = CreateSineWav(580.0f, 0.05f, 40.0f);
-    sndMenuAdjust = CreateSineWav(440.0f, 0.04f, 50.0f);
-    sndTestPulse  = CreateSineWav(1000.0f, 0.12f, 18.0f);
+    // 不気味なホラー調UIサウンドの生成（低く重いトーン、金属的な鈍いクリック）
+    sndMenuClick  = CreateSineWav(240.0f, 0.08f, 30.0f);  // 重厚なカチッ音
+    sndMenuAdjust = CreateSineWav(180.0f, 0.06f, 35.0f);  // 低い切り替え音
+    sndTestPulse  = CreateSineWav(110.0f, 0.25f, 10.0f);  // 心臓を突くような低音パルス
 
     currentBgmType = 0;
     isBicycleRolling = false;
@@ -150,12 +173,15 @@ void AudioManager::Finalize()
 
 int AudioManager::CalcBgmVolume() const
 {
+    if (masterVolume <= 0 || bgmVolume <= 0) return 0;
     int vol = (masterVolume * bgmVolume * 255) / 10000;
-    return std::clamp(vol, 0, 255);
+    // 小さすぎる音量にならず、不気味なホラーアンビエントがしっかり明瞭に聴こえるよう下限150を保証
+    return std::clamp(vol, 150, 255);
 }
 
 int AudioManager::CalcSfxVolume(float relativeScale) const
 {
+    if (masterVolume <= 0 || sfxVolume <= 0) return 0;
     int vol = (int)((masterVolume * sfxVolume * 255 * relativeScale) / 10000.0f);
     return std::clamp(vol, 0, 255);
 }
@@ -206,7 +232,16 @@ void AudioManager::SetSfxVolume(int vol)
 
 void AudioManager::PlayTitleBgm()
 {
-    if (currentBgmType == 1 && sndTitleAmbience != -1 && CheckSoundMem(sndTitleAmbience))
+    // ハンドルが未ロードの場合は再探索ロード
+    if (sndTitleAmbience == -1)
+    {
+        sndTitleAmbience = LoadSoundWithFallback("Data/Audio/title_horror_bgm.wav");
+        if (sndTitleAmbience == -1) sndTitleAmbience = LoadSoundWithFallback("Data/Audio/title_ambience.wav");
+    }
+
+    if (sndTitleAmbience == -1) return;
+
+    if (currentBgmType == 1 && CheckSoundMem(sndTitleAmbience))
     {
         return; // 既に再生中
     }
@@ -216,12 +251,11 @@ void AudioManager::PlayTitleBgm()
         StopSoundMem(sndGameAmbience);
     }
 
-    if (sndTitleAmbience != -1)
-    {
-        ChangeVolumeSoundMem(CalcBgmVolume(), sndTitleAmbience);
-        PlaySoundMem(sndTitleAmbience, DX_PLAYTYPE_LOOP);
-        currentBgmType = 1;
-    }
+    int vol = CalcBgmVolume();
+    ChangeVolumeSoundMem(vol, sndTitleAmbience);
+    PlaySoundMem(sndTitleAmbience, DX_PLAYTYPE_LOOP);
+    ChangeVolumeSoundMem(vol, sndTitleAmbience);
+    currentBgmType = 1;
 }
 
 void AudioManager::PlayGameAmbienceBgm()

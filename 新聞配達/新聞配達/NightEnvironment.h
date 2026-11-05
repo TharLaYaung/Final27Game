@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "DxLib.h"
 #include <vector>
@@ -131,8 +131,8 @@ private:
     // 街灯の不規則明滅ロジック更新
     void UpdateFlicker(StreetLight& light);
 
-    // 街灯3Dポールとランプヘッドを描画
-    void DrawPoleModel(const VECTOR& pos, float intensity, COLOR_F color);
+    // 街灯3Dポールとランプヘッドを描画（stateにより火花・床グロー表現を切り替え）
+    void DrawPoleModel(const VECTOR& pos, float intensity, COLOR_F color, StreetLightState state);
 
     // 現在の環境プリセット
     EnvironmentPreset currentPreset;

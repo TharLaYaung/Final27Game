@@ -28,8 +28,15 @@ enum class SceneType
 enum class TitleSubMenu
 {
     Main,       // メインメニュー（配達開始・日付選択・設定・操作ガイド・終了）
-    Settings,   // 音量調整・オーディオ設定（マスター・BGM・効果音）
+    Settings,   // 音量調整・オーディオ設定（マスター・BGM・効果音・マウス感度）
     KeyGuide    // 操作説明・サバイバル規則ハンドブック
+};
+
+// ポーズサブメニュー状態列挙型
+enum class PauseSubMenu
+{
+    Main,       // ポーズメイン（再開・設定・リトライ・タイトル・終了）
+    Settings    // ゲーム内設定（音量・マウス感度）
 };
 
 // トランジション（画面遷移）状態列挙型
@@ -128,6 +135,15 @@ public:
     void SetBgmVolume(int vol);
     void SetSfxVolume(int vol);
 
+    // マウス感度設定（1〜100、デフォルト50）
+    int GetMouseSensitivityLevel() const { return mouseSensitivityLevel; }
+    void SetMouseSensitivityLevel(int lvl);
+    float GetCalculatedMouseSensitivity() const { return (float)mouseSensitivityLevel * 0.00006f; }
+
+    // ポーズサブメニュー制御
+    PauseSubMenu GetPauseSubMenu() const { return pauseSubMenu; }
+    void SetPauseSubMenu(PauseSubMenu sub) { pauseSubMenu = sub; }
+
     float GetMasterVolumeRate() const { return masterVolume / 100.0f; }
     float GetBgmVolumeRate() const { return (masterVolume / 100.0f) * (bgmVolume / 100.0f); }
     float GetSfxVolumeRate() const { return (masterVolume / 100.0f) * (sfxVolume / 100.0f); }
@@ -160,6 +176,9 @@ private:
     int sfxVolume;
     float audioTestFeedbackTimer;
 
+    // マウス感度（1〜100、デフォルト50）
+    int mouseSensitivityLevel;
+
     // プロシージャルUI効果音ハンドル
     int soundMenuSelect;
     int soundMenuAdjust;
@@ -167,6 +186,7 @@ private:
 
     // ポーズメニュー管理
     bool isPaused;
+    PauseSubMenu pauseSubMenu;
     int pauseMenuSelection;
 
     // 各シーンのアニメーションタイマー
@@ -221,6 +241,10 @@ private:
     void DrawTitleMainMenu(int cx, float jitterSine);
     void DrawTitleSettings(int cx);
     void DrawTitleKeyGuide(int cx);
+
+    // 共通設定パネル（タイトル・ポーズ共用）
+    void DrawSettingsPanel(int cx, int setY, const char* headerTitle, bool inPause);
+    void HandleSettingsInput(bool upDown, bool downDown, bool leftDown, bool rightDown, bool enterDown, bool spaceDown, bool escDown, Player& player, bool inPause);
 
     // クリアシーン描画
     void DrawClearScene(const DeliveryManager& deliveryManager, const Bicycle& bicycle);
