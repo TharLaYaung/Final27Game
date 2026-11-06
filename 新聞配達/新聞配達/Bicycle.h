@@ -99,6 +99,12 @@ private:
     // 自転車モデル
     int modelHandle;
 
+    // 自転車モデルの大きさ
+    float modelScale;
+
+    // タイヤが路面に接するときのモデル原点の高さ
+    float groundedHeight;
+
     // 自転車の位置
     VECTOR position;
 

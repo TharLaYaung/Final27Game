@@ -21,9 +21,9 @@ Newspaper::Newspaper()
 
     // カゴ内での新聞の固定位置
     localPosition = VGet(
-        1.03f,
-        0.55f,
-        -0.24f
+        0.515f,
+        0.275f,
+        -0.12f
     );
 
     // カゴ内での新聞の固定角度
@@ -34,10 +34,10 @@ Newspaper::Newspaper()
     );
 
     // 新聞の大きさ
-    modelScale = 0.0100f;
+    modelScale = 0.0050f;
 
     // 新聞同士の間隔
-    stackInterval = 0.020f;
+    stackInterval = 0.010f;
 
     // 最初は8枚
     newspaperCount = 8;
