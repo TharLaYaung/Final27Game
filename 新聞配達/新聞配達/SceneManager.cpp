@@ -761,7 +761,7 @@ void SceneManager::Update(
             SetCameraPositionAndTarget_UpVecY(camPos, camTarget);
 
             // 夜間環境・天候の背景更新
-            nightEnv.Update(bicycle);
+            nightEnv.Update(bicycle, player.GetPosition());
             weatherManager.Update(dt, player, bicycle, nightEnv);
 
             if (titleSubMenu == TitleSubMenu::Main)
@@ -1164,7 +1164,7 @@ void SceneManager::Draw(
                 canReplace
             );
 
-            nightEnv.DrawDebugHUD();
+            nightEnv.DrawDebugHUD(&bicycle, weatherManager.GetWeatherName(weatherManager.GetCurrentWeather()));
             weatherManager.DrawDebugHUD();
             horrorManager.DrawUI();
 

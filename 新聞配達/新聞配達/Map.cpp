@@ -244,9 +244,11 @@ void MapInit()
             int matNum = MV1GetMaterialNum(g_houseHandles[i]);
             for (int m = 0; m < matNum; ++m)
             {
-                MV1SetMaterialDifColor(g_houseHandles[i], m, GetColorF(1.0f, 1.0f, 1.0f, 1.0f));
-                MV1SetMaterialAmbColor(g_houseHandles[i], m, GetColorF(0.85f, 0.85f, 0.85f, 1.0f));
-                MV1SetMaterialEmiColor(g_houseHandles[i], m, GetColorF(0.18f, 0.20f, 0.22f, 1.0f));
+                // 夜間住宅マテリアルの調整: 過度な自己発光・アンビエント反射を抑え、ライトが当たった箇所のみ自然に照らし出されるようにする
+                // Balance diffuse/ambient and eliminate artificial full-body emission so houses look natural under night lights
+                MV1SetMaterialDifColor(g_houseHandles[i], m, GetColorF(0.85f, 0.85f, 0.85f, 1.0f));
+                MV1SetMaterialAmbColor(g_houseHandles[i], m, GetColorF(0.25f, 0.25f, 0.28f, 1.0f));
+                MV1SetMaterialEmiColor(g_houseHandles[i], m, GetColorF(0.0f, 0.0f, 0.0f, 1.0f));
             }
 
             int texNum = MV1GetTextureNum(g_houseHandles[i]);
@@ -264,7 +266,7 @@ void MapInit()
                 MV1SetMeshBackCulling(g_houseHandles[i], mi, DX_CULLING_NONE);
             }
 
-            // 玄関灯ポイントライトの初期生成
+            // 玄関灯ポイントライトの初期生成（初期状態では一旦無効化、動的カリングで近傍のみ有効化）
             if (h.porchLight)
             {
                 float angle = h.rotationY;
@@ -274,12 +276,13 @@ void MapInit()
                 lampPos = VAdd(lampPos, VScale(right, 1.2f));
                 lampPos.y = 2.4f;
 
-                int lightH = CreatePointLightHandle(lampPos, 14.0f, 1.0f, 0.12f, 0.035f);
+                // 玄関先とポーチを自然に照らす範囲と減衰パラメータ
+                int lightH = CreatePointLightHandle(lampPos, 8.5f, 1.0f, 0.18f, 0.06f);
                 if (lightH != -1)
                 {
-                    SetLightEnableHandle(lightH, TRUE);
-                    SetLightDifColorHandle(lightH, GetColorF(1.0f, 0.88f, 0.62f, 1.0f));
-                    SetLightSpcColorHandle(lightH, GetColorF(0.25f, 0.20f, 0.12f, 1.0f));
+                    SetLightEnableHandle(lightH, FALSE);
+                    SetLightDifColorHandle(lightH, GetColorF(1.0f, 0.85f, 0.58f, 1.0f));
+                    SetLightSpcColorHandle(lightH, GetColorF(0.15f, 0.12f, 0.08f, 1.0f));
                     g_houseLightHandles[i] = lightH;
                 }
             }
@@ -342,10 +345,68 @@ void MapSetDayPorchLights(int day, unsigned int daySeed)
         }
         g_houses[i].porchLight = shouldLight;
 
-        // DxLibライトハンドルの更新
+        // 状態のみ更新（ライトハンドルの実際の有効化は動的カリングに委ねる）
+        if (!shouldLight && g_houseLightHandles[i] != -1)
+        {
+            SetLightEnableHandle(g_houseLightHandles[i], FALSE);
+        }
+    }
+}
+
+// プレイヤー位置に応じた玄関灯ライトハンドルの動的カリング更新
+// DxLibの同時有効ライト制限内で、プレイヤーに最も近い点灯中の玄関灯のみを有効化する
+void MapUpdatePorchLightsCulling(const VECTOR& playerPos, int maxActiveCount)
+{
+    struct HouseDist
+    {
+        int index;
+        float distSq;
+    };
+
+    std::vector<HouseDist> activeCandidates;
+
+    for (size_t i = 0; i < g_houses.size() && i < NEIGHBORHOOD_HOUSE_COUNT; ++i)
+    {
+        if (g_houses[i].porchLight && g_houseLightHandles[i] != -1)
+        {
+            float angle = g_houses[i].rotationY;
+            VECTOR fwd = VGet(sinf(angle), 0.0f, cosf(angle));
+            VECTOR right = VGet(cosf(angle), 0.0f, -sinf(angle));
+            VECTOR lampPos = VAdd(g_houses[i].position, VScale(fwd, 4.2f));
+            lampPos = VAdd(lampPos, VScale(right, 1.2f));
+            lampPos.y = 2.4f;
+
+            float dx = lampPos.x - playerPos.x;
+            float dz = lampPos.z - playerPos.z;
+            float distSq = dx * dx + dz * dz;
+
+            // 18m以内の玄関灯のみ候補とする
+            if (distSq < 18.0f * 18.0f)
+            {
+                activeCandidates.push_back({ static_cast<int>(i), distSq });
+            }
+        }
+    }
+
+    std::sort(activeCandidates.begin(), activeCandidates.end(), [](const HouseDist& a, const HouseDist& b) {
+        return a.distSq < b.distSq;
+    });
+
+    // 全ての玄関灯ライトハンドルを一旦無効にし、最寄りのmaxActiveCount個のみ有効化
+    for (int i = 0; i < NEIGHBORHOOD_HOUSE_COUNT; ++i)
+    {
         if (g_houseLightHandles[i] != -1)
         {
-            SetLightEnableHandle(g_houseLightHandles[i], shouldLight ? TRUE : FALSE);
+            bool enable = false;
+            for (size_t k = 0; k < activeCandidates.size() && static_cast<int>(k) < maxActiveCount; ++k)
+            {
+                if (activeCandidates[k].index == i)
+                {
+                    enable = true;
+                    break;
+                }
+            }
+            SetLightEnableHandle(g_houseLightHandles[i], enable ? TRUE : FALSE);
         }
     }
 }

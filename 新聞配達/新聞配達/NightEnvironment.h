@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #include "DxLib.h"
 #include <vector>
@@ -46,8 +46,8 @@ public:
     // 初期化（街灯生成、フォグ設定、ライトハンドル作成）
     bool Initialize();
 
-    // 毎フレーム更新（自転車ヘッドライト追従、街灯明滅タイマーなど）
-    void Update(const Bicycle& bicycle);
+    // 毎フレーム更新（自転車ヘッドライト追従、街灯明滅タイマー、近傍ライトの動的カリング）
+    void Update(const Bicycle& bicycle, const VECTOR& playerPos);
 
     // 描画フレームごとの環境適用（DxLibフォグ・アンビエント・背景色）
     void ApplyLightingAndFog();
@@ -56,7 +56,7 @@ public:
     void DrawStreetLights();
 
     // デバッグ情報HUD描画（Fキー操作案内と現在パラメータ）
-    void DrawDebugHUD();
+    void DrawDebugHUD(const Bicycle* bicycle = nullptr, const char* weatherName = nullptr);
 
     // 終了処理（ライトハンドルの破棄）
     void Finalize();
@@ -136,6 +136,7 @@ private:
 
     // 現在の環境プリセット
     EnvironmentPreset currentPreset;
+    bool manualPresetOverride;
 
     // フォグ設定
     bool fogEnabled;

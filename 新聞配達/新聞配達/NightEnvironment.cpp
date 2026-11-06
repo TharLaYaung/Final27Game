@@ -1,10 +1,11 @@
-﻿#include "NightEnvironment.h"
+#include "NightEnvironment.h"
 #include "Bicycle.h"
 #include "HorrorUI.h"
 #include "Map.h"
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <algorithm>
 
 // コンストラクタ
 NightEnvironment::NightEnvironment()
@@ -30,6 +31,7 @@ NightEnvironment::NightEnvironment()
     bicycleLightColor = GetColorF(1.0f, 0.95f, 0.80f, 1.0f);
 
     streetLightsEnabled = true;
+    manualPresetOverride = false;
     blackoutTimer = 0;
     debugNotifyTimer = 0;
     debugMessage[0] = '\0';
@@ -89,20 +91,21 @@ bool NightEnvironment::Initialize()
             continue;
         }
 
-        // 電柱の高さ約4.0mから下方向の道路を照らすポイントライト
+        // 電柱のアーム先端フード直下（pos.x + 0.6f, pos.y + 3.85f, pos.z）から下方向の道路を照らすポイントライト
+        // Align point light position precisely with the lamp head and bulb model
         VECTOR lightPos = VGet(
-            streetLights[i].position.x,
-            streetLights[i].position.y + 4.0f,
+            streetLights[i].position.x + 0.6f,
+            streetLights[i].position.y + 3.85f,
             streetLights[i].position.z
         );
 
-        float range = 11.5f;
+        float range = 12.5f;
         int handle = CreatePointLightHandle(
             lightPos,
             range,
             1.0f,
-            0.08f,
-            0.02f
+            0.10f,
+            0.025f
         );
 
         if (handle != -1)
@@ -111,6 +114,8 @@ bool NightEnvironment::Initialize()
             float intensity = streetLights[i].currentIntensity;
             SetLightDifColorHandle(handle, GetColorF(c.r * intensity, c.g * intensity, c.b * intensity, 1.0f));
             SetLightSpcColorHandle(handle, GetColorF(0.2f, 0.2f, 0.2f, 1.0f));
+            // 初期状態は動的カリングで制御するため一旦OFFに設定
+            SetLightEnableHandle(handle, FALSE);
             streetLights[i].lightHandle = handle;
         }
     }
@@ -197,6 +202,7 @@ void NightEnvironment::SetBicycleHeadlightParams(float range, float atten0, floa
 void NightEnvironment::SetPreset(EnvironmentPreset preset)
 {
     currentPreset = preset;
+    manualPresetOverride = true;
     ApplyPresetSettings();
 
     const char* name = "NIGHT_DELIVERY_STYLE";
@@ -257,17 +263,17 @@ void NightEnvironment::TriggerStreetLightFlicker(int id)
     }
 }
 
-// 毎フレーム更新（自転車ヘッドライト追従、街灯明滅タイマーなど）
-void NightEnvironment::Update(const Bicycle& bicycle)
+// 毎フレーム更新（自転車ヘッドライト追従、街灯明滅タイマー、近傍ライトの動的カリング）
+void NightEnvironment::Update(const Bicycle& bicycle, const VECTOR& playerPos)
 {
     // 自転車ヘッドライトの更新
+    // ヘッドライトはプレイヤーの視覚と安全の根幹であるため、点灯時は最優先で有効化する
+    bool isHeadlightActive = bicycle.IsHeadlightOn() && (blackoutTimer <= 0) && (bicycle.GetHeadlightIntensity() > 0.001f);
     if (bicycleLightHandle != -1)
     {
-        // ヘッドライト点灯かつ停電中でなく、輝度が有効値の場合のみライト点灯
-        bool isLightActive = bicycle.IsHeadlightOn() && (blackoutTimer <= 0) && (bicycle.GetHeadlightIntensity() > 0.001f);
-        SetLightEnableHandle(bicycleLightHandle, isLightActive ? TRUE : FALSE);
+        SetLightEnableHandle(bicycleLightHandle, isHeadlightActive ? TRUE : FALSE);
 
-        if (isLightActive)
+        if (isHeadlightActive)
         {
             VECTOR lightPos = bicycle.GetHeadlightPosition();
             VECTOR lightDir = bicycle.GetHeadlightDirection();
@@ -314,7 +320,7 @@ void NightEnvironment::Update(const Bicycle& bicycle)
         }
     }
 
-    // 街灯の更新
+    // 各街灯の内部ロジック（明滅・輝度計算）の更新
     for (size_t i = 0; i < streetLights.size(); i++)
     {
         StreetLight& light = streetLights[i];
@@ -325,21 +331,72 @@ void NightEnvironment::Update(const Bicycle& bicycle)
             UpdateFlicker(light);
         }
 
-        // ブラックアウトまたは無効化時の消灯処理
-        bool shouldLight = streetLightsEnabled && (blackoutTimer <= 0) && (light.state != StreetLightState::Off);
-
+        // 基本の光色反映
         if (light.lightHandle != -1)
         {
-            SetLightEnableHandle(light.lightHandle, shouldLight ? TRUE : FALSE);
+            COLOR_F c = light.baseColor;
+            float intensity = light.currentIntensity;
+            SetLightDifColorHandle(light.lightHandle, GetColorF(c.r * intensity, c.g * intensity, c.b * intensity, 1.0f));
+        }
+    }
 
-            if (shouldLight)
+    // 動的ライトカリングシステム（Dynamic Light Culling System）
+    // DxLibの同時有効ライト数制限（デフォルト3個、ピクセルライティング時でもハードウェア制約が存在）を
+    // 超過して街灯が突然消えるのを防ぐため、カメラ（プレイヤー）に近い順に優先してライトを割り当てる。
+    // Allocates limited hardware light slots to the nearest active street lamps to prevent light popping
+    struct LampDist
+    {
+        int index;
+        float distSq;
+    };
+
+    std::vector<LampDist> activeLampCandidates;
+    for (size_t i = 0; i < streetLights.size(); ++i)
+    {
+        const StreetLight& sl = streetLights[i];
+        bool shouldLight = streetLightsEnabled && (blackoutTimer <= 0) && (sl.state != StreetLightState::Off) && (sl.currentIntensity > 0.05f);
+        if (shouldLight && sl.lightHandle != -1)
+        {
+            float dx = (sl.position.x + 0.6f) - playerPos.x;
+            float dz = sl.position.z - playerPos.z;
+            float distSq = dx * dx + dz * dz;
+
+            // プレイヤーから30m以内の街灯を候補とする
+            if (distSq < 30.0f * 30.0f)
             {
-                COLOR_F c = light.baseColor;
-                float intensity = light.currentIntensity;
-                SetLightDifColorHandle(light.lightHandle, GetColorF(c.r * intensity, c.g * intensity, c.b * intensity, 1.0f));
+                activeLampCandidates.push_back({ static_cast<int>(i), distSq });
             }
         }
     }
+
+    std::sort(activeLampCandidates.begin(), activeLampCandidates.end(), [](const LampDist& a, const LampDist& b) {
+        return a.distSq < b.distSq;
+    });
+
+    // 街灯に割り当てるライトスロット数:
+    // ヘッドライトが点灯していれば街灯用に近傍2基を割り当て、ヘッドライト消灯時は近傍3基を割り当てる
+    int maxStreetLightsActive = isHeadlightActive ? 2 : 3;
+
+    for (size_t i = 0; i < streetLights.size(); ++i)
+    {
+        if (streetLights[i].lightHandle != -1)
+        {
+            bool enable = false;
+            for (size_t k = 0; k < activeLampCandidates.size() && static_cast<int>(k) < maxStreetLightsActive; ++k)
+            {
+                if (activeLampCandidates[k].index == static_cast<int>(i))
+                {
+                    enable = true;
+                    break;
+                }
+            }
+            SetLightEnableHandle(streetLights[i].lightHandle, enable ? TRUE : FALSE);
+        }
+    }
+
+    // 住宅玄関灯の近傍動的カリングも更新（ヘッドライト点灯時は近傍1棟、消灯時は近傍1棟）
+    // 街灯と玄関灯が同時に密集しても合計有効ライト数が適正範囲に保たれる
+    MapUpdatePorchLightsCulling(playerPos, 1);
 }
 
 // 街灯の不規則明滅ロジック
@@ -535,7 +592,12 @@ void NightEnvironment::DrawPoleModel(const VECTOR& pos, float intensity, COLOR_F
         TRUE
     );
 
-    // 発光レンズ部分（点灯状態に応じた輝度で描画）
+    // 発光レンズ部分（点灯状態に応じた輝度で自己発光描画）
+    // 自己発光体として描画するため、電球描画時のみ一時的にライティング計算を無効化する。
+    // これにより、自転車ヘッドライトなど外部の光に照らされて街灯の発光強度が狂う問題を完全に解消する。
+    // Render bulb with SetUseLighting(FALSE) so its brightness depends solely on its own emissive state, independent of external headlights
+    SetUseLighting(FALSE);
+
     if (intensity > 0.05f)
     {
         int lr = (int)(color.r * 255.0f * intensity);
@@ -553,7 +615,32 @@ void NightEnvironment::DrawPoleModel(const VECTOR& pos, float intensity, COLOR_F
             bulbCol,
             TRUE
         );
+
+        // やわらかな発光レンズグロー（加算半透明）
+        SetDrawBlendMode(DX_BLENDMODE_ADD, (int)(110 * intensity));
+        unsigned int glowCol = GetColor(
+            (int)(color.r * 180.0f),
+            (int)(color.g * 170.0f),
+            (int)(color.b * 120.0f)
+        );
+        DrawSphere3D(VGet(hoodCenter.x, hoodCenter.y - 0.10f, hoodCenter.z), 0.26f, 6, glowCol, glowCol, TRUE);
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
+    else
+    {
+        // 完全消灯または停電時の暗い消灯電球
+        unsigned int offBulbCol = GetColor(20, 22, 25);
+        DrawCube3D(
+            VGet(hoodCenter.x - 0.12f, hoodCenter.y - 0.12f, hoodCenter.z - 0.12f),
+            VGet(hoodCenter.x + 0.12f, hoodCenter.y - 0.07f, hoodCenter.z + 0.12f),
+            offBulbCol,
+            offBulbCol,
+            TRUE
+        );
+    }
+
+    // ライティング設定を必ず復元する
+    SetUseLighting(TRUE);
 }
 
 // 街灯電柱と発光シェードの3D描画
@@ -571,7 +658,7 @@ void NightEnvironment::DrawStreetLights()
 }
 
 // デバッグ情報HUD描画
-void NightEnvironment::DrawDebugHUD()
+void NightEnvironment::DrawDebugHUD(const Bicycle* bicycle, const char* weatherName)
 {
     // 一時通知メッセージ
     if (debugNotifyTimer > 0)
@@ -580,6 +667,30 @@ void NightEnvironment::DrawDebugHUD()
             HorrorUI::COL_BORDER, HorrorUI::COL_PANEL_BG, 210);
         HorrorUI::Instance().DrawJitterString(26, 132, debugMessage,
             HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
+    }
+
+    // デバッグキー案内・ライティング状態の詳細表示（F1/F2/F3/F5操作時などに通知枠下へ表示）
+    // DxLibで現在有効になっているライトハンドル数を取得して表示
+    if (debugNotifyTimer > 0)
+    {
+        int enableLightCount = GetEnableLightHandleNum();
+        int activeStreetLights = 0;
+        for (const auto& sl : streetLights)
+        {
+            if (sl.state != StreetLightState::Off && sl.currentIntensity > 0.05f)
+            {
+                activeStreetLights++;
+            }
+        }
+
+        char lightInfo[128];
+        snprintf(lightInfo, sizeof(lightInfo), "ACTIVE LIGHTS: %d (Street: %d/7, HL: %s)",
+            enableLightCount,
+            activeStreetLights,
+            (bicycle && bicycle->IsHeadlightOn()) ? "ON" : "OFF"
+        );
+        HorrorUI::Instance().DrawJitterString(26, 150, lightInfo,
+            GetColor(160, 220, 240), HorrorUI::Instance().GetFontSmall());
     }
 }
 
@@ -728,6 +839,13 @@ EnvironmentPreset NightEnvironment::GetCurrentPreset() const
 // 天候システムからのフォグおよび環境光の一括設定
 void NightEnvironment::SetWeatherFogAndLighting(float start, float end, int r, int g, int b, COLOR_F ambient)
 {
+    // F2キーによる手動プリセット切り替え時は、天候システムによるフォグ/環境光の自動上書きを抑制する
+    // Prevents WeatherManager from instantly overriding user-selected environment presets
+    if (manualPresetOverride)
+    {
+        return;
+    }
+
     fogStart = start;
     fogEnd = end;
     fogColorR = r;

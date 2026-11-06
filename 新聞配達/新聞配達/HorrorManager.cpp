@@ -6,6 +6,7 @@
 #include "DeliveryManager.h"
 #include "HorrorUI.h"
 #include "WorldCollision.h"
+#include "Map.h"
 #include <cmath>
 #include <algorithm>
 #include <cstdio>
@@ -315,46 +316,38 @@ bool HorrorManager::Initialize()
     return true;
 }
 
-// プレイヤーがモンスターの直接攻撃から保護されているか判定
+// プレイヤーがモンスターの直接攻撃から保護されているか判定（安全光判定）
 bool HorrorManager::IsPlayerSafeFromMonster(const Player& player, const Bicycle& bicycle, const NightEnvironment& nightEnv, const char** outReason) const
 {
     VECTOR playerPos = player.GetPosition();
 
-    // 街灯の安全範囲にはモンスターを侵入させない
-    const std::vector<StreetLight>& lights = nightEnv.GetStreetLights();
-    for (size_t i = 0; i < lights.size(); ++i)
-    {
-        if (lights[i].state == StreetLightState::Off || lights[i].currentIntensity < 0.15f)
-        {
-            continue;
-        }
-
-        float dx = playerPos.x - lights[i].position.x;
-        float dz = playerPos.z - lights[i].position.z;
-        if (dx * dx + dz * dz < (6.5f * 6.5f))
-        {
-            if (outReason) *outReason = "STREET LIGHT";
-            return true;
-        }
-    }
-
-    // バッテリーが残っている自転車ではプレイヤーを保護する
-    // バッテリー切れの場合は自転車の保護を無効にする
+    // 1. 乗車中：バッテリー残量がありヘッドライトがONであれば保護
+    // ※フリッカー中の一瞬の停電時でもバッテリー残量があれば暗闇判定に転落させない
     if (bicycle.IsRiding())
     {
-        if (bicycle.GetBatteryPercent() > 0.0f && bicycle.IsHeadlightOn() && bicycle.GetHeadlightIntensity() > 0.05f)
+        if (bicycle.GetBatteryPercent() > 0.0f && bicycle.IsHeadlightOn())
         {
-            if (outReason) *outReason = "BICYCLE BATTERY";
+            if (outReason) *outReason = "BICYCLE RIDING";
             return true;
         }
     }
 
-    // 降車時：駐輪された自転車の前方ヘッドライト照射範囲内
-    if (bicycle.IsHeadlightOn() && bicycle.GetHeadlightIntensity() > 0.05f && bicycle.GetBatteryPercent() > 0.0f)
+    // 2. 降車時：自転車の至近距離（周囲3.5m以内）にいればバッテリーライトの恩恵で保護
+    if (bicycle.GetBatteryPercent() > 0.0f && bicycle.IsHeadlightOn())
     {
+        VECTOR bPos = bicycle.GetPosition();
+        float bdx = playerPos.x - bPos.x;
+        float bdz = playerPos.z - bPos.z;
+        if (bdx * bdx + bdz * bdz < (3.5f * 3.5f))
+        {
+            if (outReason) *outReason = "BICYCLE NEARBY";
+            return true;
+        }
+
+        // 自転車の前方照射範囲（スポットライト円錐）内
         VECTOR lightPos = bicycle.GetHeadlightPosition();
         VECTOR lightDir = bicycle.GetHeadlightDirection();
-        float range = bicycle.GetHeadlightRange();
+        float range = bicycle.GetHeadlightRange() + 2.0f; // 余裕を持たせる
 
         VECTOR toPlayer = VSub(playerPos, lightPos);
         float dist = VSize(toPlayer);
@@ -363,9 +356,58 @@ bool HorrorManager::IsPlayerSafeFromMonster(const Player& player, const Bicycle&
         {
             VECTOR normToP = VScale(toPlayer, 1.0f / dist);
             float dot = VDot(normToP, lightDir);
-            if (dot > 0.743f)
+            // 照射角約45度（コサイン値 0.50以上）まで安全範囲として認識
+            if (dot > 0.50f)
             {
-                if (outReason) *outReason = "HEADLIGHT CONE";
+                if (outReason) *outReason = "HEADLIGHT BEAM";
+                return true;
+            }
+        }
+    }
+
+    // 3. 街灯の安全範囲判定（街灯の電球・アーム直下を中心に広範囲をカバー）
+    const std::vector<StreetLight>& lights = nightEnv.GetStreetLights();
+    for (size_t i = 0; i < lights.size(); ++i)
+    {
+        // 完全消灯（Off）または停電中以外であれば安全
+        if (lights[i].state == StreetLightState::Off)
+        {
+            continue;
+        }
+
+        // 実際の光源位置（アーム先端フード下 pos + (0.6, 0.0, 0.0)）からの距離で判定
+        float lampCenterX = lights[i].position.x + 0.6f;
+        float lampCenterZ = lights[i].position.z;
+        float dx = playerPos.x - lampCenterX;
+        float dz = playerPos.z - lampCenterZ;
+        
+        // 街灯の光線半径（8.5m）以内なら安全
+        if (dx * dx + dz * dz < (8.5f * 8.5f))
+        {
+            if (outReason) *outReason = "STREET LIGHT";
+            return true;
+        }
+    }
+
+    // 4. 住宅の玄関灯の明かり判定（点灯中の玄関ポーチ・ポスト周辺）
+    const std::vector<HouseData>& houses = MapGetHouses();
+    for (size_t i = 0; i < houses.size(); ++i)
+    {
+        if (houses[i].porchLight)
+        {
+            float angle = houses[i].rotationY;
+            VECTOR fwd = VGet(sinf(angle), 0.0f, cosf(angle));
+            VECTOR right = VGet(cosf(angle), 0.0f, -sinf(angle));
+            VECTOR lampPos = VAdd(houses[i].position, VScale(fwd, 4.2f));
+            lampPos = VAdd(lampPos, VScale(right, 1.2f));
+
+            float dx = playerPos.x - lampPos.x;
+            float dz = playerPos.z - lampPos.z;
+
+            // 玄関灯から半径7.5m以内（玄関ポーチや郵便ポスト周辺を含む）を安全地帯とする
+            if (dx * dx + dz * dz < (7.5f * 7.5f))
+            {
+                if (outReason) *outReason = "HOUSE PORCH LIGHT";
                 return true;
             }
         }
@@ -750,18 +792,44 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
             // 最後に確認したプレイヤーの位置を記録する
             lastKnownPlayerPos = playerPos;
 
-            // 街灯の安全範囲にはモンスターを侵入させない
+            // 街灯や玄関灯の安全範囲にはモンスターを侵入させない
             bool lightBarrier = false;
             for (const auto& light : nightEnv.GetStreetLights())
             {
-                if (light.state != StreetLightState::Off && light.currentIntensity >= 0.15f)
+                if (light.state != StreetLightState::Off)
                 {
-                    float distToLight = std::sqrt((monsterPos.x - light.position.x) * (monsterPos.x - light.position.x) +
-                                                  (monsterPos.z - light.position.z) * (monsterPos.z - light.position.z));
-                    if (distToLight <= 7.0f && playerIsSafe)
+                    float lampX = light.position.x + 0.6f;
+                    float lampZ = light.position.z;
+                    float distToLight = std::sqrt((monsterPos.x - lampX) * (monsterPos.x - lampX) +
+                                                  (monsterPos.z - lampZ) * (monsterPos.z - lampZ));
+                    if (distToLight <= 8.5f && playerIsSafe)
                     {
                         lightBarrier = true;
                         break;
+                    }
+                }
+            }
+
+            if (!lightBarrier && playerIsSafe)
+            {
+                const std::vector<HouseData>& hList = MapGetHouses();
+                for (const auto& h : hList)
+                {
+                    if (h.porchLight)
+                    {
+                        float angle = h.rotationY;
+                        VECTOR fwd = VGet(sinf(angle), 0.0f, cosf(angle));
+                        VECTOR right = VGet(cosf(angle), 0.0f, -sinf(angle));
+                        VECTOR lampPos = VAdd(h.position, VScale(fwd, 4.2f));
+                        lampPos = VAdd(lampPos, VScale(right, 1.2f));
+
+                        float distToPorch = std::sqrt((monsterPos.x - lampPos.x) * (monsterPos.x - lampPos.x) +
+                                                      (monsterPos.z - lampPos.z) * (monsterPos.z - lampPos.z));
+                        if (distToPorch <= 7.5f)
+                        {
+                            lightBarrier = true;
+                            break;
+                        }
                     }
                 }
             }

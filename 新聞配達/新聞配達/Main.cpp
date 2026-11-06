@@ -69,6 +69,10 @@ int WINAPI WinMain(
         return -1;
     }
 
+    // ピクセル単位ライティングを有効化（DxLib 3D描画における滑らかな陰影・スポットライト表現）
+    // Enable per-pixel lighting for smooth spot/point light attenuation and higher lighting fidelity
+    SetUsePixelLighting(TRUE);
+
     // 描画先を裏画面に設定（ダブルバッファリング）
     SetDrawScreen(
         DX_SCREEN_BACK
@@ -473,8 +477,8 @@ int WINAPI WinMain(
                 bicycle.IsRiding()
             );
 
-            // 深夜環境の更新（自転車ヘッドライト追従・街灯明滅タイマー）
-            nightEnv.Update(bicycle);
+            // 深夜環境の更新（自転車ヘッドライト追従・街灯明滅タイマー・動的ライトカリング）
+            nightEnv.Update(bicycle, player.GetPosition());
 
             // 動的ランダム天候管理システムの更新
             weatherManager.Update(0.01666f, player, bicycle, nightEnv);

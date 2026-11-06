@@ -46,6 +46,9 @@ const HouseData* MapGetHouseById(int id);
 // 日別シードに基づく玄関灯の点灯・消灯制御（Day 1: ほぼ点灯 〜 Day 7: ほぼ全消灯）
 void MapSetDayPorchLights(int day, unsigned int daySeed);
 
+// プレイヤー位置に応じた玄関灯ライトハンドルの動的カリング更新
+void MapUpdatePorchLightsCulling(const VECTOR& playerPos, int maxActiveCount);
+
 // スポーン地点・ポスト接近性の安全検証
 bool MapValidateSafety();
 
