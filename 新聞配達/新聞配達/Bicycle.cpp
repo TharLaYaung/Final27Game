@@ -7,16 +7,31 @@
 #include <cmath>
 #include <cstdlib>
 
+// 路面の高さ（Ground.cppの路面標示の高さに合わせる）
+static const float GROUND_SURFACE_Y = 0.015f;
+
+// 乗車中の目の高さ
+static const float RIDING_EYE_Y = 1.38f;
+
+// 徒歩の目の高さ（Player.cppの初期高さに合わせる）
+static const float WALKING_EYE_Y = 1.7f;
+
 // コンストラクタ
 Bicycle::Bicycle()
 {
     // モデル未読み込み
     modelHandle = -1;
 
+    // 自転車モデルの大きさ（全長 約1.8m・全高 約1.15m）
+    modelScale = 0.005f;
+
+    // 接地時の高さ（モデル読み込み時に計算する）
+    groundedHeight = 0.0f;
+
     // 自転車の初期位置（南通りスタート地点、プレイヤーの隣）
     position = VGet(
         1.8f,
-        0.18f,
+        groundedHeight,
         -30.0f
     );
 
@@ -42,8 +57,8 @@ Bicycle::Bicycle()
     oldF8Key = false;
 
     // 自転車ローカル基準のライト配置オフセット（前輪フォーク・ライト固定位置）
-    headlightOffsetForward = 0.85f;
-    headlightOffsetHeight = 0.88f;
+    headlightOffsetForward = 0.425f;
+    headlightOffsetHeight = 0.44f;
     headlightOffsetSide = 0.0f;
 
     // 基本照射距離（霧を貫通しすぎないホラー適正値: 14m）
@@ -85,19 +100,13 @@ bool Bicycle::Initialize()
         return false;
     }
 
-    // 自転車の位置を設定する
-    MV1SetPosition(
-        modelHandle,
-        position
-    );
-
     // 自転車の大きさを設定する
     MV1SetScale(
         modelHandle,
         VGet(
-            0.01f,
-            0.01f,
-            0.01f
+            modelScale,
+            modelScale,
+            modelScale
         )
     );
 
@@ -109,6 +118,30 @@ bool Bicycle::Initialize()
             angle,
             0.0f
         )
+    );
+
+    // モデルの下端（タイヤの接地面）を測定し、路面の上に乗る高さを求める
+    MV1SetPosition(
+        modelHandle,
+        VGet(
+            0.0f,
+            0.0f,
+            0.0f
+        )
+    );
+    MV1SetupReferenceMesh(modelHandle, -1, TRUE);
+    MV1_REF_POLYGONLIST referenceMesh =
+        MV1GetReferenceMesh(modelHandle, -1, TRUE);
+    groundedHeight =
+        GROUND_SURFACE_Y - referenceMesh.MinPosition.y;
+    MV1TerminateReferenceMesh(modelHandle, -1, TRUE);
+
+    position.y = groundedHeight;
+
+    // 自転車の位置を設定する
+    MV1SetPosition(
+        modelHandle,
+        position
     );
 
     lastUpdateTime = GetNowHiPerformanceCount();
@@ -240,7 +273,7 @@ void Bicycle::Update(Player& player)
             player.SetPosition(
                 VGet(
                     position.x,
-                    position.y + 1.2f,
+                    RIDING_EYE_Y,
                     position.z
                 )
             );
@@ -347,7 +380,7 @@ void Bicycle::Update(Player& player)
         player.SetPosition(
             VGet(
                 position.x,
-                position.y + 1.2f,
+                RIDING_EYE_Y,
                 position.z
             )
         );
@@ -364,7 +397,7 @@ void Bicycle::Update(Player& player)
             // プレイヤーを自転車の横（安全な位置）へ移動
             VECTOR dismountPos = VGet(
                 position.x + 1.5f,
-                position.y + 1.7f,
+                WALKING_EYE_Y,
                 position.z
             );
             // 降りた位置が壁内にならないよう補正
@@ -786,7 +819,7 @@ void Bicycle::Reset()
 {
     position = VGet(
         1.8f,
-        0.18f,
+        groundedHeight,
         -30.0f
     );
     angle = DX_PI_F;
