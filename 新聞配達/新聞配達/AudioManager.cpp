@@ -175,8 +175,8 @@ int AudioManager::CalcBgmVolume() const
 {
     if (masterVolume <= 0 || bgmVolume <= 0) return 0;
     int vol = (masterVolume * bgmVolume * 255) / 10000;
-    // 小さすぎる音量にならず、不気味なホラーアンビエントがしっかり明瞭に聴こえるよう下限150を保証
-    return std::clamp(vol, 150, 255);
+    // 音量設定の割合を反映し、0に設定した場合は消音する
+    return std::clamp(vol, 0, 255);
 }
 
 int AudioManager::CalcSfxVolume(float relativeScale) const

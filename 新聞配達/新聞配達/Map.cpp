@@ -235,6 +235,10 @@ void MapInit()
         if (baseHandle != -1)
         {
             g_houseHandles[i] = MV1DuplicateModel(baseHandle);
+            if (g_houseHandles[i] == -1)
+            {
+                continue;
+            }
 
             float s = 0.008f;
             MV1SetScale(g_houseHandles[i], VGet(s, s, s));
