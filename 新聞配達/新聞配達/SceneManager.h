@@ -112,6 +112,7 @@ public:
 
     // 現在のシーン取得
     SceneType GetCurrentScene() const { return currentScene; }
+    void SetSceneImmediate(SceneType scene) { currentScene = scene; targetScene = scene; transitionState = TransitionState::None; }
 
     // トランジション中か
     bool IsTransitioning() const { return transitionState != TransitionState::None; }

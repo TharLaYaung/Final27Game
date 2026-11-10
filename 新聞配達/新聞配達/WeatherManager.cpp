@@ -1,4 +1,4 @@
-#include "WeatherManager.h"
+﻿#include "WeatherManager.h"
 #include "Player.h"
 #include "Bicycle.h"
 #include "NightEnvironment.h"
@@ -143,10 +143,10 @@ WeatherParameters WeatherManager::GetPresetParameters(WeatherType type) const
         // 通常夜間（深夜基本フォグ: 8m〜28m、遠景は暗闇に溶け込み全景は見通せない）
         p.fogStart = 8.0f;
         p.fogEnd = 28.0f;
-        p.fogR = 7;
-        p.fogG = 10;
-        p.fogB = 14;
-        p.ambientColor = GetColorF(0.028f, 0.032f, 0.042f, 1.0f);
+        p.fogR = 24;
+        p.fogG = 32;
+        p.fogB = 42;
+        p.ambientColor = GetColorF(0.028f, 0.034f, 0.044f, 1.0f);
         p.targetRainCount = 0;
         p.targetSnowCount = 0;
         p.rainSpeed = 20.0f;
@@ -158,10 +158,10 @@ WeatherParameters WeatherManager::GetPresetParameters(WeatherType type) const
         // 雨（冷たい雨夜: 6m〜22m）
         p.fogStart = 6.0f;
         p.fogEnd = 22.0f;
-        p.fogR = 6;
-        p.fogG = 9;
-        p.fogB = 13;
-        p.ambientColor = GetColorF(0.024f, 0.028f, 0.038f, 1.0f);
+        p.fogR = 26;
+        p.fogG = 35;
+        p.fogB = 46;
+        p.ambientColor = GetColorF(0.025f, 0.030f, 0.040f, 1.0f);
         p.targetRainCount = 320;
         p.targetSnowCount = 0;
         p.rainSpeed = 22.0f;
@@ -173,10 +173,10 @@ WeatherParameters WeatherManager::GetPresetParameters(WeatherType type) const
         // 豪雨（視界不良の暗夜: 3.5m〜14m）
         p.fogStart = 3.5f;
         p.fogEnd = 14.0f;
-        p.fogR = 5;
-        p.fogG = 8;
-        p.fogB = 11;
-        p.ambientColor = GetColorF(0.018f, 0.022f, 0.030f, 1.0f);
+        p.fogR = 28;
+        p.fogG = 38;
+        p.fogB = 50;
+        p.ambientColor = GetColorF(0.020f, 0.024f, 0.032f, 1.0f);
         p.targetRainCount = 680;
         p.targetSnowCount = 0;
         p.rainSpeed = 29.0f;
@@ -188,10 +188,10 @@ WeatherParameters WeatherManager::GetPresetParameters(WeatherType type) const
         // 雪（舞い散る粉雪夜: 6m〜22m）
         p.fogStart = 6.0f;
         p.fogEnd = 22.0f;
-        p.fogR = 7;
-        p.fogG = 10;
-        p.fogB = 14;
-        p.ambientColor = GetColorF(0.026f, 0.030f, 0.040f, 1.0f);
+        p.fogR = 30;
+        p.fogG = 40;
+        p.fogB = 52;
+        p.ambientColor = GetColorF(0.028f, 0.034f, 0.044f, 1.0f);
         p.targetRainCount = 0;
         p.targetSnowCount = 200;
         p.rainSpeed = 20.0f;
@@ -203,10 +203,10 @@ WeatherParameters WeatherManager::GetPresetParameters(WeatherType type) const
         // 猛吹雪（激しい吹雪と視界遮蔽: 3.0m〜13m）
         p.fogStart = 3.0f;
         p.fogEnd = 13.0f;
-        p.fogR = 6;
-        p.fogG = 9;
-        p.fogB = 12;
-        p.ambientColor = GetColorF(0.020f, 0.024f, 0.032f, 1.0f);
+        p.fogR = 36;
+        p.fogG = 46;
+        p.fogB = 60;
+        p.ambientColor = GetColorF(0.024f, 0.028f, 0.038f, 1.0f);
         p.targetRainCount = 0;
         p.targetSnowCount = 450;
         p.rainSpeed = 20.0f;
@@ -218,10 +218,10 @@ WeatherParameters WeatherManager::GetPresetParameters(WeatherType type) const
         // 濃霧（立ち込める暗霧: 4.0m〜17.0m、10m以遠は暗闇の影）
         p.fogStart = 4.0f;
         p.fogEnd = 17.0f;
-        p.fogR = 6;
-        p.fogG = 9;
-        p.fogB = 13;
-        p.ambientColor = GetColorF(0.022f, 0.025f, 0.034f, 1.0f);
+        p.fogR = 36;
+        p.fogG = 46;
+        p.fogB = 58;
+        p.ambientColor = GetColorF(0.028f, 0.035f, 0.046f, 1.0f);
         p.targetRainCount = 0;
         p.targetSnowCount = 0;
         p.rainSpeed = 20.0f;
@@ -233,10 +233,10 @@ WeatherParameters WeatherManager::GetPresetParameters(WeatherType type) const
         // 超濃霧（丑三つ時の極限恐怖暗霧: 2.5m〜11.0m、15m以遠は完全消失）
         p.fogStart = 2.5f;
         p.fogEnd = 11.0f;
-        p.fogR = 6;
-        p.fogG = 8;
-        p.fogB = 12;
-        p.ambientColor = GetColorF(0.016f, 0.018f, 0.026f, 1.0f);
+        p.fogR = 44;
+        p.fogG = 55;
+        p.fogB = 68;
+        p.ambientColor = GetColorF(0.026f, 0.032f, 0.044f, 1.0f);
         p.targetRainCount = 0;
         p.targetSnowCount = 0;
         p.rainSpeed = 20.0f;
@@ -543,10 +543,10 @@ void WeatherManager::Update(float dt, const Player& player, const Bicycle& bicyc
     {
         currentParams.fogStart = 1.5f;
         currentParams.fogEnd = 8.0f;
-        currentParams.fogR = 5;
-        currentParams.fogG = 7;
-        currentParams.fogB = 10;
-        currentParams.ambientColor = GetColorF(0.012f, 0.014f, 0.020f, 1.0f);
+        currentParams.fogR = 40;
+        currentParams.fogG = 50;
+        currentParams.fogB = 64;
+        currentParams.ambientColor = GetColorF(0.020f, 0.024f, 0.032f, 1.0f);
     }
 
     // 環境システムへのフォグおよびアンビエント光の伝達

@@ -48,7 +48,11 @@ int WINAPI WinMain(
     }
 
     // ウィンドウモードで起動
-    ChangeWindowMode(FALSE);
+    bool captureTest = (strstr(lpCmdLine, "--capture-test") != nullptr);
+    const char* prefix = (strstr(lpCmdLine, "--prefix-after") != nullptr) ? "after" : "before";
+
+    // ウィンドウモードで起動
+    ChangeWindowMode(captureTest ? TRUE : FALSE);
 
     // ウィンドウタイトルバーの名称設定
     SetMainWindowText("NEWSPAPER DELIVERY");
@@ -174,6 +178,90 @@ int WINAPI WinMain(
     // シーン統合管理システム初期化（タイトルBGM再生開始）
     sceneManager.Initialize();
 
+    if (captureTest)
+    {
+        int testDays[] = { 1, 3, 7 };
+        for (int day : testDays)
+        {
+            sceneManager.ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, day);
+            sceneManager.SetSceneImmediate(SceneType::Game);
+            player.SetPosition(VGet(0.0f, 1.7f, -25.0f));
+            player.SetYaw(0.0f);
+            player.SetPitch(0.03f);
+            player.UpdateCamera();
+
+            for (int f = 0; f < 10; ++f)
+            {
+                weatherManager.Update(0.01666f, player, bicycle, nightEnv);
+                nightEnv.Update(bicycle, player.GetPosition());
+                player.UpdateCamera();
+                ClearDrawScreen();
+                sceneManager.Draw(player, bicycle, newspaper, mailbox, batteryManager, deliveryManager, minimap, nightEnv, weatherManager, horrorManager, false);
+                ScreenFlip();
+            }
+
+            // 1) Fog ON
+            if (!nightEnv.IsFogEnabled()) nightEnv.ToggleFog();
+            ClearDrawScreen();
+            sceneManager.Draw(player, bicycle, newspaper, mailbox, batteryManager, deliveryManager, minimap, nightEnv, weatherManager, horrorManager, false);
+            ScreenFlip();
+            char filenameOn[128];
+            snprintf(filenameOn, sizeof(filenameOn), "screenshot_day%d_%s_on.png", day, prefix);
+            SaveDrawScreenToPNG(0, 0, 1280, 720, filenameOn);
+
+            // 2) Fog OFF
+            nightEnv.ToggleFog();
+            ClearDrawScreen();
+            sceneManager.Draw(player, bicycle, newspaper, mailbox, batteryManager, deliveryManager, minimap, nightEnv, weatherManager, horrorManager, false);
+            ScreenFlip();
+            char filenameOff[128];
+            snprintf(filenameOff, sizeof(filenameOff), "screenshot_day%d_%s_off.png", day, prefix);
+            SaveDrawScreenToPNG(0, 0, 1280, 720, filenameOff);
+
+            nightEnv.ToggleFog();
+        }
+
+        // FPSベンチマークテスト (Day 1 / 3 / 7 で各60フレーム描画時間を計測)
+        for (int day : testDays)
+        {
+            sceneManager.ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, day);
+            sceneManager.SetSceneImmediate(SceneType::Game);
+            player.UpdateCamera();
+
+            LONGLONG tStart = GetNowHiPerformanceCount();
+            const int benchFrames = 60;
+            for (int f = 0; f < benchFrames; ++f)
+            {
+                weatherManager.Update(0.01666f, player, bicycle, nightEnv);
+                nightEnv.Update(bicycle, player.GetPosition());
+                ClearDrawScreen();
+                sceneManager.Draw(player, bicycle, newspaper, mailbox, batteryManager, deliveryManager, minimap, nightEnv, weatherManager, horrorManager, false);
+                ScreenFlip();
+            }
+            LONGLONG tEnd = GetNowHiPerformanceCount();
+            double elapsedMs = (double)(tEnd - tStart) / 1000.0;
+            double fps = (benchFrames * 1000.0) / elapsedMs;
+            FILE* fp = nullptr;
+            fopen_s(&fp, "benchmark_fps.txt", "a");
+            if (fp)
+            {
+                fprintf(fp, "[%s] Day %d: %.2f ms (%.1f FPS)\n", prefix, day, elapsedMs / benchFrames, fps);
+                fclose(fp);
+            }
+        }
+
+        batteryManager.Finalize();
+        sceneManager.Finalize();
+        AudioManager::Instance().Finalize();
+        MapFinalize();
+        nightEnv.Finalize();
+        weatherManager.Finalize();
+        horrorManager.Finalize();
+        HorrorUI::Instance().Finalize();
+        DxLib_End();
+        return 0;
+    }
+
     // 60FPS制御用の時間記録
     LONGLONG prevTime = GetNowHiPerformanceCount();
 
@@ -297,6 +385,7 @@ int WINAPI WinMain(
             bool curF7 = (CheckHitKey(KEY_INPUT_F7) != 0);
             if (curF7 && !oldF7Key)
             {
+                nightEnv.ResetManualPresetOverride();
                 weatherManager.CycleWeather();
             }
             oldF7Key = curF7;
@@ -305,6 +394,7 @@ int WINAPI WinMain(
             bool curF8 = (CheckHitKey(KEY_INPUT_F8) != 0);
             if (curF8 && !oldF8Key)
             {
+                nightEnv.ResetManualPresetOverride();
                 weatherManager.ToggleExtremeFog();
             }
             oldF8Key = curF8;

@@ -1,4 +1,4 @@
-#include "NightEnvironment.h"
+﻿#include "NightEnvironment.h"
 #include "Bicycle.h"
 #include "HorrorUI.h"
 #include "Map.h"
@@ -15,15 +15,15 @@ NightEnvironment::NightEnvironment()
     fogEnabled = true;
     fogStart = 4.0f;
     fogEnd = 17.0f;
-    fogColorR = 7;
-    fogColorG = 9;
-    fogColorB = 13;
+    fogColorR = 36;
+    fogColorG = 46;
+    fogColorB = 58;
 
-    bgR = 7;
-    bgG = 9;
-    bgB = 13;
+    bgR = 36;
+    bgG = 46;
+    bgB = 58;
 
-    ambientColor = GetColorF(0.024f, 0.027f, 0.036f, 1.0f);
+    ambientColor = GetColorF(0.028f, 0.035f, 0.046f, 1.0f);
 
     bicycleLightHandle = -1;
     bicycleLightRange = 12.0f;
@@ -129,7 +129,7 @@ bool NightEnvironment::Initialize()
     MapRegisterLampPoles(poles);
 
     // デフォルトの例外配達風プリセットを適用
-    SetPreset(EnvironmentPreset::NightDeliveryStyle);
+    SetPreset(EnvironmentPreset::NightDeliveryStyle, false);
 
     return true;
 }
@@ -143,13 +143,13 @@ void NightEnvironment::ApplyPresetSettings()
         // 開発・通常視認用（全景を見通せない深夜基本フォグ: 8m〜28m）
         fogStart = 8.0f;
         fogEnd = 28.0f;
-        fogColorR = 7;
-        fogColorG = 10;
-        fogColorB = 14;
-        bgR = 7;
-        bgG = 10;
-        bgB = 14;
-        ambientColor = GetColorF(0.028f, 0.032f, 0.042f, 1.0f);
+        fogColorR = 24;
+        fogColorG = 32;
+        fogColorB = 42;
+        bgR = 24;
+        bgG = 32;
+        bgB = 42;
+        ambientColor = GetColorF(0.028f, 0.034f, 0.044f, 1.0f);
         bicycleLightRange = 16.0f;
         break;
 
@@ -157,13 +157,13 @@ void NightEnvironment::ApplyPresetSettings()
         // 本番用デフォルト（深夜の濃密な恐怖フォグ: 近接4mから濃霧が立ち込め17mで完全消失）
         fogStart = 4.0f;
         fogEnd = 17.0f;
-        fogColorR = 7;
-        fogColorG = 9;
-        fogColorB = 13;
-        bgR = 7;
-        bgG = 9;
-        bgB = 13;
-        ambientColor = GetColorF(0.024f, 0.027f, 0.036f, 1.0f);
+        fogColorR = 36;
+        fogColorG = 46;
+        fogColorB = 58;
+        bgR = 36;
+        bgG = 46;
+        bgB = 58;
+        ambientColor = GetColorF(0.028f, 0.035f, 0.046f, 1.0f);
         bicycleLightRange = 12.0f;
         break;
 
@@ -171,13 +171,13 @@ void NightEnvironment::ApplyPresetSettings()
         // 実験・ホラーイベント用（超近接1.5m〜8.0mの極限暗闇フォグ）
         fogStart = 1.5f;
         fogEnd = 8.0f;
-        fogColorR = 5;
-        fogColorG = 7;
-        fogColorB = 10;
-        bgR = 5;
-        bgG = 7;
-        bgB = 10;
-        ambientColor = GetColorF(0.012f, 0.014f, 0.020f, 1.0f);
+        fogColorR = 40;
+        fogColorG = 50;
+        fogColorB = 64;
+        bgR = 40;
+        bgG = 50;
+        bgB = 64;
+        ambientColor = GetColorF(0.020f, 0.024f, 0.032f, 1.0f);
         bicycleLightRange = 8.5f;
         break;
     }
@@ -199,10 +199,10 @@ void NightEnvironment::SetBicycleHeadlightParams(float range, float atten0, floa
 }
 
 // プリセット設定
-void NightEnvironment::SetPreset(EnvironmentPreset preset)
+void NightEnvironment::SetPreset(EnvironmentPreset preset, bool manual)
 {
     currentPreset = preset;
-    manualPresetOverride = true;
+    manualPresetOverride = manual;
     ApplyPresetSettings();
 
     const char* name = "NIGHT_DELIVERY_STYLE";
@@ -218,7 +218,7 @@ void NightEnvironment::CyclePreset()
 {
     if (currentPreset == EnvironmentPreset::Normal)
     {
-        SetPreset(EnvironmentPreset::NightDeliveryStyle);
+        SetPreset(EnvironmentPreset::NightDeliveryStyle, true);
     }
     else if (currentPreset == EnvironmentPreset::NightDeliveryStyle)
     {
@@ -468,6 +468,7 @@ void NightEnvironment::ApplyLightingAndFog()
     SetFogEnable(fogEnabled ? TRUE : FALSE);
     if (fogEnabled)
     {
+        SetFogMode(DX_FOGMODE_LINEAR);
         SetFogColor(fogColorR, fogColorG, fogColorB);
         SetFogStartEnd(fogStart, fogEnd);
     }

@@ -64,7 +64,9 @@ public:
     // プリセット・デバッグ制御
 
     // プリセット適用
-    void SetPreset(EnvironmentPreset preset);
+    void SetPreset(EnvironmentPreset preset, bool manual = true);
+    void ResetManualPresetOverride() { manualPresetOverride = false; }
+    bool IsManualPresetOverride() const { return manualPresetOverride; }
 
     // プリセット順送り切り替え (F2)
     void CyclePreset();

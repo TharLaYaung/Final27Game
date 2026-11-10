@@ -434,7 +434,7 @@ void SceneManager::ResetGame(
     newspaper.Reset(deliveryManager.GetTotalDeliveries());
 
     // 深夜環境・街灯損壊プリセット
-    nightEnv.SetPreset(EnvironmentPreset::NightDeliveryStyle);
+    nightEnv.ResetManualPresetOverride();
     nightEnv.SetDayEnvironment(currentDay);
 
     // 動的天候の日別セットアップ
