@@ -39,7 +39,7 @@ void DeliveryManager::Initialize()
         });
     }
 
-    // 初日（Day 1）の配達スケジュール設定
+    // 初日の配達予定を設定
     SetDay(1);
 }
 
@@ -165,7 +165,7 @@ void DeliveryManager::SetDay(int day)
     if (day > 7) day = 7;
     currentDay = day;
 
-    // 日ごとの配達軒数（Day 1: 3軒 〜 Day 7: 8軒）
+    // 日ごとの配達軒数（1日目は3軒、7日目は8軒）
     int count = 3;
     switch (currentDay)
     {

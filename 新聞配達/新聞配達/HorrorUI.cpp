@@ -86,7 +86,7 @@ void HorrorUI::Initialize()
         bloodSplatterGraph = LoadGraph("Data/blood_splatter.png");
     }
 
-    // 日本語フォント生成ヘルパー（Meiryo -> Yu Gothic -> MS Gothic の順で安全に生成）
+    // 日本語フォント生成関数（メイリオ、游ゴシック、ＭＳゴシックの順に試す）
     auto CreateJPFont = [](const char* name1, const char* name2, int size, int thick, int fontType) -> int {
         int h = CreateFontToHandle(name1, size, thick, fontType);
         if (h == -1 && name2 != nullptr) {
@@ -111,7 +111,7 @@ void HorrorUI::Initialize()
     fontClock = CreateFontToHandle("Chiller", 26, 3, DX_FONTTYPE_ANTIALIASING);
     if (fontClock == -1) fontClock = CreateFontToHandle("Consolas", 20, 2, DX_FONTTYPE_NORMAL);
 
-    // 大見出しホラー専用フォント（タイトル、GAME OVERなどの英語演出用）
+    // 大見出し用ホラーフォント（題名やゲーム終了表示などに使用）
     fontTitleHorror = CreateFontToHandle("Chiller", 64, 4, DX_FONTTYPE_ANTIALIASING);
     if (fontTitleHorror == -1) fontTitleHorror = CreateFontToHandle("MS Gothic", 48, 5, DX_FONTTYPE_ANTIALIASING_EDGE_8X8);
 

@@ -245,9 +245,9 @@ void MapInit()
             for (int m = 0; m < matNum; ++m)
             {
                 // 夜間住宅マテリアルの調整: 過度な自己発光・アンビエント反射を抑え、ライトが当たった箇所のみ自然に照らし出されるようにする
-                // Balance diffuse/ambient and eliminate artificial full-body emission so houses look natural under night lights
-                MV1SetMaterialDifColor(g_houseHandles[i], m, GetColorF(0.85f, 0.85f, 0.85f, 1.0f));
-                MV1SetMaterialAmbColor(g_houseHandles[i], m, GetColorF(0.25f, 0.25f, 0.28f, 1.0f));
+                // 拡散光と環境光の強さを整え、建物全体が自己発光して見えないようにする
+                MV1SetMaterialDifColor(g_houseHandles[i], m, GetColorF(0.95f, 0.95f, 0.95f, 1.0f));
+                MV1SetMaterialAmbColor(g_houseHandles[i], m, GetColorF(0.38f, 0.38f, 0.42f, 1.0f));
                 MV1SetMaterialEmiColor(g_houseHandles[i], m, GetColorF(0.0f, 0.0f, 0.0f, 1.0f));
             }
 
@@ -277,11 +277,11 @@ void MapInit()
                 lampPos.y = 2.4f;
 
                 // 玄関先とポーチを自然に照らす範囲と減衰パラメータ
-                int lightH = CreatePointLightHandle(lampPos, 8.5f, 1.0f, 0.18f, 0.06f);
+                int lightH = CreatePointLightHandle(lampPos, 8.5f, 1.0f, 0.08f, 0.02f);
                 if (lightH != -1)
                 {
                     SetLightEnableHandle(lightH, FALSE);
-                    SetLightDifColorHandle(lightH, GetColorF(1.0f, 0.85f, 0.58f, 1.0f));
+                    SetLightDifColorHandle(lightH, GetColorF(1.0f, 0.80f, 0.50f, 1.0f));
                     SetLightSpcColorHandle(lightH, GetColorF(0.15f, 0.12f, 0.08f, 1.0f));
                     g_houseLightHandles[i] = lightH;
                 }
@@ -354,7 +354,7 @@ void MapSetDayPorchLights(int day, unsigned int daySeed)
 }
 
 // プレイヤー位置に応じた玄関灯ライトハンドルの動的カリング更新
-// DxLibの同時有効ライト制限内で、プレイヤーに最も近い点灯中の玄関灯のみを有効化する
+// 同時に有効化できるライト数の範囲内で、最も近い点灯中の玄関灯を有効化する
 void MapUpdatePorchLightsCulling(const VECTOR& playerPos, int maxActiveCount)
 {
     struct HouseDist

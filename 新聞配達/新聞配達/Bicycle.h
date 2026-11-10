@@ -24,7 +24,7 @@ public:
     // 自転車を描画する
     void Draw();
 
-    // UIを描画する
+    // 画面表示を描画する
     void DrawUI();
 
     // 自転車モデルを削除する
@@ -45,7 +45,7 @@ public:
     // 自転車の向きを取得する
     float GetAngle() const;
 
-    // ヘッドライト・バッテリーAPI
+    // ヘッドライトとバッテリーの操作機能
 
     // ヘッドライトが点灯しているか
     bool IsHeadlightOn() const;

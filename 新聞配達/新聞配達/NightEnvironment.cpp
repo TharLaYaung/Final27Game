@@ -28,7 +28,7 @@ NightEnvironment::NightEnvironment()
     bicycleLightHandle = -1;
     bicycleLightRange = 12.0f;
     bicycleLightPower = 1.0f;
-    bicycleLightColor = GetColorF(1.0f, 0.95f, 0.80f, 1.0f);
+    bicycleLightColor = GetColorF(1.0f, 0.94f, 0.78f, 1.0f);
 
     streetLightsEnabled = true;
     manualPresetOverride = false;
@@ -50,12 +50,12 @@ bool NightEnvironment::Initialize()
     bicycleLightHandle = CreateSpotLightHandle(
         VGet(0.0f, 1.0f, 0.0f),
         VGet(0.0f, -0.15f, 1.0f),
-        42.0f * DX_PI_F / 180.0f, // 外側コーン角度
-        20.0f * DX_PI_F / 180.0f, // 内側コーン角度
+        82.0f * DX_PI_F / 180.0f, // 外側コーン角度
+        56.0f * DX_PI_F / 180.0f, // 内側コーン角度
         bicycleLightRange,
         1.0f,
-        0.06f,
-        0.015f
+        0.035f,
+        0.006f
     );
 
     if (bicycleLightHandle != -1)
@@ -68,19 +68,19 @@ bool NightEnvironment::Initialize()
     streetLights.clear();
 
     // 1: スタート地点・南通り入口（通常点灯・温白色）
-    streetLights.push_back({ 1, VGet( -5.0f, 0.0f, -27.0f), StreetLightState::Normal,     -1, 0, 0, 1.0f, GetColorF(1.0f, 0.92f, 0.75f, 1.0f) });
+    streetLights.push_back({ 1, VGet( -5.0f, 0.0f, -27.0f), StreetLightState::Normal,     -1, 0, 0, 1.0f, GetColorF(1.0f, 0.80f, 0.50f, 1.0f) });
     // 2: 南西交差点（Road A & F 交差点・老朽化した弱点灯ランプ・琥珀色）
-    streetLights.push_back({ 2, VGet(-22.0f, 0.0f, -27.0f), StreetLightState::Weak,       -1, 0, 0, 0.40f, GetColorF(1.0f, 0.65f, 0.35f, 1.0f) });
+    streetLights.push_back({ 2, VGet(-22.0f, 0.0f, -27.0f), StreetLightState::Weak,       -1, 0, 0, 0.40f, GetColorF(1.0f, 0.80f, 0.50f, 1.0f) });
     // 3: 北西交差点（Road A & B 交差点・不規則に明滅する水銀灯ホラー街灯）
-    streetLights.push_back({ 3, VGet(-22.0f, 0.0f,  12.0f), StreetLightState::Flickering, -1, 120, 0, 1.0f, GetColorF(0.90f, 0.95f, 1.0f, 1.0f) });
+    streetLights.push_back({ 3, VGet(-22.0f, 0.0f,  12.0f), StreetLightState::Flickering, -1, 120, 0, 1.0f, GetColorF(1.0f, 0.80f, 0.50f, 1.0f) });
     // 4: 北路地入口（Road B & C 交差点・通常点灯）
-    streetLights.push_back({ 4, VGet( -3.5f, 0.0f,  17.5f), StreetLightState::Normal,     -1, 0, 0, 1.0f, GetColorF(0.95f, 0.95f, 0.85f, 1.0f) });
+    streetLights.push_back({ 4, VGet( -3.5f, 0.0f,  17.5f), StreetLightState::Normal,     -1, 0, 0, 1.0f, GetColorF(1.0f, 0.80f, 0.50f, 1.0f) });
     // 5: 北路地最奥行き止まり（住宅2前・球切れ消灯・不気味な暗闇のシルエット）
     streetLights.push_back({ 5, VGet(  3.5f, 0.0f,  38.0f), StreetLightState::Off,        -1, 0, 0, 0.0f, GetColorF(0.0f, 0.0f, 0.0f, 0.0f) });
     // 6: 北東交差点（Road B & D 交差点・通常点灯・温光）
-    streetLights.push_back({ 6, VGet( 22.0f, 0.0f,  12.0f), StreetLightState::Normal,     -1, 0, 0, 1.0f, GetColorF(1.0f, 0.90f, 0.70f, 1.0f) });
+    streetLights.push_back({ 6, VGet( 22.0f, 0.0f,  12.0f), StreetLightState::Normal,     -1, 0, 0, 1.0f, GetColorF(1.0f, 0.80f, 0.50f, 1.0f) });
     // 7: 中央横通り（住宅4前・弱点灯ランプ・温光）
-    streetLights.push_back({ 7, VGet( -6.0f, 0.0f,  -7.0f), StreetLightState::Weak,       -1, 0, 0, 0.45f, GetColorF(1.0f, 0.70f, 0.40f, 1.0f) });
+    streetLights.push_back({ 7, VGet( -6.0f, 0.0f,  -7.0f), StreetLightState::Weak,       -1, 0, 0, 0.45f, GetColorF(1.0f, 0.80f, 0.50f, 1.0f) });
 
     // 各街灯のDxLibライトハンドル生成
     for (size_t i = 0; i < streetLights.size(); i++)
@@ -92,7 +92,7 @@ bool NightEnvironment::Initialize()
         }
 
         // 電柱のアーム先端フード直下（pos.x + 0.6f, pos.y + 3.85f, pos.z）から下方向の道路を照らすポイントライト
-        // Align point light position precisely with the lamp head and bulb model
+        // 点光源の位置を街灯の先端と電球の位置に正確に合わせる
         VECTOR lightPos = VGet(
             streetLights[i].position.x + 0.6f,
             streetLights[i].position.y + 3.85f,
@@ -104,8 +104,8 @@ bool NightEnvironment::Initialize()
             lightPos,
             range,
             1.0f,
-            0.10f,
-            0.025f
+            0.08f,
+            0.02f
         );
 
         if (handle != -1)
@@ -184,7 +184,7 @@ void NightEnvironment::ApplyPresetSettings()
 
     if (bicycleLightHandle != -1)
     {
-        SetLightRangeAttenHandle(bicycleLightHandle, bicycleLightRange, 1.0f, 0.10f, 0.025f);
+        SetLightRangeAttenHandle(bicycleLightHandle, bicycleLightRange, 1.0f, 0.035f, 0.006f);
     }
 }
 
@@ -282,7 +282,7 @@ void NightEnvironment::Update(const Bicycle& bicycle, const VECTOR& playerPos)
 
             SetLightPositionHandle(bicycleLightHandle, lightPos);
             SetLightDirectionHandle(bicycleLightHandle, lightDir);
-            SetLightRangeAttenHandle(bicycleLightHandle, range, 1.0f, 0.06f, 0.015f);
+            SetLightRangeAttenHandle(bicycleLightHandle, range, 1.0f, 0.035f, 0.006f);
 
             // バッテリー残量およびフリッカーによる減光をライト光色に反映
             COLOR_F difColor = GetColorF(
@@ -340,10 +340,10 @@ void NightEnvironment::Update(const Bicycle& bicycle, const VECTOR& playerPos)
         }
     }
 
-    // 動的ライトカリングシステム（Dynamic Light Culling System）
-    // DxLibの同時有効ライト数制限（デフォルト3個、ピクセルライティング時でもハードウェア制約が存在）を
+    // プレイヤーに近い光源を優先する動的選別処理
+    // 同時に有効化できるライト数の制限（標準では3個）を
     // 超過して街灯が突然消えるのを防ぐため、カメラ（プレイヤー）に近い順に優先してライトを割り当てる。
-    // Allocates limited hardware light slots to the nearest active street lamps to prevent light popping
+    // 利用できる光源数に合わせ、近くの街灯を優先して急な点滅を防ぐ
     struct LampDist
     {
         int index;
@@ -373,9 +373,8 @@ void NightEnvironment::Update(const Bicycle& bicycle, const VECTOR& playerPos)
         return a.distSq < b.distSq;
     });
 
-    // 街灯に割り当てるライトスロット数:
-    // ヘッドライトが点灯していれば街灯用に近傍2基を割り当て、ヘッドライト消灯時は近傍3基を割り当てる
-    int maxStreetLightsActive = isHeadlightActive ? 2 : 3;
+    // 自転車のライトを切り替えても街灯の有効数を変えず、急な点灯や消灯を防ぐ
+    const int maxStreetLightsActive = 1;
 
     for (size_t i = 0; i < streetLights.size(); ++i)
     {
@@ -596,7 +595,7 @@ void NightEnvironment::DrawPoleModel(const VECTOR& pos, float intensity, COLOR_F
     // 発光レンズ部分（点灯状態に応じた輝度で自己発光描画）
     // 自己発光体として描画するため、電球描画時のみ一時的にライティング計算を無効化する。
     // これにより、自転車ヘッドライトなど外部の光に照らされて街灯の発光強度が狂う問題を完全に解消する。
-    // Render bulb with SetUseLighting(FALSE) so its brightness depends solely on its own emissive state, independent of external headlights
+    // 外部の車灯に左右されないよう照明計算を切り、電球自身の発光状態で描画する
     SetUseLighting(FALSE);
 
     if (intensity > 0.05f)
@@ -671,7 +670,7 @@ void NightEnvironment::DrawDebugHUD(const Bicycle* bicycle, const char* weatherN
     }
 
     // デバッグキー案内・ライティング状態の詳細表示（F1/F2/F3/F5操作時などに通知枠下へ表示）
-    // DxLibで現在有効になっているライトハンドル数を取得して表示
+    // 現在有効になっているライト識別子の数を取得して表示
     if (debugNotifyTimer > 0)
     {
         int enableLightCount = GetEnableLightHandleNum();
@@ -712,12 +711,12 @@ void NightEnvironment::SetDayEnvironment(int day)
     switch (day)
     {
     case 1:
-        // Day 1: ほぼ全街灯が正常稼働（5番街灯のみ奥地消灯）
+        // 1日目：ほぼ全ての街灯が点灯（5番街灯のみ奥地で消灯）
         TurnOffStreetLight(5);
         break;
 
     case 2:
-        // Day 2: 1基明滅、1基弱点灯
+        // 2日目：1基が明滅し、1基が弱く点灯
         if (streetLights.size() > 1)
         {
             streetLights[1].state = StreetLightState::Weak;
@@ -728,7 +727,7 @@ void NightEnvironment::SetDayEnvironment(int day)
         break;
 
     case 3:
-        // Day 3: 2基明滅、2基消灯
+        // 3日目：2基が明滅し、2基が消灯
         TriggerStreetLightFlicker(2);
         TriggerStreetLightFlicker(3);
         TurnOffStreetLight(5);
@@ -736,7 +735,7 @@ void NightEnvironment::SetDayEnvironment(int day)
         break;
 
     case 4:
-        // Day 4: 複数明滅、弱点灯化
+        // 4日目：複数の街灯が明滅し、一部が弱く点灯
         if (streetLights.size() > 0)
         {
             streetLights[0].state = StreetLightState::Weak;
@@ -750,7 +749,7 @@ void NightEnvironment::SetDayEnvironment(int day)
         break;
 
     case 5:
-        // Day 5: 半数消灯、降雪寒冷下の明滅
+        // 5日目：半数が消灯し、雪の中で街灯が明滅
         TriggerStreetLightFlicker(1);
         TurnOffStreetLight(2);
         TurnOffStreetLight(3);
@@ -760,7 +759,7 @@ void NightEnvironment::SetDayEnvironment(int day)
         break;
 
     case 6:
-        // Day 6: 大半の街灯が球切れ・広範囲の暗闇
+        // 6日目：多くの街灯が切れ、広い範囲が暗闇になる
         TurnOffStreetLight(1);
         TurnOffStreetLight(2);
         TriggerStreetLightFlicker(3);
@@ -772,7 +771,7 @@ void NightEnvironment::SetDayEnvironment(int day)
 
     case 7:
     default:
-        // Day 7: 住宅街全域の壊滅的停電・唯一残る街灯も不吉に激しく明滅
+        // 7日目：住宅街全域が停電し、唯一残る街灯も不吉に激しく明滅
         TriggerStreetLightFlicker(1);
         TurnOffStreetLight(2);
         TurnOffStreetLight(3);
@@ -840,8 +839,8 @@ EnvironmentPreset NightEnvironment::GetCurrentPreset() const
 // 天候システムからのフォグおよび環境光の一括設定
 void NightEnvironment::SetWeatherFogAndLighting(float start, float end, int r, int g, int b, COLOR_F ambient)
 {
-    // F2キーによる手動プリセット切り替え時は、天候システムによるフォグ/環境光の自動上書きを抑制する
-    // Prevents WeatherManager from instantly overriding user-selected environment presets
+    // F2キーで手動切り替えした場合、天候による霧と環境光の自動上書きを抑える
+    // 天候管理によって手動設定の環境が即座に上書きされるのを防ぐ
     if (manualPresetOverride)
     {
         return;

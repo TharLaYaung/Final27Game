@@ -58,7 +58,7 @@ Bicycle::Bicycle()
 
     // 自転車ローカル基準のライト配置オフセット（前輪フォーク・ライト固定位置）
     headlightOffsetForward = 0.425f;
-    headlightOffsetHeight = 0.44f;
+    headlightOffsetHeight = 0.85f;
     headlightOffsetSide = 0.0f;
 
     // 基本照射距離（霧を貫通しすぎないホラー適正値: 14m）
@@ -170,7 +170,7 @@ void Bicycle::Update(Player& player)
     lastUpdateTime = now;
 
     // ヘッドライト・バッテリー操作入力判定
-    // Fキー: ヘッドライトON/OFFトグル（エッジ検出: 1回押しで1回だけ切り替え）
+    // Fキー：押した瞬間にヘッドライトの点灯・消灯を一度だけ切り替える
     bool currentFKey = (CheckHitKey(KEY_INPUT_F) != 0);
     if (currentFKey && !oldFKey)
     {
@@ -178,7 +178,7 @@ void Bicycle::Update(Player& player)
     }
     oldFKey = currentFKey;
 
-    // F8キー: 高速消費デバッグモードの切り替え（10倍速）
+    // F8キー：電池の急速消費確認モードを切り替え（10倍速）
     bool currentF8Key = (CheckHitKey(KEY_INPUT_F8) != 0);
     if (currentF8Key && !oldF8Key)
     {
@@ -471,25 +471,25 @@ void Bicycle::UpdateBatteryAndLighting(float dt)
 
     float pct = GetBatteryPercent();
 
-    // NORMAL (51%〜100%): 安定した明るさ
+    // 残量51％〜100％：安定した明るさ
     if (pct > 50.0f)
     {
         flickerMultiplier = 1.0f;
         headlightIntensity = 1.0f;
     }
-    // LOW (21%〜50%): わずかな減光（約88%輝度）と時折の微小な揺らぎ
+    // 残量21％〜50％：わずかに減光（約88％）し、ときどき微かに揺らぐ
     else if (pct > 20.0f)
     {
         UpdateFlickerLogic(dt);
         headlightIntensity = 0.88f * flickerMultiplier;
     }
-    // CRITICAL (5%〜20%): 不規則なフリッカー、電圧低下、一瞬の停電
+    // 残量5％〜20％：不規則なちらつき、電圧低下、一瞬の消灯
     else if (pct > 5.0f)
     {
         UpdateFlickerLogic(dt);
         headlightIntensity = 0.80f * flickerMultiplier;
     }
-    // VERY LOW (0%〜5%): 著しく不安定な明滅
+    // 残量0％〜5％：著しく不安定な明滅
     else
     {
         UpdateFlickerLogic(dt);
@@ -505,7 +505,7 @@ void Bicycle::UpdateFlickerLogic(float dt)
 
     float pct = GetBatteryPercent();
 
-    // 21%〜50%（LOW）: 非常に稀で控えめな電圧の揺らぎ
+    // 残量21％〜50％：ごく稀に控えめな電圧の揺らぎ
     if (pct > 20.0f)
     {
         switch (flickerPhase)
@@ -527,7 +527,7 @@ void Bicycle::UpdateFlickerLogic(float dt)
         return;
     }
 
-    // 1%〜20%（CRITICAL）: 予測不能な不気味な明滅シーケンス
+    // 残量1％〜20％：予測不能で不気味な明滅の繰り返し
     int baseWait = (pct <= 5.0f) ? 60 : 180;
     int randWait = (pct <= 5.0f) ? 90 : 200;
 
@@ -687,7 +687,7 @@ VECTOR Bicycle::GetHeadlightDirection() const
 
     return VNorm(VGet(
         forward.x,
-        -0.16f,
+        -0.06f,
         forward.z
     ));
 }
@@ -760,7 +760,7 @@ void Bicycle::Draw()
     );
 }
 
-// UIを描画する（ホラーUIへのプロンプト伝達）
+// 画面表示を描画する（ホラー画面への操作案内伝達）
 void Bicycle::DrawUI()
 {
     // 自転車を選択している場合

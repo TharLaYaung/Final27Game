@@ -1,5 +1,5 @@
 ﻿#pragma once
 #include "DxLib.h"
 
-// �n�ʂ�`�悷��֐�
+// 地面を描画する関数
 void DrawGround();

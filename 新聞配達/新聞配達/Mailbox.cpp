@@ -201,7 +201,7 @@ void Mailbox::Draw(const DeliveryManager& deliveryManager)
     }
 }
 
-// UI描画処理（ホラーUIへのプロンプト伝達）
+// 画面表示の描画（ホラー画面へ操作案内を伝える）
 void Mailbox::DrawUI(const DeliveryManager& deliveryManager)
 {
     // 配達可能な状態（照準が合っている）ならプロンプトを設定

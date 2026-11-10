@@ -607,7 +607,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
         darknessTimeAccumulator = 0.0f;
     }
 
-    // 視線（Line of Sight）と探知範囲の判定
+    // 視線の通りと探知範囲を判定
     bool hasLOS = false;
     bool inRange = false;
     bool inFOV = false;
@@ -1677,7 +1677,7 @@ void HorrorManager::Draw3D()
         VECTOR mPos = chaseEntity.GetPosition();
         VECTOR mEye = VGet(mPos.x, mPos.y + 1.6f, mPos.z);
 
-        // 1. 視線レイ（LOS Ray: 障害物なし=緑、遮断=赤）
+        // 1. 視線の判定線（障害物なしは緑、遮られている場合は赤）
         unsigned int rayCol = lastLOSState ? GetColor(50, 240, 80) : GetColor(255, 40, 40);
         DrawLine3D(mEye, VGet(lastKnownPlayerPos.x, lastKnownPlayerPos.y + 1.4f, lastKnownPlayerPos.z), rayCol);
 

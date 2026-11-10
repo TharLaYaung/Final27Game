@@ -257,8 +257,8 @@ WeatherType WeatherManager::ChooseNextWeather(WeatherType current)
     switch (current)
     {
     case WeatherType::Clear:
-        // Clearからの推移
-        // 01時台: 穏やかな天候(Rain/Clear)が高め、03時台以降: 霧の発生確率が上昇
+        // 晴天からの推移
+        // 01時台は穏やかな天候（雨または晴天）になりやすく、03時以降は霧が発生しやすい
         if (timeLevel >= 2)
         {
             if (roll < 30) return WeatherType::Rain;
@@ -275,7 +275,7 @@ WeatherType WeatherManager::ChooseNextWeather(WeatherType current)
         }
 
     case WeatherType::Rain:
-        // Rainからの推移: 深夜が進むほど豪雨への発展確率が微増
+        // 雨からの推移：夜が深まるほど豪雨に変わる確率が少し上昇
         if (timeLevel >= 2)
         {
             if (roll < 25) return WeatherType::Clear;
@@ -292,23 +292,23 @@ WeatherType WeatherManager::ChooseNextWeather(WeatherType current)
         }
 
     case WeatherType::HeavyRain:
-        // HeavyRainからの推移: Rain 80%, Foggy 20%（直接の晴天化を防止）
+        // 豪雨からの推移：雨に戻る確率80％、霧になる確率20％（すぐ晴天には戻らない）
         if (roll < 80) return WeatherType::Rain;
         return WeatherType::Foggy;
 
     case WeatherType::Snow:
-        // Snowからの推移: Clear 40%, HeavySnow 35%, Foggy 25%
+        // 雪からの推移：晴天40％、吹雪35％、霧25％
         if (roll < 40) return WeatherType::Clear;
         if (roll < 75) return WeatherType::HeavySnow;
         return WeatherType::Foggy;
 
     case WeatherType::HeavySnow:
-        // HeavySnowからの推移: Snow 85%, Foggy 15%
+        // 吹雪からの推移：雪に戻る確率85％、霧になる確率15％
         if (roll < 85) return WeatherType::Snow;
         return WeatherType::Foggy;
 
     case WeatherType::Foggy:
-        // Foggyからの推移: 03時台以降（丑三つ時）は超濃霧(ThickFog)への発展確率が上昇
+        // 霧からの推移：03時以降は超濃霧に変わる確率が上昇
         if (timeLevel >= 2)
         {
             if (roll < 25) return WeatherType::Clear;
@@ -332,7 +332,7 @@ WeatherType WeatherManager::ChooseNextWeather(WeatherType current)
         }
 
     case WeatherType::ThickFog:
-        // ThickFogからの推移: Foggy 90%, Rain 10%（必ず一段階薄い霧に戻る）
+        // 超濃霧からの推移：霧に戻る確率90％、雨になる確率10％（必ず一段階薄くなる）
         if (roll < 90) return WeatherType::Foggy;
         return WeatherType::Rain;
     }
@@ -386,7 +386,7 @@ void WeatherManager::ToggleAutoWeather()
     }
 }
 
-// デバッグ表示ON/OFF切り替え (F10)
+// 確認情報の表示・非表示を切り替え（F10）
 void WeatherManager::ToggleDebugHUD()
 {
     showDebugHUD = !showDebugHUD;
@@ -562,25 +562,19 @@ void WeatherManager::Update(float dt, const Player& player, const Bicycle& bicyc
     // フォグ濃度に応じた自転車ヘッドライト到達距離の動的調整
     // （濃霧時にヘッドライトが通り全体を見通すのを防ぎ、手元・路面のみを確実に照らす）
     float hlRange = 16.0f;
-    float atten1 = 0.08f;
-    float atten2 = 0.018f;
+    const float atten1 = 0.035f;
+    const float atten2 = 0.006f;
     if (currentParams.fogEnd <= 9.0f)
     {
-        hlRange = 8.5f;
-        atten1 = 0.16f;
-        atten2 = 0.050f;
+        hlRange = 10.0f;
     }
     else if (currentParams.fogEnd <= 12.0f)
     {
-        hlRange = 10.5f;
-        atten1 = 0.12f;
-        atten2 = 0.035f;
+        hlRange = 12.0f;
     }
     else if (currentParams.fogEnd <= 18.0f)
     {
-        hlRange = 13.0f;
-        atten1 = 0.10f;
-        atten2 = 0.025f;
+        hlRange = 16.0f;
     }
     nightEnv.SetBicycleHeadlightParams(hlRange, 1.0f, atten1, atten2);
 

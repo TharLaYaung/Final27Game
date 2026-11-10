@@ -34,7 +34,7 @@ static int CreateProceduralSound(float freq, float durationSec, float decayRate)
     std::memcpy(&wav[4], &riffSize, 4);
     std::memcpy(&wav[8], "WAVE", 4);
 
-    // fmtチャンク（PCM 16bit 44.1kHz モノラル）
+    // 音声形式の情報（非圧縮16ビット、毎秒44.1キロサンプル、モノラル）
     std::memcpy(&wav[12], "fmt ", 4);
     int fmtSize = 16;
     short audioFormat = 1;
@@ -50,7 +50,7 @@ static int CreateProceduralSound(float freq, float durationSec, float decayRate)
     std::memcpy(&wav[32], &blockAlign, 2);
     std::memcpy(&wav[34], &bitsPerSample, 2);
 
-    // dataチャンク
+    // 音声データ部分
     std::memcpy(&wav[36], "data", 4);
     std::memcpy(&wav[40], &dataSize, 4);
 
@@ -184,7 +184,7 @@ bool SceneManager::Initialize()
     // タイトル画面でマウス操作を可能にするためマウスカーソルを表示
     SetMouseDispFlag(TRUE);
 
-    // 日本語フォント生成ヘルパー（Meiryo -> Yu Gothic -> MS Gothic の順で安全に生成）
+    // 日本語フォント生成関数（メイリオ、游ゴシック、ＭＳゴシックの順に試す）
     auto CreateJPFont = [](const char* name1, const char* name2, int size, int thick, int fontType) -> int {
         int h = CreateFontToHandle(name1, size, thick, fontType);
         if (h == -1 && name2 != nullptr) {
@@ -312,7 +312,7 @@ void SceneManager::SetPaused(bool paused)
 }
 
 // ルール説明ポップアップを開く
-// fromManual: プレイ中にHキーで開かれた場合はtrue、開始時の自動表示はfalse
+// 手動表示かどうかを指定（プレイ中にHキーで開いた場合は真、開始時の自動表示は偽）
 void SceneManager::OpenRulePopup(bool fromManual)
 {
     showRulePopup = true;
@@ -678,7 +678,7 @@ void SceneManager::Update(
     bool rightDown = curRight && !oldRightKey;
     oldRightKey = curRight;
 
-    // Hキー（ヘルプ・遊び方ポップアップトグル用エッジトリガー）
+    // Hキー（遊び方表示の切替を押した瞬間に一度だけ行う）
     bool curH = (CheckHitKey(KEY_INPUT_H) != 0);
     bool hDown = curH && !oldHKey;
     oldHKey = curH;
@@ -790,7 +790,7 @@ void SceneManager::Update(
                 if (CheckButtonHover(cx - 200, menuY + 132, cx + 200, menuY + 174)) titleMenuSelection = 2;
                 if (CheckButtonHover(cx - 200, menuY + 188, cx + 200, menuY + 230)) titleMenuSelection = 3;
 
-                // 決定処理（クリックまたはEnter/Space）
+                // 決定処理（クリック、Enterキー、Spaceキー）
                 if (((titleMenuSelection == 0 && (enterDown || spaceDown)) || hitStart) && !IsTransitioning())
                 {
                     PlayMenuClick();
@@ -846,18 +846,18 @@ void SceneManager::Update(
             {
                 SetMouseDispFlag(TRUE);
 
-                // Keep input hit-testing aligned with the exact button rectangle drawn below.
+                // 入力判定の範囲を、下に描画するボタンの位置と一致させる
                 const int btnX1 = cx - 110;
                 const int btnY1 = cy - 360 + 406;
                 const int btnX2 = cx + 110;
                 const int btnY2 = btnY1 + 40;
                 bool hitButton = CheckButtonHit(btnX1, btnY1, btnX2, btnY2);
 
-                // Accept a click anywhere in the popup as an accessible mouse fallback.
+                // 操作しやすいよう、ポップアップ内のどこを押しても受け付ける
                 bool popupClicked = mouseClicked && mouseX >= cx - 420 && mouseX <= cx + 420
                     && mouseY >= cy - 270 && mouseY <= cy + 270;
 
-                // Both the first-run help and manual help can be dismissed with Escape.
+                // 初回表示と手動表示のどちらも、エスケープキーで閉じられる
                 bool closeRequested = hitButton || popupClicked || enterDown || escDown;
 
                 if (closeRequested)
@@ -870,7 +870,7 @@ void SceneManager::Update(
                 return;
             }
 
-            // Hキー: プレイ中のルール説明ポップアップ手動表示（第4段階仕様）
+            // Hキー：プレイ中にルール説明を手動表示（第4段階の仕様）
             if (hDown && !IsTransitioning() && !horrorManager.IsControlRestricted())
             {
                 if (isPaused)
@@ -882,7 +882,7 @@ void SceneManager::Update(
                 return;
             }
 
-            // ESCキーでポーズメニュー切り替え
+            // ESCキーで一時停止メニューを切り替え
             if (escDown && !IsTransitioning() && !horrorManager.IsControlRestricted())
             {
                 if (isPaused && pauseSubMenu == PauseSubMenu::Settings)
@@ -987,7 +987,7 @@ void SceneManager::Update(
 
             if (currentDay < 7)
             {
-                // Day 1〜6: ENTERキーまたは約3.5秒経過で翌日へスムーズに自動遷移
+                // 1〜6日目：Enterキーまたは約3.5秒後に翌日へ自動で移行
                 bool hitNextNight = mouseClicked && (mouseY > 200);
                 if ((hitNextNight || enterDown || spaceDown || clearTimer >= 3.5f) && !IsTransitioning())
                 {
@@ -1845,7 +1845,7 @@ void SceneManager::DrawGameOverScene(const DeliveryManager& deliveryManager)
     HorrorUI::Instance().DrawRetroPanel(cx - pw / 2, cy - ph / 2, cx + pw / 2, cy + ph / 2,
         GetColor(90, 35, 35), GetColor(15, 8, 10), 235);
 
-    // GAME OVER タイトル（赤色・激しいノイズジッター）
+    // ゲーム終了の見出し（赤色・激しい揺らぎ）
     int jx = (std::rand() % 5) - 2;
     int jy = (std::rand() % 3) - 1;
 

@@ -1,9 +1,9 @@
 #pragma once
 
-// DxLibを使用する
+// DXライブラリを使用する
 #include "DxLib.h"
 
-// Playerクラスを使用する
+// プレイヤーのクラスを使用する
 #include "Player.h"
 
 
@@ -24,7 +24,7 @@ public:
     void Update(Player& player);
 
 
-    // UIを描画する
+    // 画面表示を描画する
     void Draw();
 
 

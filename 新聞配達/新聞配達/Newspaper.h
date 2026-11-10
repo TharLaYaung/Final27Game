@@ -29,7 +29,7 @@ public:
     // 描画
     void Draw();
 
-    // UI描画
+    // 画面表示の描画
     void DrawUI();
 
     // 終了処理

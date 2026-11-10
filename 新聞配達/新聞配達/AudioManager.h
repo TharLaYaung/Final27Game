@@ -30,12 +30,12 @@ public:
     float GetBgmVolumeRate() const { return (masterVolume / 100.0f) * (bgmVolume / 100.0f); }
     float GetSfxVolumeRate() const { return (masterVolume / 100.0f) * (sfxVolume / 100.0f); }
 
-    // BGM制御
+    // 背景音楽の制御
     void PlayTitleBgm();
     void PlayGameAmbienceBgm();
     void StopBgm();
 
-    // SE再生メソッド群
+    // 効果音の再生機能
     void PlayFootstep();
     void PlayBicycleRoll(bool isMoving);
     void StopBicycleRoll();
@@ -46,7 +46,7 @@ public:
     void PlayMonsterRoar();
     void PlayJumpscare();
 
-    // UI効果音
+    // 画面表示用の効果音
     void PlayMenuClick();
     void PlayMenuAdjust();
     void PlayTestAudioPulse();
@@ -74,7 +74,7 @@ private:
     int sndMonsterRoar;
     int sndMonsterJumpscare;
 
-    // UI効果音ハンドル
+    // 画面表示用効果音の識別子
     int sndMenuClick;
     int sndMenuAdjust;
     int sndTestPulse;

@@ -28,7 +28,7 @@ public:
     // 描画処理（全8箇所のポスト3Dモデル描画）
     void Draw(const DeliveryManager& deliveryManager);
 
-    // UI描画処理（「Left Click : Deliver Newspaper」の案内表示）
+    // 画面表示の描画（左クリックで新聞を配達する案内）
     void DrawUI(const DeliveryManager& deliveryManager);
 
     // 終了処理

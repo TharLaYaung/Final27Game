@@ -113,7 +113,7 @@ public:
 
     // ホラー演出・グリッチAPI
 
-    // UIグリッチを1回トリガー
+    // 画面の乱れを1回発生させる
     void TriggerUIGlitch(int durationFrames = 15);
 
     // 文字列の歪み・ブレをトリガー

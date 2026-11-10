@@ -85,7 +85,7 @@ public:
     // 自動天候変化の有効/無効切り替え（F9）
     void ToggleAutoWeather();
 
-    // 天候デバッグ表示のON/OFF切り替え（F10）
+    // 天候確認情報の表示・非表示を切り替え（F10）
     void ToggleDebugHUD();
 
     // 7日間天候設定

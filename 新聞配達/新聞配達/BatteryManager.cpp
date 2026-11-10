@@ -313,11 +313,11 @@ void BatteryManager::Update(Player& player, Bicycle& bicycle)
         ReplaceBicycleBattery(bicycle);
     }
 
-    // HorrorUIのプロンプト更新
+    // HorrorUIの操作案内を更新
     UpdateUI(player, bicycle);
 }
 
-// UIプロンプト更新
+// 操作案内を更新
 void BatteryManager::UpdateUI(Player& player, Bicycle& bicycle)
 {
     (void)player;
@@ -328,18 +328,18 @@ void BatteryManager::UpdateUI(Player& player, Bicycle& bicycle)
     {
         if (spareBatteries >= MAX_SPARE_BATTERIES)
         {
-            // 満杯時の表示: BATTERY FULL / SPARE 2/2
+            // 満杯時の表示：電池満杯／予備電池 2/2
             HorrorUI::Instance().SetPrompt(PromptType::BatteryFull);
         }
         else
         {
-            // 回収可能時の表示: [ LMB ] TAKE BATTERY
+            // 回収可能時の表示：左クリックで電池を回収
             HorrorUI::Instance().SetPrompt(PromptType::TakeBattery);
         }
     }
     else if (canReplaceBicycle)
     {
-        // 自転車バッテリー交換可能時の表示: [ R ] REPLACE BATTERY
+        // 自転車の電池を交換できる場合の表示：Rキーで交換
         HorrorUI::Instance().SetPrompt(PromptType::ReplaceBattery);
     }
 }

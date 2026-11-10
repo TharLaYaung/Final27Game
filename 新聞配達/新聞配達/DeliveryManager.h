@@ -45,7 +45,7 @@ public:
     int GetCompletedDeliveries() const;
     bool IsAllDeliveriesComplete() const;
 
-    // 7日間ステージ進行API
+    // 7日間の進行を管理する機能
     void SetDay(int day);
     int GetCurrentDay() const;
     const char* GetDayName() const;

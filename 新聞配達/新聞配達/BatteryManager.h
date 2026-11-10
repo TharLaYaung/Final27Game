@@ -34,7 +34,7 @@ public:
     // 3Dバッテリーアイテム群の描画
     void Draw();
 
-    // UIプロンプト更新（HorrorUIと連携）
+    // 操作案内の更新（HorrorUIと連携）
     void UpdateUI(Player& player, Bicycle& bicycle);
 
     // 終了処理（モデル解放）

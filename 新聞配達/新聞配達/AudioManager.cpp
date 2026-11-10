@@ -70,7 +70,7 @@ int AudioManager::CreateSineWav(float freq, float duration, float decay)
     int dataSize = numSamples * 2;
     int fileSize = 36 + dataSize;
 
-    // WAV RIFFヘッダー
+    // 音声ファイルのヘッダー
     memcpy(&wav[0], "RIFF", 4);
     memcpy(&wav[4], &fileSize, 4);
     memcpy(&wav[8], "WAVE", 4);

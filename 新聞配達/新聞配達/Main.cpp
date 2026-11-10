@@ -16,7 +16,7 @@
 #include "AudioManager.h"
 #include "BatteryManager.h"
 
-// Windowsアプリケーションのエントリポイント
+// ウィンドウズ用アプリケーションの開始地点
 int WINAPI WinMain(
     HINSTANCE hInstance,
     HINSTANCE hPrevInstance,
@@ -67,14 +67,14 @@ int WINAPI WinMain(
     // 文字列引数の文字コード形式をUTF-8に設定
     SetUseCharCodeFormat(DX_CHARCODEFORMAT_UTF8);
 
-    // DxLib初期化
+    // DXライブラリを初期化
     if (DxLib_Init() == -1)
     {
         return -1;
     }
 
     // ピクセル単位ライティングを有効化（DxLib 3D描画における滑らかな陰影・スポットライト表現）
-    // Enable per-pixel lighting for smooth spot/point light attenuation and higher lighting fidelity
+    // ピクセル単位で照明を計算し、スポットライトや点光源の減衰を滑らかにする
     SetUsePixelLighting(TRUE);
 
     // 描画先を裏画面に設定（ダブルバッファリング）
@@ -200,7 +200,7 @@ int WINAPI WinMain(
                 ScreenFlip();
             }
 
-            // 1) Fog ON
+            // 1）フォグを有効化
             if (!nightEnv.IsFogEnabled()) nightEnv.ToggleFog();
             ClearDrawScreen();
             sceneManager.Draw(player, bicycle, newspaper, mailbox, batteryManager, deliveryManager, minimap, nightEnv, weatherManager, horrorManager, false);
@@ -209,7 +209,7 @@ int WINAPI WinMain(
             snprintf(filenameOn, sizeof(filenameOn), "screenshot_day%d_%s_on.png", day, prefix);
             SaveDrawScreenToPNG(0, 0, 1280, 720, filenameOn);
 
-            // 2) Fog OFF
+            // 2）フォグを無効化
             nightEnv.ToggleFog();
             ClearDrawScreen();
             sceneManager.Draw(player, bicycle, newspaper, mailbox, batteryManager, deliveryManager, minimap, nightEnv, weatherManager, horrorManager, false);
@@ -221,7 +221,7 @@ int WINAPI WinMain(
             nightEnv.ToggleFog();
         }
 
-        // FPSベンチマークテスト (Day 1 / 3 / 7 で各60フレーム描画時間を計測)
+        // 描画速度の測定（1、3、7日目に各60フレーム分の描画時間を計測）
         for (int day : testDays)
         {
             sceneManager.ResetGame(player, bicycle, newspaper, batteryManager, deliveryManager, nightEnv, weatherManager, horrorManager, day);
@@ -332,7 +332,7 @@ int WINAPI WinMain(
         {
             // デバッグ操作キー入力判定（F1〜F11および数字キー、Jキー）
 
-            // F1キー: フォグON/OFF切り替え
+            // F1キー：霧の有効・無効を切り替え
             bool curF1 = (CheckHitKey(KEY_INPUT_F1) != 0);
             if (curF1 && !oldF1Key)
             {
@@ -340,7 +340,7 @@ int WINAPI WinMain(
             }
             oldF1Key = curF1;
 
-            // F2キー: 環境プリセット順送り切り替え
+            // F2キー：環境設定を順番に切り替え
             bool curF2 = (CheckHitKey(KEY_INPUT_F2) != 0);
             if (curF2 && !oldF2Key)
             {
@@ -348,7 +348,7 @@ int WINAPI WinMain(
             }
             oldF2Key = curF2;
 
-            // F3キー: 街灯ON/OFF切り替え
+            // F3キー：街灯の点灯・消灯を切り替え
             bool curF3 = (CheckHitKey(KEY_INPUT_F3) != 0);
             if (curF3 && !oldF3Key)
             {
@@ -356,7 +356,7 @@ int WINAPI WinMain(
             }
             oldF3Key = curF3;
 
-            // F4キー: ホラー画面効果ON/OFF切り替え
+            // F4キー：ホラー画面効果の有効・無効を切り替え
             bool curF4 = (CheckHitKey(KEY_INPUT_F4) != 0);
             if (curF4 && !oldF4Key)
             {
@@ -364,7 +364,7 @@ int WINAPI WinMain(
             }
             oldF4Key = curF4;
 
-            // F5キー: テスト街灯明滅トリガー
+            // F5キー：テスト用に街灯の明滅を開始
             bool curF5 = (CheckHitKey(KEY_INPUT_F5) != 0);
             if (curF5 && !oldF5Key)
             {
@@ -372,7 +372,7 @@ int WINAPI WinMain(
             }
             oldF5Key = curF5;
 
-            // F6キー: マップデバッグ表示およびモンスター追跡デバッグON/OFF切り替え
+            // F6キー：地図と怪異追跡の確認表示を切り替え
             bool curF6 = (CheckHitKey(KEY_INPUT_F6) != 0);
             if (curF6 && !oldF6Key)
             {
@@ -381,7 +381,7 @@ int WINAPI WinMain(
             }
             oldF6Key = curF6;
 
-            // F7キー: 天候順送り切り替え
+            // F7キー：天候を順番に切り替え
             bool curF7 = (CheckHitKey(KEY_INPUT_F7) != 0);
             if (curF7 && !oldF7Key)
             {
@@ -390,7 +390,7 @@ int WINAPI WinMain(
             }
             oldF7Key = curF7;
 
-            // F8キー: 極限濃霧プリセット切り替え (fogStart 1.5m / fogEnd 8.0m)
+            // F8キー：極限濃霧設定に切り替え（霧の開始距離1.5m、終了距離8.0m）
             bool curF8 = (CheckHitKey(KEY_INPUT_F8) != 0);
             if (curF8 && !oldF8Key)
             {
@@ -399,7 +399,7 @@ int WINAPI WinMain(
             }
             oldF8Key = curF8;
 
-            // F9キー: 自動天候変化ON/OFF切り替え
+            // F9キー：天候の自動変化を有効・無効に切り替え
             bool curF9 = (CheckHitKey(KEY_INPUT_F9) != 0);
             if (curF9 && !oldF9Key)
             {
@@ -407,7 +407,7 @@ int WINAPI WinMain(
             }
             oldF9Key = curF9;
 
-            // F10キー: 天候デバッグHUD表示ON/OFF切り替え
+            // F10キー：天候の確認情報表示を切り替え
             bool curF10 = (CheckHitKey(KEY_INPUT_F10) != 0);
             if (curF10 && !oldF10Key)
             {
@@ -415,7 +415,7 @@ int WINAPI WinMain(
             }
             oldF10Key = curF10;
 
-            // F11キー: 恐怖・怪異デバッグHUD表示ON/OFF切り替え
+            // F11キー：恐怖度と怪異の確認情報表示を切り替え
             bool curF11 = (CheckHitKey(KEY_INPUT_F11) != 0);
             if (curF11 && !oldF11Key)
             {
@@ -463,7 +463,7 @@ int WINAPI WinMain(
             }
             oldKey5 = curK5;
 
-            // Jキー: カメラジャンプスケア即時テストトリガー
+            // Jキー：カメラの驚かし演出を即時に試す
             bool curKeyJ = (CheckHitKey(KEY_INPUT_J) != 0);
             if (curKeyJ && !oldKeyJ)
             {
@@ -511,7 +511,7 @@ int WINAPI WinMain(
             }
             oldKey0 = curK0;
 
-            // TABキー: 操作ガイドHUDの表示/非表示トグル切り替え（※HキーはSceneManager側で遊び方ルールポップアップ表示に使用）
+            // TABキー：操作案内の表示・非表示を切り替え（HキーはSceneManager側で遊び方を表示）
             bool curTab = (CheckHitKey(KEY_INPUT_TAB) != 0);
             if (curTab && !oldTabKey)
             {
@@ -622,7 +622,7 @@ int WINAPI WinMain(
             mapDebugEnabled
         );
 
-        // F11キーによる手動スクリーンショット保存
+        // F11キーで画面写真を手動保存
         static bool oldF11 = false;
         bool curF11 = (CheckHitKey(KEY_INPUT_F11) != 0);
         if (curF11 && !oldF11)
@@ -662,7 +662,7 @@ int WINAPI WinMain(
     // ホラーUIシステムの終了処理
     HorrorUI::Instance().Finalize();
 
-    // DxLib終了処理
+    // DXライブラリを終了
     DxLib_End();
 
     return 0;

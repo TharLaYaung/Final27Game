@@ -421,7 +421,7 @@ void Newspaper::DrawHeldNewspaper()
         0.30f;
 
     // プレイヤーの向きから
-    // Y軸角度を計算
+    // 上下軸まわりの角度を計算
     float playerYaw =
         atan2f(
             forward.x,
@@ -531,7 +531,7 @@ void Newspaper::Draw()
 }
 
 
-// UI描画（ホラーUIへのプロンプト伝達）
+// 画面表示の描画（ホラー画面へ操作案内を伝える）
 void Newspaper::DrawUI()
 {
     // カゴから新聞を取れる状態ならプロンプトを設定

@@ -1,4 +1,4 @@
-// Ground.hを読み込む
+// 地面描画の宣言を読み込む
 #include "Ground.h"
 
 // 道路矩形を描画するヘルパー関数
@@ -60,19 +60,19 @@ void DrawGround()
     // 1. 南大通り・スタートエリア（Z = -30, X = -28 〜 +28）
     DrawRoadQuad(-28.0f, -33.0f, 28.0f, -27.0f, asphaltColor);
 
-    // 2. 西通り・Road A（X = -25, Z = -30 〜 +18）
+    // 2. 西通り（X = -25、Z = -30 〜 +18）
     DrawRoadQuad(-28.0f, -30.0f, -22.0f, 18.0f, asphaltColor);
 
-    // 3. 東通り・Road D（X = +25, Z = -30 〜 +18）
+    // 3. 東通り（X = +25、Z = -30 〜 +18）
     DrawRoadQuad(22.0f, -30.0f, 28.0f, 18.0f, asphaltColor);
 
-    // 4. 中央横通り・Road E（Z = -10, X = -25 〜 +25）
+    // 4. 中央横通り（Z = -10、X = -25 〜 +25）
     DrawRoadQuad(-25.0f, -13.0f, 25.0f, -7.0f, asphaltColor);
 
-    // 5. 北横通り・Road B（Z = +15, X = -28 〜 +28）
+    // 5. 北横通り（Z = +15、X = -28 〜 +28）
     DrawRoadQuad(-28.0f, 12.0f, 28.0f, 18.0f, asphaltColor);
 
-    // 6. 北路地行き止まり・Road C（X = 0, Z = +15 〜 +40）
+    // 6. 北路地の行き止まり（X = 0、Z = +15 〜 +40）
     DrawRoadQuad(-3.0f, 15.0f, 3.0f, 40.0f, asphaltColor);
 
     // 立体コンクリート縁石の描画（車道と歩道・敷地境界を際立たせる）

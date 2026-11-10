@@ -106,7 +106,7 @@ void Minimap::Draw(
 {
     HorrorUI& ui = HorrorUI::Instance();
 
-    // GPS端末パネル外枠・背景
+    // 地図端末の外枠と背景
     int jitterX = 0;
     int jitterY = 0;
 
