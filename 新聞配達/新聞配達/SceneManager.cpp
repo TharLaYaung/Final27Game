@@ -1134,6 +1134,14 @@ void SceneManager::Draw(
                 newspaper
             );
 
+            // 3D空間内の目的地案内マーカーと距離UIを描画（画面内外対応）
+            HorrorUI::Instance().DrawWorldDestinationMarker(
+                player.GetPosition(),
+                deliveryManager.GetCurrentTargetPosition(),
+                deliveryManager.GetCurrentTargetId(),
+                deliveryManager.IsAllDeliveriesComplete() || deliveryManager.IsFeedbackActive() || !deliveryManager.HasActiveTarget()
+            );
+
             HorrorUI::Instance().DrawBicycleBattery(
                 bicycle.GetBatteryPercent(),
                 bicycle.IsHeadlightOn(),
