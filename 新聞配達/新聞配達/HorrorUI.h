@@ -70,6 +70,9 @@ public:
     // 恐怖度メーターHUD描画（画面左上、時計直下に配置）
     void DrawFearMeter(float fearPercent, bool inSafeLight);
 
+    // 画面内目的地案内UI（ワールド空間上の目的地マーカーおよび画面端インジケータ、距離表示付き）
+    void DrawWorldDestinationMarker(const VECTOR& playerPos, const VECTOR& targetPos, int targetHouseId, bool isAllComplete);
+
     // 最大恐怖演出時の画面歪曲・ブラックアウト描画
     void DrawScareDistortion(float intensity);
 

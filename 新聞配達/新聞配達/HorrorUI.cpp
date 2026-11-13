@@ -1179,3 +1179,255 @@ void HorrorUI::DrawBloodSplatter(float intensity)
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
     }
 }
+
+// 画面内目的地案内UI（ワールド空間上の目的地マーカーおよび画面端インジケータ、距離表示付き）
+void HorrorUI::DrawWorldDestinationMarker(const VECTOR& playerPos, const VECTOR& targetPos, int targetHouseId, bool isAllComplete)
+{
+    // 全配達完了時または有効な配達先がない場合は非表示
+    if (isAllComplete || targetHouseId < 0)
+    {
+        return;
+    }
+
+    // プレイヤーから目的地までの水平距離を計算
+    float diffX = targetPos.x - playerPos.x;
+    float diffZ = targetPos.z - playerPos.z;
+    float distance = sqrtf(diffX * diffX + diffZ * diffZ);
+    int distMeters = static_cast<int>(distance);
+
+    // 目的地のポスト上部（高さ約1.35m）にマーカーの中心を設定
+    VECTOR worldMarkerPos = targetPos;
+    worldMarkerPos.y += 1.35f;
+
+    // 現在のカメラパラメータを取得
+    VECTOR camPos = GetCameraPosition();
+    VECTOR camFront = GetCameraFrontVector();
+    VECTOR camRight = GetCameraRightVector();
+    VECTOR camUp = GetCameraUpVector();
+
+    // カメラから目的地への3次元ベクトル
+    VECTOR toTarget = VSub(worldMarkerPos, camPos);
+
+    // カメラのローカル（ビュー）座標系への射影成分を計算
+    float localX = VDot(toTarget, camRight);
+    float localY = VDot(toTarget, camUp);
+    float localZ = VDot(toTarget, camFront);
+
+    // 画面解像度
+    const int screenW = 1280;
+    const int screenH = 720;
+    const float screenCenterX = screenW * 0.5f;
+    const float screenCenterY = screenH * 0.5f;
+
+    // 画面内判定のセーフマージン（この内側にあれば画面内マーカーとして表示）
+    const float marginInScreen = 55.0f;
+
+    int markerX = 0;
+    int markerY = 0;
+    bool isOffScreen = true;
+    float arrowAngle = 0.0f;
+
+    // カメラ前方（localZ > 0.3f）にある場合、画面投影を試行
+    if (localZ > 0.3f)
+    {
+        VECTOR screenPos = ConvWorldPosToScreenPos(worldMarkerPos);
+
+        // DxLibの射影座標が有効範囲内かつセーフエリア内にあるか判定
+        if (screenPos.z >= 0.0f && screenPos.z <= 1.0f &&
+            screenPos.x >= marginInScreen && screenPos.x <= (screenW - marginInScreen) &&
+            screenPos.y >= marginInScreen && screenPos.y <= (screenH - marginInScreen))
+        {
+            markerX = static_cast<int>(screenPos.x);
+            markerY = static_cast<int>(screenPos.y);
+            isOffScreen = false;
+        }
+    }
+
+    // 画面外（Off-Screen）の場合の方向ベクトルと画面端クランプ座標を計算
+    if (isOffScreen)
+    {
+        float dirX = 0.0f;
+        float dirY = 0.0f;
+
+        if (localZ > 0.1f)
+        {
+            // カメラ前方だが画面外にある場合
+            VECTOR screenPos = ConvWorldPosToScreenPos(worldMarkerPos);
+            dirX = screenPos.x - screenCenterX;
+            dirY = screenPos.y - screenCenterY;
+        }
+        else
+        {
+            // カメラ後方または真横にある場合：
+            // カメラローカルのX（右方向）とY（上方向）から、
+            // プレイヤーがカメラをその方向へ回すべきスクリーン方向を算出
+            // ※スクリーン座標系では下方向が+Yなので、localYの符号を反転
+            dirX = localX;
+            dirY = -localY;
+        }
+
+        // ゼロ割防止
+        float len = sqrtf(dirX * dirX + dirY * dirY);
+        if (len < 0.001f)
+        {
+            dirX = 1.0f;
+            dirY = 0.0f;
+        }
+        else
+        {
+            dirX /= len;
+            dirY /= len;
+        }
+
+        arrowAngle = atan2f(dirY, dirX);
+
+        // 画面外インジケーターのエッジクランプ範囲
+        const float minEdgeX = 42.0f;
+        const float maxEdgeX = screenW - 42.0f;
+        const float minEdgeY = 42.0f;
+        const float maxEdgeY = screenH - 42.0f;
+
+        // 画面中央から角度 arrowAngle 方向の半直線と、画面端境界矩形との交点を求める
+        float cosA = cosf(arrowAngle);
+        float sinA = sinf(arrowAngle);
+
+        float tX = (cosA > 0.0001f) ? (maxEdgeX - screenCenterX) / cosA
+                                     : ((cosA < -0.0001f) ? (minEdgeX - screenCenterX) / cosA : 1e9f);
+        float tY = (sinA > 0.0001f) ? (maxEdgeY - screenCenterY) / sinA
+                                     : ((sinA < -0.0001f) ? (minEdgeY - screenCenterY) / sinA : 1e9f);
+        float t = (tX < tY) ? tX : tY;
+
+        float clampedX = screenCenterX + cosA * t;
+        float clampedY = screenCenterY + sinA * t;
+
+        // 【HUD回避セーフエリア制御】
+        // 1. 左上エリア（時計、恐怖度メーター、ミニマップ、バッテリーHUD: X < 255, Y < 365）との被り回避
+        if (clampedX < 255.0f && clampedY < 365.0f)
+        {
+            if (clampedY < 60.0f)
+            {
+                // 時計・上部枠より右側に押し出す
+                clampedX = 255.0f;
+            }
+            else
+            {
+                // ミニマップ・バッテリーHUDの下側に押し出す
+                clampedY = 365.0f;
+            }
+        }
+
+        // 2. 右上エリア（操作ガイドHUD表示時: X > 940, Y < 330）との被り回避
+        if (showKeyGuide && clampedX > 940.0f && clampedY < 330.0f)
+        {
+            if (clampedY < 60.0f)
+            {
+                clampedX = 940.0f;
+            }
+            else
+            {
+                clampedY = 330.0f;
+            }
+        }
+
+        markerX = static_cast<int>(clampedX);
+        markerY = static_cast<int>(clampedY);
+    }
+
+    // パルス明滅アニメーション（ホラー調の控えめな低照度アンバーオレンジ）
+    float pulse = 0.88f + 0.12f * sinf(static_cast<float>(frameCount) * 0.12f);
+    int alpha = static_cast<int>(215.0f * pulse);
+
+    // 距離文字列の作成（例: "35m"）
+    char distText[32];
+    snprintf(distText, sizeof(distText), "%dm", distMeters);
+    int textW = (fontSmall != -1) ? GetDrawStringWidthToHandle(distText, static_cast<int>(strlen(distText)), fontSmall) : 32;
+
+    if (!isOffScreen)
+    {
+        // --- 画面内表示（目的地の頭上に浮かぶ下向きピンマーカー＋距離バッジ） ---
+        // 目標の至近距離（3.0m以内）では配達ポストや操作レティクルを遮らないようフェードアウト
+        if (distance < 3.0f)
+        {
+            float fadeFactor = (distance > 1.0f) ? ((distance - 1.0f) / 2.0f) : 0.0f;
+            alpha = static_cast<int>(alpha * fadeFactor);
+        }
+
+        if (alpha > 5)
+        {
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
+
+            // 浮遊感のある微小なボブ運動（上下に1.5px）
+            int bobY = static_cast<int>(sinf(static_cast<float>(frameCount) * 0.08f) * 2.0f);
+            int my = markerY + bobY;
+
+            // 下向き三角マーカー（ピン先端）
+            int triHalfW = 6;
+            int triH = 7;
+            DrawTriangle(
+                markerX, my + triH,
+                markerX - triHalfW, my,
+                markerX + triHalfW, my,
+                COL_TARGET, TRUE
+            );
+
+            // 距離バッジ（小型レトロパネル）
+            int boxW = textW + 14;
+            int boxH = 17;
+            int boxX1 = markerX - boxW / 2;
+            int boxY1 = my - boxH - 1;
+            int boxX2 = boxX1 + boxW;
+            int boxY2 = boxY1 + boxH;
+
+            DrawBox(boxX1, boxY1, boxX2, boxY2, COL_BG, TRUE);
+            DrawBox(boxX1, boxY1, boxX2, boxY2, COL_BORDER, FALSE);
+
+            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+
+            // 距離テキスト（アンバーオレンジ色）
+            DrawJitterString(boxX1 + 7, boxY1 + 1, distText, COL_TARGET, fontSmall);
+        }
+    }
+    else
+    {
+        // --- 画面外表示（画面端の全方位360度矢印インジケーター＋距離表示） ---
+        SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
+
+        // 目的地方向を鋭く指し示す矢印の描画
+        float arrowLen = 11.0f;
+        float arrowWidth = 7.0f;
+        float cosA = cosf(arrowAngle);
+        float sinA = sinf(arrowAngle);
+
+        int tipX = markerX + static_cast<int>(cosA * arrowLen);
+        int tipY = markerY + static_cast<int>(sinA * arrowLen);
+
+        int baseLX = markerX + static_cast<int>(-cosA * (arrowLen * 0.35f) - sinA * arrowWidth);
+        int baseLY = markerY + static_cast<int>(-sinA * (arrowLen * 0.35f) + cosA * arrowWidth);
+
+        int baseRX = markerX + static_cast<int>(-cosA * (arrowLen * 0.35f) + sinA * arrowWidth);
+        int baseRY = markerY + static_cast<int>(-sinA * (arrowLen * 0.35f) - cosA * arrowWidth);
+
+        DrawTriangle(tipX, tipY, baseLX, baseLY, baseRX, baseRY, COL_TARGET, TRUE);
+
+        // 距離ラベルを矢印の内側（画面中心寄り）に配置
+        int boxW = textW + 14;
+        int boxH = 17;
+
+        // 矢印の向きと反対側にオフセット
+        int labelOffsetX = static_cast<int>(-cosA * (arrowLen + boxW * 0.5f + 4.0f));
+        int labelOffsetY = static_cast<int>(-sinA * (arrowLen + boxH * 0.5f + 4.0f));
+
+        int boxX1 = markerX + labelOffsetX - boxW / 2;
+        int boxY1 = markerY + labelOffsetY - boxH / 2;
+        int boxX2 = boxX1 + boxW;
+        int boxY2 = boxY1 + boxH;
+
+        DrawBox(boxX1, boxY1, boxX2, boxY2, COL_BG, TRUE);
+        DrawBox(boxX1, boxY1, boxX2, boxY2, COL_BORDER, FALSE);
+
+        SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+
+        DrawJitterString(boxX1 + 7, boxY1 + 1, distText, COL_TARGET, fontSmall);
+    }
+}
+
