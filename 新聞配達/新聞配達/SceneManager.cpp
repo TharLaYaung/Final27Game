@@ -1,4 +1,4 @@
-#include "SceneManager.h"
+﻿#include "SceneManager.h"
 #include "Player.h"
 #include "Bicycle.h"
 #include "Newspaper.h"
@@ -384,7 +384,7 @@ void SceneManager::StartTransition(SceneType target, float duration)
 void SceneManager::SetCurrentDay(int day)
 {
     if (day < 1) day = 1;
-    if (day > 7) day = 7;
+    if (day > 5) day = 5;
     currentDay = day;
 }
 
@@ -402,7 +402,7 @@ void SceneManager::ResetGame(
 )
 {
     if (day < 1) day = 1;
-    if (day > 7) day = 7;
+    if (day > 5) day = 5;
     currentDay = day;
 
     // プレイヤー位置・視線・カメラ傾きのリセット
@@ -427,7 +427,7 @@ void SceneManager::ResetGame(
 
     // 自転車のリセットと日別バッテリー消費倍率
     bicycle.Reset();
-    float batteryMultipliers[7] = { 1.0f, 1.10f, 1.25f, 1.40f, 1.60f, 1.80f, 2.00f };
+    float batteryMultipliers[5] = { 1.0f, 1.25f, 1.50f, 1.75f, 2.00f };
     bicycle.SetBatteryDrainMultiplier(batteryMultipliers[currentDay - 1]);
 
     // 新聞のリセット（本日の必要部数）
@@ -985,7 +985,7 @@ void SceneManager::Update(
             SetMouseDispFlag(TRUE);
             clearTimer += dt;
 
-            if (currentDay < 7)
+            if (currentDay < 5)
             {
                 // 1〜6日目：Enterキーまたは約3.5秒後に翌日へ自動で移行
                 bool hitNextNight = mouseClicked && (mouseY > 200);
@@ -1204,7 +1204,7 @@ void SceneManager::Draw(
                     HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
 
                 char dbgDay[64];
-                snprintf(dbgDay, sizeof(dbgDay), "DAY %d / 7 (SEED: 0x%05X)",
+                snprintf(dbgDay, sizeof(dbgDay), "DAY %d / 5 (SEED: 0x%05X)",
                     currentDay, deliveryManager.GetCurrentDaySeed());
                 HorrorUI::Instance().DrawJitterString(26, 370, dbgDay,
                     GetColor(140, 210, 240), HorrorUI::Instance().GetFontSmall());
@@ -1676,7 +1676,7 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
 
     // タイトル（現在の日数を明記）
     char pauseTitle[64];
-    snprintf(pauseTitle, sizeof(pauseTitle), "一時停止 - DAY %d / 7", currentDay);
+    snprintf(pauseTitle, sizeof(pauseTitle), "一時停止 - DAY %d / 5", currentDay);
     if (fontReportTitle != -1)
     {
         int tw = GetDrawStringWidthToHandle(pauseTitle, (int)strlen(pauseTitle), fontReportTitle);
@@ -1751,7 +1751,7 @@ void SceneManager::DrawClearScene(const DeliveryManager& deliveryManager, const 
     DrawString(980, 40, timeBuf, GetColor(130, 145, 140));
 
     // 中央テキストUI
-    if (currentDay < 7)
+    if (currentDay < 5)
     {
         // 1〜6日目：日ごとのクリア黒画面テキストUI
         char titleStr[64];

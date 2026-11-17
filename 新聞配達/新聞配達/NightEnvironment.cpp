@@ -698,84 +698,65 @@ void NightEnvironment::DrawDebugHUD(const Bicycle* bicycle, const char* weatherN
 void NightEnvironment::SetDayEnvironment(int day)
 {
     if (day < 1) day = 1;
-    if (day > 7) day = 7;
+    if (day > 5) day = 5;
 
-    // 全街灯を基本点灯状態に復元
+    // まず全ての街灯を通常状態に戻す
     for (size_t i = 0; i < streetLights.size(); i++)
     {
         streetLights[i].state = StreetLightState::Normal;
         streetLights[i].currentIntensity = 1.0f;
     }
 
-    // 日別の街灯損壊・明滅・停電状態
+    // ステージごとの街灯状態（進むほど電柱が減る）
     switch (day)
     {
     case 1:
-        // 1日目：ほぼ全ての街灯が点灯（5番街灯のみ奥地で消灯）
+        // Day 1: 6本点灯（ID5のみOFF）
         TurnOffStreetLight(5);
         break;
 
     case 2:
-        // 2日目：1基が明滅し、1基が弱く点灯
-        if (streetLights.size() > 1)
-        {
-            streetLights[1].state = StreetLightState::Weak;
-            streetLights[1].currentIntensity = 0.40f;
-        }
-        TriggerStreetLightFlicker(3);
-        TurnOffStreetLight(5);
-        break;
-
-    case 3:
-        // 3日目：2基が明滅し、2基が消灯
-        TriggerStreetLightFlicker(2);
+        // Day 2: 5本点灯（ID5/7 OFF、ID3 フリッカー）
         TriggerStreetLightFlicker(3);
         TurnOffStreetLight(5);
         TurnOffStreetLight(7);
         break;
 
-    case 4:
-        // 4日目：複数の街灯が明滅し、一部が弱く点灯
+    case 3:
+        // Day 3: 4本点灯（ID3/5/7 OFF、ID2 フリッカー、ID1 弱め）
         if (streetLights.size() > 0)
         {
             streetLights[0].state = StreetLightState::Weak;
             streetLights[0].currentIntensity = 0.50f;
         }
         TriggerStreetLightFlicker(2);
-        TriggerStreetLightFlicker(4);
         TurnOffStreetLight(3);
         TurnOffStreetLight(5);
+        TurnOffStreetLight(7);
+        break;
+
+    case 4:
+        // Day 4: 2本点灯（ID1/3/5/6/7 OFF、ID2 フリッカー、ID4 弱め）
+        TurnOffStreetLight(1);
+        TriggerStreetLightFlicker(2);
+        TurnOffStreetLight(3);
+        if (streetLights.size() > 3)
+        {
+            streetLights[3].state = StreetLightState::Weak;
+            streetLights[3].currentIntensity = 0.40f;
+        }
+        TurnOffStreetLight(5);
+        TurnOffStreetLight(6);
         TurnOffStreetLight(7);
         break;
 
     case 5:
-        // 5日目：半数が消灯し、雪の中で街灯が明滅
-        TriggerStreetLightFlicker(1);
-        TurnOffStreetLight(2);
-        TurnOffStreetLight(3);
-        TriggerStreetLightFlicker(6);
-        TurnOffStreetLight(5);
-        TurnOffStreetLight(7);
-        break;
-
-    case 6:
-        // 6日目：多くの街灯が切れ、広い範囲が暗闇になる
-        TurnOffStreetLight(1);
-        TurnOffStreetLight(2);
-        TriggerStreetLightFlicker(3);
-        TurnOffStreetLight(4);
-        TurnOffStreetLight(5);
-        TriggerStreetLightFlicker(6);
-        TurnOffStreetLight(7);
-        break;
-
-    case 7:
     default:
-        // 7日目：住宅街全域が停電し、唯一残る街灯も不吉に激しく明滅
+        // Day 5 (FINAL): 1本点灯（ほぼ全消灯、ID1のみフリッカー）
         TriggerStreetLightFlicker(1);
         TurnOffStreetLight(2);
         TurnOffStreetLight(3);
-        TriggerStreetLightFlicker(4);
+        TurnOffStreetLight(4);
         TurnOffStreetLight(5);
         TurnOffStreetLight(6);
         TurnOffStreetLight(7);
