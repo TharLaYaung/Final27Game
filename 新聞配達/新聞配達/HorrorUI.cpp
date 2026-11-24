@@ -1,4 +1,4 @@
-#include "HorrorUI.h"
+﻿#include "HorrorUI.h"
 #include <cmath>
 #include <cstdlib>
 
@@ -207,7 +207,7 @@ void HorrorUI::SetPrompt(PromptType type)
 void HorrorUI::SetCurrentDay(int day)
 {
     if (day < 1) day = 1;
-    if (day > 7) day = 7;
+    if (day > 5) day = 5;
     currentDay = day;
 }
 
@@ -634,7 +634,7 @@ void HorrorUI::DrawClock()
     snprintf(timeStr, sizeof(timeStr), "%02d:%02d AM", clockHour, clockMinute);
 
     char dayStr[32];
-    snprintf(dayStr, sizeof(dayStr), "DAY %d/7", currentDay);
+    snprintf(dayStr, sizeof(dayStr), "DAY %d/5", currentDay);
 
     int panelX1 = 26;
     int panelY1 = 12;

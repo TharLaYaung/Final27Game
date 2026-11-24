@@ -1,4 +1,4 @@
-#include "Map.h"
+﻿#include "Map.h"
 #include "WorldCollision.h"
 #include "DxLib.h"
 #include <cmath>
@@ -306,7 +306,7 @@ void MapInit()
 void MapSetDayPorchLights(int day, unsigned int daySeed)
 {
     if (day < 1) day = 1;
-    if (day > 7) day = 7;
+    if (day > 5) day = 5;
 
     // 疑似乱数ジェネレータで日毎に点灯住宅を決定
     unsigned int rng = daySeed;
@@ -323,9 +323,7 @@ void MapSetDayPorchLights(int day, unsigned int daySeed)
     case 2: targetLitCount = 5; break;
     case 3: targetLitCount = 4; break;
     case 4: targetLitCount = 3; break;
-    case 5: targetLitCount = 2; break;
-    case 6: targetLitCount = 2; break;
-    case 7:
+    case 5:
     default: targetLitCount = 1; break;
     }
 

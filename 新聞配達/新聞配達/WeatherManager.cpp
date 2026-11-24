@@ -402,7 +402,7 @@ void WeatherManager::ForceThickFog(float durationSeconds)
 void WeatherManager::SetDayWeather(int day, NightEnvironment& nightEnv)
 {
     if (day < 1) day = 1;
-    if (day > 7) day = 7;
+    if (day > 5) day = 5;
 
     WeatherType dayWeather = WeatherType::Clear;
     switch (day)
@@ -411,9 +411,7 @@ void WeatherManager::SetDayWeather(int day, NightEnvironment& nightEnv)
     case 2: dayWeather = WeatherType::Rain; break;
     case 3: dayWeather = WeatherType::Foggy; break;
     case 4: dayWeather = WeatherType::HeavyRain; break;
-    case 5: dayWeather = WeatherType::Snow; break;
-    case 6: dayWeather = WeatherType::HeavySnow; break;
-    case 7:
+    case 5:
     default:
         dayWeather = WeatherType::ThickFog; break;
     }

@@ -1,4 +1,4 @@
-#include "AudioManager.h"
+﻿#include "AudioManager.h"
 #include "DeliveryManager.h"
 #include "Map.h"
 #include <cmath>
@@ -162,7 +162,7 @@ unsigned int DeliveryManager::GetCurrentDaySeed() const
 void DeliveryManager::SetDay(int day)
 {
     if (day < 1) day = 1;
-    if (day > 7) day = 7;
+    if (day > 5) day = 5;
     currentDay = day;
 
     // 日ごとの配達軒数（1日目は3軒、7日目は8軒）
@@ -173,9 +173,7 @@ void DeliveryManager::SetDay(int day)
     case 2: count = 4; break;
     case 3: count = 5; break;
     case 4: count = 6; break;
-    case 5: count = 6; break;
-    case 6: count = 7; break;
-    case 7:
+    case 5:
     default: count = 8; break;
     }
 
@@ -230,9 +228,7 @@ const char* DeliveryManager::GetDayName() const
     case 2: return "DAY 2 - TUESDAY";
     case 3: return "DAY 3 - WEDNESDAY";
     case 4: return "DAY 4 - THURSDAY";
-    case 5: return "DAY 5 - FRIDAY";
-    case 6: return "DAY 6 - SATURDAY";
-    case 7: return "DAY 7 - SUNDAY (FINAL)";
+    case 5: return "DAY 5 - FRIDAY (FINAL)";
     default: return "DAY 1 - MONDAY";
     }
 }
@@ -246,9 +242,7 @@ const char* DeliveryManager::GetDaySubtitle() const
     case 2: return "Cold Rain & Flickering Lights";
     case 3: return "Creeping Mist & Distant Whispers";
     case 4: return "Midnight Blackouts & Torrential Rain";
-    case 5: return "Freezing Sleet & Darkened Streets";
-    case 6: return "The Blizzard & Stalking Shadows";
-    case 7: return "Final Night - The Supernatural Nightmare";
+    case 5: return "The Final Night - Supernatural Nightmare";
     default: return "The First Night - Orientation";
     }
 }

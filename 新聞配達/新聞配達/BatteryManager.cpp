@@ -1,4 +1,4 @@
-#include "AudioManager.h"
+﻿#include "AudioManager.h"
 #include "BatteryManager.h"
 #include "Player.h"
 #include "Bicycle.h"
@@ -104,7 +104,7 @@ bool BatteryManager::Initialize()
 void BatteryManager::Reset(int day)
 {
     if (day < 1) day = 1;
-    if (day > 7) day = 7;
+    if (day > 5) day = 5;
 
     // ゲーム開始時は予備バッテリー0個で開始
     spareBatteries = 0;

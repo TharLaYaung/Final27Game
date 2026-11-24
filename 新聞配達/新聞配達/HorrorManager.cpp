@@ -1,4 +1,4 @@
-#include "AudioManager.h"
+﻿#include "AudioManager.h"
 #include "HorrorManager.h"
 #include "Player.h"
 #include "Bicycle.h"
@@ -129,7 +129,7 @@ void HorrorManager::InitializeNavNodes()
 void HorrorManager::SetDayDifficulty(int day)
 {
     if (day < 1) day = 1;
-    if (day > 7) day = 7;
+    if (day > 5) day = 5;
     currentDay = day;
 
     switch (day)
@@ -159,18 +159,6 @@ void HorrorManager::SetDayDifficulty(int day)
         currentParams = { 4.8f, 2.2f, 3.1f, 20.0f, 11.0f, 25.0f, 1.65f };
         break;
     case 5:
-        fearRiseMultiplier = 1.50f;
-        spawnChanceBonus = 16;
-        entitySpeedMultiplier = 1.30f;
-        currentParams = { 5.0f, 2.3f, 3.4f, 16.0f, 12.0f, 26.0f, 1.70f };
-        break;
-    case 6:
-        fearRiseMultiplier = 1.80f;
-        spawnChanceBonus = 22;
-        entitySpeedMultiplier = 1.45f;
-        currentParams = { 5.2f, 2.4f, 3.7f, 14.0f, 14.0f, 27.0f, 1.80f };
-        break;
-    case 7:
     default:
         fearRiseMultiplier = 2.20f;
         spawnChanceBonus = 30;
