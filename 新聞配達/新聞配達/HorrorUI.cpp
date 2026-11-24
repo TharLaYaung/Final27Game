@@ -539,31 +539,6 @@ void HorrorUI::DrawInteractionPrompt()
         return;
     }
 
-    const char* promptText = "";
-    switch (currentPrompt)
-    {
-    case PromptType::RideBicycle:
-        promptText = "[ E ] 自転車に乗る";
-        break;
-    case PromptType::DismountBicycle:
-        promptText = "[ E ] 自転車から降りる";
-        break;
-    case PromptType::TakeNewspaper:
-        promptText = "[ LMB ] 新聞を取る";
-        break;
-    case PromptType::DeliverNewspaper:
-        promptText = "[ LMB ] 新聞を配達する";
-        break;
-    case PromptType::TakeBattery:
-        promptText = "[ LMB ] バッテリーを拾う";
-        break;
-    case PromptType::ReplaceBattery:
-        promptText = "[ R ] バッテリーを交換する";
-        break;
-    default:
-        return;
-    }
-
     if (currentPrompt == PromptType::BatteryFull)
     {
         const char* line1 = "バッテリー満杯";
@@ -599,6 +574,31 @@ void HorrorUI::DrawInteractionPrompt()
         }
 
         SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+        return;
+    }
+
+    const char* promptText = "";
+    switch (currentPrompt)
+    {
+    case PromptType::RideBicycle:
+        promptText = "[ E ] 自転車に乗る";
+        break;
+    case PromptType::DismountBicycle:
+        promptText = "[ E ] 自転車から降りる";
+        break;
+    case PromptType::TakeNewspaper:
+        promptText = "[ LMB ] 新聞を取る";
+        break;
+    case PromptType::DeliverNewspaper:
+        promptText = "[ LMB ] 新聞を配達する";
+        break;
+    case PromptType::TakeBattery:
+        promptText = "[ LMB ] バッテリーを拾う";
+        break;
+    case PromptType::ReplaceBattery:
+        promptText = "[ R ] バッテリーを交換する";
+        break;
+    default:
         return;
     }
 

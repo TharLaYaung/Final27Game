@@ -2,6 +2,7 @@
 
 #include "DxLib.h"
 #include "HorrorEntity.h"
+#include "DazedZombie.h"
 #include <vector>
 #include <string>
 
@@ -133,6 +134,7 @@ public:
     const HorrorEntity& GetEntity() const { return chaseEntity.IsActive() ? chaseEntity : crawlEntity; }
     const HorrorEntity& GetCrawlEntity() const { return crawlEntity; }
     const HorrorEntity& GetChaseEntity() const { return chaseEntity; }
+    const DazedZombie& GetDazedZombie() const { return dazedZombie; }
 
     // 時刻と配達進捗を統合した総合緊張度 (0.0f〜1.0f)
     float GetCombinedTension() const { return currentCombinedTension; }
@@ -207,6 +209,7 @@ private:
     // 2体の怪異モデル実体
     HorrorEntity crawlEntity;   // 恐怖度100%時・ジャンプスケア用の這いずり怪異（RunningCrawl.mv1）
     HorrorEntity chaseEntity;   // 配達半分完了時に出現して追跡する怪異（MonsterRun.mv1 / MonsterIdle.mv1）
+    DazedZombie dazedZombie;    // マップランダム出現の錯乱・絶叫・負傷走行怪異
 
     // 7日間難易度スケーリングパラメータ
     int currentDay;
@@ -232,6 +235,7 @@ private:
     std::vector<MonsterNavNode> navNodes;
     float cachedBicycleBattery;
     float cachedMonsterDist;
+    float cachedDazedZombieDist;
 
     // 恐怖度・環境緊張度パラメータ
     float fearLevel;

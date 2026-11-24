@@ -32,6 +32,7 @@ HorrorManager::HorrorManager()
     , currentNavTargetNodeId(-1)
     , cachedBicycleBattery(100.0f)
     , cachedMonsterDist(-1.0f)
+    , cachedDazedZombieDist(-1.0f)
     , fearLevel(0.0f)
     , inSafeLight(true)
     , safeGraceTimer(0.8f)
@@ -245,6 +246,7 @@ void HorrorManager::Reset()
     currentNavTargetNodeId = -1;
     cachedBicycleBattery = 100.0f;
     cachedMonsterDist = -1.0f;
+    cachedDazedZombieDist = -1.0f;
     killerIsCrawl = false;
 
     // 2体の怪異モデルをリセット＆画面外へ完全退避
@@ -253,6 +255,8 @@ void HorrorManager::Reset()
 
     chaseEntity.Reset();
     chaseEntity.SetModelType(HorrorModelType::Idle);
+
+    dazedZombie.Reset();
 
     // ポイントライト消灯
     if (chaseLightHandle != -1) SetLightEnableHandle(chaseLightHandle, FALSE);
@@ -302,6 +306,9 @@ bool HorrorManager::Initialize()
     // 2. 配達半分完了追跡モンスター（MonsterIdle.mv1 / MonsterRun.mv1）
     chaseEntity.Initialize();
     chaseEntity.SetModelType(HorrorModelType::Idle);
+
+    // 3. マップランダム出現・錯乱・絶叫・負傷走行ゾンビの初期化
+    dazedZombie.Initialize();
 
     // 雰囲気演出用の固定出現候補地点登録
     spawnPoints.clear();
@@ -968,6 +975,9 @@ void HorrorManager::TriggerCaughtByMonster(Player& player, bool isCrawlMonster)
         return;
     }
 
+    dazedZombie.SetLightsSuppressed(true);
+    dazedZombie.Reset();
+
     killerIsCrawl = isCrawlMonster;
     fearLevel = 1.0f;
     gameState = HorrorGameState::Jumpscare;
@@ -1571,6 +1581,26 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
             }
         }
 
+        // マップランダム出現・錯乱〜絶叫〜負傷走行〜突然消失ループの更新
+        dazedZombie.SetLightsSuppressed(false);
+        float dazedFearDelta = 0.0f;
+        dazedZombie.Update(dt, playerPos, dazedFearDelta);
+        if (dazedFearDelta > 0.0f)
+        {
+            fearLevel += dazedFearDelta * fearRiseMultiplier;
+        }
+        if (dazedZombie.IsVisible())
+        {
+            VECTOR dzPos = dazedZombie.GetPosition();
+            float dzdx = playerPos.x - dzPos.x;
+            float dzdz = playerPos.z - dzPos.z;
+            cachedDazedZombieDist = std::sqrt(dzdx * dzdx + dzdz * dzdz);
+        }
+        else
+        {
+            cachedDazedZombieDist = -1.0f;
+        }
+
         // 恐怖度100%到達時に這いずり怪異が出現してゲームオーバー演出へ移行
         if (fearLevel >= 1.0f)
         {
@@ -1657,6 +1687,7 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
     }
     else if (gameState == HorrorGameState::Jumpscare)
     {
+        dazedZombie.SetLightsSuppressed(true);
         // ジャンプスケア演出の進行（這いずり怪異）
         UpdateJumpscareSequence(dt, player);
     }
@@ -1670,6 +1701,15 @@ void HorrorManager::Draw3D()
 
     // 2. 配達半分完了追跡モンスター
     chaseEntity.Draw();
+
+    // 3. マップランダム出現・錯乱〜負傷走行ゾンビ
+    dazedZombie.Draw();
+
+    if (showDebugHUD && dazedZombie.IsVisible())
+    {
+        VECTOR dzPos = dazedZombie.GetPosition();
+        DrawSphere3D(VAdd(dzPos, VGet(0.0f, 1.0f, 0.0f)), 0.55f, 8, GetColor(255, 80, 220), GetColor(255, 80, 220), FALSE);
+    }
 
     // デバッグ表示時の3D視覚化ガイド描画
     if (showDebugHUD && chaseEntity.IsActive())
@@ -1845,6 +1885,17 @@ void HorrorManager::DrawUI()
         HorrorUI::Instance().DrawJitterString(26, lineY, buf, HorrorUI::COL_TEXT, HorrorUI::Instance().GetFontSmall());
         lineY += 18;
 
+        if (cachedDazedZombieDist >= 0.0f)
+        {
+            snprintf(buf, sizeof(buf), "DAZED ZOMBIE:     %s (%.1fm)", dazedZombie.GetStateName(), cachedDazedZombieDist);
+        }
+        else
+        {
+            snprintf(buf, sizeof(buf), "DAZED ZOMBIE:     %s", dazedZombie.GetStateName());
+        }
+        HorrorUI::Instance().DrawJitterString(26, lineY, buf, GetColor(255, 130, 210), HorrorUI::Instance().GetFontSmall());
+        lineY += 18;
+
         snprintf(buf, sizeof(buf), "FEAR: %.1f%%  TENSION: %.1f%%  SPEED: %.1fm/s",
             fearLevel * 100.0f, currentCombinedTension * 100.0f, currentParams.runSpeed);
         HorrorUI::Instance().DrawJitterString(26, lineY, buf, GetColor(230, 160, 100), HorrorUI::Instance().GetFontSmall());
@@ -1971,6 +2022,7 @@ void HorrorManager::Finalize()
 {
     crawlEntity.Finalize();
     chaseEntity.Finalize();
+    dazedZombie.Finalize();
 
     if (chaseLightHandle != -1) { DeleteLightHandle(chaseLightHandle); chaseLightHandle = -1; }
     if (crawlLightHandle != -1) { DeleteLightHandle(crawlLightHandle); crawlLightHandle = -1; }

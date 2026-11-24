@@ -1724,11 +1724,14 @@ void SceneManager::DrawPauseMenu(const DeliveryManager& deliveryManager)
     int arrowY[5] = { cy - 90, cy - 40, cy + 10, cy + 60, cy + 110 };
     DrawString(cx - 208, arrowY[pauseMenuSelection], ">", GetColor(220, 240, 230));
 
-    // ガイドテキスト
+    // ガイドテキスト（日本語テキストのため日本語フォントを使用）
     const char* pauseGuide = "[ 操作方法 ] マウスまたは矢印キー / Enter で選択";
-    int gw = GetDrawStringWidthToHandle(pauseGuide, (int)strlen(pauseGuide), HorrorUI::Instance().GetFontKeyGuide());
+    int guideFont = HorrorUI::Instance().GetFontKeyAction();
+    int gw = (guideFont != -1)
+        ? GetDrawStringWidthToHandle(pauseGuide, (int)strlen(pauseGuide), guideFont)
+        : GetDrawStringWidth(pauseGuide, (int)strlen(pauseGuide));
     HorrorUI::Instance().DrawJitterString(cx - gw / 2, cy + ph / 2 - 28, pauseGuide,
-        GetColor(120, 135, 130), HorrorUI::Instance().GetFontKeyGuide());
+        GetColor(120, 135, 130), guideFont);
 
     DrawScanlinesAndNoise(22);
 }
