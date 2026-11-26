@@ -10,6 +10,25 @@ class Player;
 class Bicycle;
 class NightEnvironment;
 class DeliveryManager;
+class Minimap;
+
+// 環境・心霊ホラーイベント種別（12種類・3D空間音響＆演出連動）
+enum class HorrorEventType
+{
+    WomanCrying = 0,       // 霧の路地裏から響く女性の啜り泣き
+    BabyCrying,            // 消灯した住宅の奥から聞こえる赤子の泣き声
+    PhantomFootsteps,      // 背後から迫り突然止む不気味な足音
+    DistantScream,         // 遠くの夜道に木霊する絶叫
+    CreepyLaugh,           // 塀の向こう・側面から忍び寄る狂気の笑い声
+    CloseWhisper,          // 耳元で囁く霊的な声＋焦点ボケ
+    HeavyBreathing,        // すぐ後ろの首筋にかかる湿った荒い呼吸
+    HouseDoorKnock,        // 住宅の玄関扉を激しく叩くノック音＋火花・霧
+    MetalScrape,           // 金網やトタン壁を引っ掻く金属音＋赤色スパーク
+    VhsStaticAnomaly,      // 1998年型カメラ・GPSに混入するEVP砂嵐＋強グリッチ
+    StreetlightBlackout,   // 最寄り街灯の異常明滅と一時的な周辺ブラックアウト
+    HeadlightMalfunction,  // 自転車ヘッドライトの不気味な点滅と一瞬の消灯
+    Count
+};
 
 // 恐怖度段階定義
 enum class FearStage
@@ -95,7 +114,7 @@ public:
     bool Initialize();
 
     // 毎フレーム更新（安全光判定、恐怖度増減、怪異出現判定、ジャンプスケア演出進行、時刻・配達連携）
-    void Update(float dt, Player& player, const Bicycle& bicycle, const NightEnvironment& nightEnv, const DeliveryManager* deliveryManager = nullptr);
+    void Update(float dt, Player& player, Bicycle& bicycle, NightEnvironment& nightEnv, const DeliveryManager* deliveryManager = nullptr, Minimap* minimap = nullptr);
 
     // 3D怪異モデルの描画（這いずり怪異および追跡モンスターの両方を描画）
     void Draw3D();
@@ -172,6 +191,12 @@ public:
     // デバッグ用街灯怪異明滅・消灯イベントテスト
     void DebugTriggerStreetLightEvent(NightEnvironment& nightEnv, const Player& player);
 
+    // デバッグ用12種ホラーイベント順次再生テスト (Kキー / テスト用)
+    void DebugTriggerNextHorrorEvent(Player& player, Bicycle& bicycle, NightEnvironment& nightEnv, Minimap* minimap = nullptr);
+    HorrorEventType GetLastTriggeredEvent() const { return lastTriggeredEvent; }
+    const char* GetLastEventName() const { return lastEventName; }
+    int GetHorrorEventCount() const { return HORROR_EVENT_COUNT; }
+
     // デバッグ用最大恐怖ゲームオーバー即時トリガー
     void DebugTriggerMaxFearGameOver(Player& player);
 
@@ -187,6 +212,13 @@ private:
 
     // 視界端（周辺視野）での怪異出現・直視時消滅の更新
     void UpdatePeripheralScares(float dt, const Player& player);
+
+    // 多彩な空間音響・怪異イベント（12種ローテーション）の更新と発火
+    void UpdateHorrorEvents(float dt, Player& player, Bicycle& bicycle, NightEnvironment& nightEnv, Minimap* minimap);
+    void TriggerHorrorEvent(HorrorEventType type, Player& player, Bicycle& bicycle, NightEnvironment& nightEnv, Minimap* minimap);
+    HorrorEventType PickNextHorrorEvent(bool hasStreetLight, bool hasHeadlightActive);
+    const char* GetHorrorEventName(HorrorEventType type) const;
+    void ShuffleEventBag();
 
     // 最大恐怖時のジャンプスケア演出開始（恐怖度100%で這いずり怪異出現）
     void TriggerMaxFearSequence(Player& player);
@@ -271,6 +303,22 @@ private:
     float streetLightEventTimer;
     float headlightGlitchTimer;
 
+    // 12種空間音響・怪異ホラーイベントディレクター状態
+    static constexpr int HORROR_EVENT_COUNT = static_cast<int>(HorrorEventType::Count);
+    float horrorEventTimer;
+    int eventBag[HORROR_EVENT_COUNT];
+    int eventBagPos;
+    int debugEventCycleIndex;
+    HorrorEventType lastTriggeredEvent;
+    float lastEventDistance;
+    const char* lastEventName;
+    float activeEventFocusBlur;
+    float activeEventDoubleVision;
+    float activeEventFlinchTimer;
+    float activeEventMinimapInterference;
+    bool wasEventFlinchActive;
+    bool wasEventMinimapInterferenceActive;
+
     // ジャンプスケア用座標記憶
     VECTOR scareCamPos;
     VECTOR scareCamForward;
@@ -289,4 +337,27 @@ private:
     int jumpscareLightHandle;
     bool killerIsCrawl;
     float bloodSplatterIntensity;
+
+    // 怪異3D瘴気・火の粉・消滅VFXシステム
+    struct EntityVfxParticle
+    {
+        VECTOR pos;
+        VECTOR vel;
+        float size;
+        float age;
+        float maxAge;
+        bool isCrimson;
+        bool active;
+    };
+    static constexpr int MAX_ENTITY_VFX = 64;
+    EntityVfxParticle entityVfxPool[MAX_ENTITY_VFX];
+    float entityVfxEmitTimer;
+    int entityWispTex;
+
+    void ClearEntityVfx();
+    void EnsureEntityVfxTexture();
+    void EmitEntityVfx(const VECTOR& p, const VECTOR& v, float size, float maxAge, bool isCrimson);
+    void EmitEntityDissolveBurst(const VECTOR& center, bool crimson);
+    void UpdateEntityVfx(float dt);
+    void DrawEntityVfx();
 };

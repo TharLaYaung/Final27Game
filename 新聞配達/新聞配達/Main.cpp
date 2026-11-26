@@ -67,6 +67,9 @@ int WINAPI WinMain(
     // 文字列引数の文字コード形式をUTF-8に設定
     SetUseCharCodeFormat(DX_CHARCODEFORMAT_UTF8);
 
+    // 3D描画のジャギーを抑えるため4x MSAAを有効化
+    SetFullSceneAntiAliasingMode(4, 2);
+
     // DXライブラリを初期化
     if (DxLib_Init() == -1)
     {
@@ -91,6 +94,14 @@ int WINAPI WinMain(
     // 3Dレンダリング用Zバッファを有効化（ポスト・電柱等の地面貫通・浮遊感を防止）
     SetUseZBuffer3D(TRUE);
     SetWriteZBuffer3D(TRUE);
+
+    // 起動時の3Dモデル・音源読込中の初期ローディング画面を描画
+    ClearDrawScreen();
+    DrawBox(0, 0, 1280, 720, GetColor(4, 6, 8), TRUE);
+    DrawBox(26, 26, 1254, 694, GetColor(42, 52, 48), FALSE);
+    DrawString(534, 338, "TAPE: INITIALIZING...", GetColor(186, 200, 192));
+    DrawString(538, 366, "NOW LOADING ASSETS", GetColor(188, 56, 48));
+    ScreenFlip();
 
     // 街並みマップモデル初期化
     MapInit();
@@ -254,6 +265,7 @@ int WINAPI WinMain(
         sceneManager.Finalize();
         AudioManager::Instance().Finalize();
         MapFinalize();
+        GroundFinalize();
         nightEnv.Finalize();
         weatherManager.Finalize();
         horrorManager.Finalize();
@@ -288,6 +300,7 @@ int WINAPI WinMain(
     bool oldKey9 = false;
     bool oldKey0 = false;
     bool oldKeyJ = false;
+    bool oldKeyK = false;
     bool oldTabKey = false;
     bool mapDebugEnabled = false;
 
@@ -511,6 +524,14 @@ int WINAPI WinMain(
             }
             oldKey0 = curK0;
 
+            // Kキー: 12種空間音響ホラーイベント順次再生テスト（デバッグ操作）
+            bool curKeyK = (CheckHitKey(KEY_INPUT_K) != 0);
+            if (curKeyK && !oldKeyK)
+            {
+                horrorManager.DebugTriggerNextHorrorEvent(player, bicycle, nightEnv, &minimap);
+            }
+            oldKeyK = curKeyK;
+
             // TABキー：操作案内の表示・非表示を切り替え（HキーはSceneManager側で遊び方を表示）
             bool curTab = (CheckHitKey(KEY_INPUT_TAB) != 0);
             if (curTab && !oldTabKey)
@@ -573,8 +594,8 @@ int WINAPI WinMain(
             // 動的ランダム天候管理システムの更新
             weatherManager.Update(0.01666f, player, bicycle, nightEnv);
 
-            // 恐怖システム・怪異出現・ゲームオーバー管理システムの更新（配達進捗連携）
-            horrorManager.Update(0.01666f, player, bicycle, nightEnv, &deliveryManager);
+            // 恐怖システム・怪異出現・ゲームオーバー管理システムの更新（配達進捗・ミニマップ連携）
+            horrorManager.Update(0.01666f, player, bicycle, nightEnv, &deliveryManager, &minimap);
 
             // 配達進行管理の更新
             deliveryManager.Update();
@@ -649,6 +670,7 @@ int WINAPI WinMain(
 
     // マップシステムの終了処理
     MapFinalize();
+    GroundFinalize();
 
     // 深夜環境システムの終了処理
     nightEnv.Finalize();

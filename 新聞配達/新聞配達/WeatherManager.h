@@ -57,6 +57,28 @@ struct SnowFlake
     bool active;
 };
 
+// 地面の雨水波紋・跳ね返りしぶき構造体
+struct RainSplash
+{
+    VECTOR position;
+    float age;
+    float maxAge;
+    float maxRadius;
+    bool active;
+};
+
+// 地表を這う立体霧バンク（ボリュメトリック霧層）
+struct MistPuff
+{
+    VECTOR position;
+    float size;
+    float phase;
+    float driftSpeed;
+    float rotation;
+    float alphaScale;
+    bool active;
+};
+
 // 深夜3:00の動的ランダム天候管理クラス
 class WeatherManager
 {
@@ -142,6 +164,13 @@ private:
     // 雪パーティクルの更新
     void UpdateSnow(float dt, const VECTOR& playerPos);
 
+    // 地面水しぶき波紋・漂う立体霧バンクの更新
+    void UpdateSplashesAndMist(float dt, const VECTOR& playerPos);
+
+    // ビジュアルテクスチャ生成・解放
+    void EnsureVisualAssets();
+    void FinalizeVisualAssets();
+
     // 街灯および自転車ヘッドライトによるパーティクル照明判定
     bool CheckParticleIllumination(const VECTOR& particlePos, const Bicycle& bicycle, const NightEnvironment& nightEnv) const;
 
@@ -184,10 +213,26 @@ private:
     // 最大パーティクル数定数
     static constexpr int MAX_RAIN_COUNT = 700;
     static constexpr int MAX_SNOW_COUNT = 450;
+    static constexpr int MAX_SPLASH_COUNT = 64;
+    static constexpr int MAX_MIST_PUFFS = 42;
 
     // パーティクル配列
     RainDrop rainPool[MAX_RAIN_COUNT];
     SnowFlake snowPool[MAX_SNOW_COUNT];
+    RainSplash splashPool[MAX_SPLASH_COUNT];
+    MistPuff mistPool[MAX_MIST_PUFFS];
+    int nextSplashIndex;
+
+    // プロシージャル視覚テクスチャ
+    bool visualAssetsInitialized;
+    int mistCloudTex;
+    int snowflakeTex;
+    int splashRingTex;
+
+    // 豪雨時遠雷フラッシュ演出
+    float lightningTimer;
+    float lightningFlash;
+    float lightningSubTimer;
 
     // サウンドハンドル保持フック
     int rainSoundHandle;

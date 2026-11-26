@@ -742,7 +742,7 @@ void Bicycle::ReplaceBattery()
 // 効果音用フック
 void Bicycle::PlayElectricalSoundHook()
 {
-    // 将来の電気カチッ音・スイッチ音実装用フック
+    AudioManager::Instance().PlayHeadlightSwitch(batteryCurrent > 0.0f);
 }
 
 // 自転車を描画する

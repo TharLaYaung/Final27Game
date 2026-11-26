@@ -5,6 +5,7 @@
 #include "NightEnvironment.h"
 #include "DeliveryManager.h"
 #include "HorrorUI.h"
+#include "Minimap.h"
 #include "WorldCollision.h"
 #include "Map.h"
 #include <cmath>
@@ -57,6 +58,18 @@ HorrorManager::HorrorManager()
     , isPeripheralActive(false)
     , streetLightEventTimer(20.0f)
     , headlightGlitchTimer(18.0f)
+    , horrorEventTimer(9.0f)
+    , eventBagPos(0)
+    , debugEventCycleIndex(0)
+    , lastTriggeredEvent(HorrorEventType::WomanCrying)
+    , lastEventDistance(0.0f)
+    , lastEventName("NONE")
+    , activeEventFocusBlur(0.0f)
+    , activeEventDoubleVision(0.0f)
+    , activeEventFlinchTimer(0.0f)
+    , activeEventMinimapInterference(0.0f)
+    , wasEventFlinchActive(false)
+    , wasEventMinimapInterferenceActive(false)
     , scareCamPos(VGet(0.0f, 0.0f, 0.0f))
     , scareCamForward(VGet(0.0f, 0.0f, 1.0f))
     , spawnCheckTimer(10.0f)
@@ -67,7 +80,11 @@ HorrorManager::HorrorManager()
     , jumpscareLightHandle(-1)
     , killerIsCrawl(false)
     , bloodSplatterIntensity(0.0f)
+    , entityVfxEmitTimer(0.0f)
+    , entityWispTex(-1)
 {
+    ClearEntityVfx();
+    ShuffleEventBag();
 }
 
 // デストラクタ
@@ -191,6 +208,7 @@ void HorrorManager::Reset()
     inSafeLight = true;
     safeGraceTimer = 0.8f;
     currentCombinedTension = 0.0f;
+    AudioManager::Instance().SetHorrorTension(0.0f);
     gameState = HorrorGameState::Normal;
     jumpscareState = JumpscareState::None;
     scareTimer = 0.0f;
@@ -211,6 +229,19 @@ void HorrorManager::Reset()
     isPeripheralActive = false;
     streetLightEventTimer = 20.0f;
     headlightGlitchTimer = 18.0f;
+    horrorEventTimer = 9.0f;
+    eventBagPos = 0;
+    debugEventCycleIndex = 0;
+    lastTriggeredEvent = HorrorEventType::WomanCrying;
+    lastEventDistance = 0.0f;
+    lastEventName = "NONE";
+    activeEventFocusBlur = 0.0f;
+    activeEventDoubleVision = 0.0f;
+    activeEventFlinchTimer = 0.0f;
+    activeEventMinimapInterference = 0.0f;
+    wasEventFlinchActive = false;
+    wasEventMinimapInterferenceActive = true;
+    ShuffleEventBag();
     scareCamPos = VGet(0.0f, 0.0f, 0.0f);
     scareCamForward = VGet(0.0f, 0.0f, 1.0f);
     spawnCheckTimer = 10.0f;
@@ -228,6 +259,7 @@ void HorrorManager::Reset()
     currentSearchNodeIndex = 0;
     darknessTimeAccumulator = 0.0f;
     bloodSplatterIntensity = 0.0f;
+    ClearEntityVfx();
     playerWasVisible = false;
     lastLOSState = false;
     lastSafeReason = "NONE";
@@ -687,6 +719,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
                 chaseEntity.SetModelType(HorrorModelType::Run);
                 chaseState = MonsterChaseState::Chasing;
                 AudioManager::Instance().PlayMonsterRoar();
+                HorrorUI::Instance().TriggerHorrorGlitchBurst(0.72f, 0.36f);
                 // 最後に確認したプレイヤーの位置を記録する
                 lastKnownPlayerPos = playerPos;
             }
@@ -729,6 +762,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
                 chaseEntity.SetModelType(HorrorModelType::Run);
                 chaseState = MonsterChaseState::Chasing;
                 AudioManager::Instance().PlayMonsterRoar();
+                HorrorUI::Instance().TriggerHorrorGlitchBurst(0.72f, 0.36f);
                 // 最後に確認したプレイヤーの位置を記録する
                 lastKnownPlayerPos = playerPos;
             }
@@ -893,6 +927,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
                 chaseEntity.SetModelType(HorrorModelType::Run);
                 chaseState = MonsterChaseState::Chasing;
                 AudioManager::Instance().PlayMonsterRoar();
+                HorrorUI::Instance().TriggerHorrorGlitchBurst(0.72f, 0.36f);
                 lastKnownPlayerPos = playerPos;
                 break;
             }
@@ -938,6 +973,7 @@ void HorrorManager::UpdateMonsterChase(float dt, Player& player, const Bicycle& 
             chaseEntity.SetModelType(HorrorModelType::Run);
             chaseState = MonsterChaseState::Chasing;
                 AudioManager::Instance().PlayMonsterRoar();
+            HorrorUI::Instance().TriggerHorrorGlitchBurst(0.72f, 0.36f);
             lastKnownPlayerPos = playerPos;
             break;
         }
@@ -976,13 +1012,16 @@ void HorrorManager::TriggerCaughtByMonster(Player& player, bool isCrawlMonster)
     deathBlinkTimer = 0.0f;
     deathBlinkFactor = 1.0f;
     bloodSplatterIntensity = 0.0f;
+    ClearEntityVfx();
 
     // ゲームオーバー演出移行時に時計の進行を停止
     HorrorUI::Instance().SetTimePaused(true);
 
-    // 叫び声・急襲音再生
+    // 叫び声・急襲音＆VHS色収差グリッチスパイク再生
     AudioManager::Instance().PlayMonsterRoar();
     AudioManager::Instance().PlayJumpscare();
+    HorrorUI::Instance().TriggerHorrorGlitchBurst(1.0f, 0.50f);
+    EmitEntityDissolveBurst(player.GetPosition(), true);
 
     VECTOR pPos = player.GetPosition();
 
@@ -1124,6 +1163,8 @@ void HorrorManager::UpdateJumpscareSequence(float dt, Player& player)
             scareTimer = 0.22f;
             bloodSplatterIntensity = 1.0f;
             AudioManager::Instance().PlayJumpscare();
+            HorrorUI::Instance().TriggerHorrorGlitchBurst(1.0f, 0.42f);
+            EmitEntityDissolveBurst(killer->GetPosition(), true);
         }
         break;
     }
@@ -1363,6 +1404,8 @@ void HorrorManager::UpdateAutoSpawns(float dt, const Player& player, const Night
 
     float yaw = std::atan2(playerPos.x - dynamicPos.x, playerPos.z - dynamicPos.z);
     crawlEntity.Spawn(dynamicPos, yaw, duration, crawlSpeed, HorrorModelType::Crawl);
+    AudioManager::Instance().PlaySpatialHorrorEvent(
+        HorrorEventSfx::PhantomFootsteps, playerPos, forward, dynamicPos, 24.0f, 0.72f);
 }
 
 // 視界端（周辺視野）での怪異出現・直視時消滅の更新
@@ -1400,6 +1443,10 @@ void HorrorManager::UpdatePeripheralScares(float dt, const Player& player)
             float dot = VDot(fwd, toE);
             if (dot > 0.55f)
             {
+                EmitEntityDissolveBurst(ePos, false);
+                AudioManager::Instance().PlaySpatialHorrorEvent(
+                    HorrorEventSfx::CloseWhisper, pPos, fwd, ePos, 22.0f, 0.85f);
+                HorrorUI::Instance().TriggerHorrorGlitchBurst(0.48f, 0.24f);
                 crawlEntity.Despawn();
                 isPeripheralActive = false;
             }
@@ -1408,7 +1455,7 @@ void HorrorManager::UpdatePeripheralScares(float dt, const Player& player)
 }
 
 // 毎フレーム更新処理
-void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, const NightEnvironment& nightEnv, const DeliveryManager* deliveryManager)
+void HorrorManager::Update(float dt, Player& player, Bicycle& bicycle, NightEnvironment& nightEnv, const DeliveryManager* deliveryManager, Minimap* minimap)
 {
     // 通常ゲームプレイ中の処理
     if (gameState == HorrorGameState::Normal)
@@ -1659,11 +1706,13 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
             player.SetSwayOffset(VGet(0.0f, 0.0f, 0.0f), 0.0f, 0.0f);
         }
 
-        // ホラー視覚パラメータのUI伝達
+        // ホラー視覚パラメータのUI伝達（通常恐怖＋近距離イベントの焦点ボケ・二重像を合成）
         float fearNorm = fearLevel;
-        float blur = currentBlurFactor * 0.20f;
+        float blur = (std::min)(1.0f, currentBlurFactor * 0.20f + activeEventFocusBlur);
+        float dblVis = (std::min)(1.0f, activeEventDoubleVision);
+        float desat = (std::min)(0.45f, activeEventDoubleVision * 0.45f);
         // モンスター接近中・追跡中でも画面縮小は一切行わず視界をクリアに確保
-        HorrorUI::Instance().SetHorrorVisualParams(fearNorm, 0.0f, 1.0f, 0.0f, 0.0f, blur);
+        HorrorUI::Instance().SetHorrorVisualParams(fearNorm, 0.0f, 1.0f, dblVis, desat, blur);
 
         // 配達半分完了モンスター追跡AIの更新
         UpdateMonsterChase(dt, player, bicycle, nightEnv, deliveryManager);
@@ -1671,17 +1720,46 @@ void HorrorManager::Update(float dt, Player& player, const Bicycle& bicycle, con
         // 這いずり怪異の自動出現更新（追跡非アクティブ時）
         UpdateAutoSpawns(dt, player, nightEnv);
         UpdatePeripheralScares(dt, player);
+
+        // 12種空間音響・環境ホラーイベントディレクターの更新
+        UpdateHorrorEvents(dt, player, bicycle, nightEnv, minimap);
+
+        // 怪異の接近・追跡状態および恐怖度に応じた動的緊迫音響レイヤー同期
+        float chaseTension = 0.0f;
+        if (chaseState == MonsterChaseState::Chasing)
+        {
+            float distFactor = (cachedMonsterDist >= 0.0f) ? (1.0f - (std::min)(1.0f, cachedMonsterDist / 26.0f)) : 0.6f;
+            chaseTension = 0.55f + 0.45f * distFactor;
+        }
+        else if (chaseState == MonsterChaseState::LostPlayer)
+        {
+            chaseTension = 0.35f;
+        }
+        DazedZombieState dzState = dazedZombie.GetState();
+        if (dzState == DazedZombieState::Scream || dzState == DazedZombieState::InjuredRun)
+        {
+            float dzFactor = (cachedDazedZombieDist >= 0.0f) ? (1.0f - (std::min)(1.0f, cachedDazedZombieDist / 20.0f)) : 0.5f;
+            chaseTension = (std::max)(chaseTension, 0.50f + 0.45f * dzFactor);
+        }
+        if (fearLevel >= 0.72f)
+        {
+            chaseTension = (std::max)(chaseTension, (fearLevel - 0.72f) / 0.28f * 0.70f);
+        }
+        AudioManager::Instance().SetHorrorTension(chaseTension);
         AudioManager::Instance().PlayHeartbeat(fearLevel);
+        UpdateEntityVfx(dt);
     }
     else if (gameState == HorrorGameState::Jumpscare)
     {
+        AudioManager::Instance().SetHorrorTension(0.0f);
         dazedZombie.SetLightsSuppressed(true);
         // ジャンプスケア演出の進行（這いずり怪異）
         UpdateJumpscareSequence(dt, player);
+        UpdateEntityVfx(dt);
     }
 }
 
-// 3D怪異モデルの描画（2体の怪異モデルを描画）
+// 3D怪異モデルの描画（2体の怪異モデル＋瘴気/火の粉VFXを描画）
 void HorrorManager::Draw3D()
 {
     // 1. 恐怖度100%時・ジャンプスケア用の這いずり怪異
@@ -1692,6 +1770,9 @@ void HorrorManager::Draw3D()
 
     // 3. マップランダム出現・錯乱〜負傷走行ゾンビ
     dazedZombie.Draw();
+
+    // 4. 怪異周辺の瘴気・消滅パーティクル
+    DrawEntityVfx();
 
     if (showDebugHUD && dazedZombie.IsVisible())
     {
@@ -1887,6 +1968,14 @@ void HorrorManager::DrawUI()
         snprintf(buf, sizeof(buf), "FEAR: %.1f%%  TENSION: %.1f%%  SPEED: %.1fm/s",
             fearLevel * 100.0f, currentCombinedTension * 100.0f, currentParams.runSpeed);
         HorrorUI::Instance().DrawJitterString(26, lineY, buf, GetColor(230, 160, 100), HorrorUI::Instance().GetFontSmall());
+        lineY += 18;
+
+        snprintf(buf, sizeof(buf), "HORROR EVENT:     %s (%.1fm) [K:Next]", lastEventName, lastEventDistance);
+        HorrorUI::Instance().DrawJitterString(26, lineY, buf, GetColor(180, 220, 235), HorrorUI::Instance().GetFontSmall());
+        lineY += 18;
+
+        snprintf(buf, sizeof(buf), "NEXT EVENT IN:    %.1fs", horrorEventTimer);
+        HorrorUI::Instance().DrawJitterString(26, lineY, buf, HorrorUI::COL_TEXT_DIM, HorrorUI::Instance().GetFontSmall());
     }
 }
 
@@ -2000,14 +2089,647 @@ void HorrorManager::DebugTriggerStreetLightEvent(NightEnvironment& nightEnv, con
     if (nearestId != -1)
     {
         nightEnv.TriggerStreetLightFlicker(nearestId);
+        HorrorUI::Instance().TriggerHorrorGlitchBurst(0.38f, 0.22f);
     }
 }
 
+void HorrorManager::ShuffleEventBag()
+{
+    for (int i = 0; i < HORROR_EVENT_COUNT; ++i)
+    {
+        eventBag[i] = i;
+    }
+    for (int i = HORROR_EVENT_COUNT - 1; i > 0; --i)
+    {
+        int j = std::rand() % (i + 1);
+        std::swap(eventBag[i], eventBag[j]);
+    }
+    if (eventBag[0] == static_cast<int>(lastTriggeredEvent) && HORROR_EVENT_COUNT > 1)
+    {
+        std::swap(eventBag[0], eventBag[HORROR_EVENT_COUNT - 1]);
+    }
+    eventBagPos = 0;
+}
 
+const char* HorrorManager::GetHorrorEventName(HorrorEventType type) const
+{
+    switch (type)
+    {
+    case HorrorEventType::WomanCrying:          return "WOMAN CRYING";
+    case HorrorEventType::BabyCrying:           return "BABY CRYING";
+    case HorrorEventType::PhantomFootsteps:     return "PHANTOM STEPS";
+    case HorrorEventType::DistantScream:        return "DISTANT SCREAM";
+    case HorrorEventType::CreepyLaugh:          return "CREEPY LAUGH";
+    case HorrorEventType::CloseWhisper:         return "CLOSE WHISPER";
+    case HorrorEventType::HeavyBreathing:       return "HEAVY BREATHING";
+    case HorrorEventType::HouseDoorKnock:       return "HOUSE DOOR KNOCK";
+    case HorrorEventType::MetalScrape:          return "METAL SCRAPE";
+    case HorrorEventType::VhsStaticAnomaly:     return "VHS STATIC EVP";
+    case HorrorEventType::StreetlightBlackout:  return "STREETLIGHT OUT";
+    case HorrorEventType::HeadlightMalfunction: return "HEADLIGHT GLITCH";
+    default:                                    return "UNKNOWN";
+    }
+}
+
+HorrorEventType HorrorManager::PickNextHorrorEvent(bool hasStreetLight, bool hasHeadlightActive)
+{
+    for (int attempt = 0; attempt < HORROR_EVENT_COUNT * 2; ++attempt)
+    {
+        if (eventBagPos >= HORROR_EVENT_COUNT)
+        {
+            ShuffleEventBag();
+        }
+        HorrorEventType candidate = static_cast<HorrorEventType>(eventBag[eventBagPos++]);
+        if (candidate == HorrorEventType::StreetlightBlackout && !hasStreetLight)
+        {
+            continue;
+        }
+        if (candidate == HorrorEventType::HeadlightMalfunction && !hasHeadlightActive)
+        {
+            continue;
+        }
+        return candidate;
+    }
+    return HorrorEventType::CloseWhisper;
+}
+
+void HorrorManager::TriggerHorrorEvent(
+    HorrorEventType type,
+    Player& player,
+    Bicycle& bicycle,
+    NightEnvironment& nightEnv,
+    Minimap* minimap)
+{
+    VECTOR pPos = player.GetPosition();
+    VECTOR fwd = player.GetForward();
+    fwd.y = 0.0f;
+    float flen = VSize(fwd);
+    fwd = (flen > 0.001f) ? VScale(fwd, 1.0f / flen) : VGet(0.0f, 0.0f, 1.0f);
+    VECTOR right = VGet(fwd.z, 0.0f, -fwd.x);
+
+    auto randUnit = []() -> float {
+        return static_cast<float>(std::rand() % 1000) / 1000.0f;
+    };
+    auto randSign = [&]() -> float {
+        return (std::rand() % 2 == 0) ? 1.0f : -1.0f;
+    };
+    auto clampMap = [](VECTOR v) -> VECTOR {
+        v.x = std::clamp(v.x, -33.5f, 33.5f);
+        v.z = std::clamp(v.z, -33.5f, 33.5f);
+        return v;
+    };
+    auto findHouse = [&](bool preferDark, float maxDist) -> const HouseData* {
+        const auto& houses = MapGetHouses();
+        const HouseData* best = nullptr;
+        float bestScore = 9999.0f;
+        for (const auto& h : houses)
+        {
+            float dx = h.position.x - pPos.x;
+            float dz = h.position.z - pPos.z;
+            float d = std::sqrt(dx * dx + dz * dz);
+            if (d > maxDist) continue;
+            float score = d - ((preferDark && !h.porchLight) ? 10.0f : 0.0f);
+            if (score < bestScore)
+            {
+                bestScore = score;
+                best = &h;
+            }
+        }
+        return best;
+    };
+    auto findLight = [&](float maxDist) -> const StreetLight* {
+        const StreetLight* best = nullptr;
+        float bestDist = maxDist;
+        for (const auto& l : nightEnv.GetStreetLights())
+        {
+            if (l.state == StreetLightState::Off) continue;
+            float dx = l.position.x - pPos.x;
+            float dz = l.position.z - pPos.z;
+            float d = std::sqrt(dx * dx + dz * dz);
+            if (d < bestDist)
+            {
+                bestDist = d;
+                best = &l;
+            }
+        }
+        return best;
+    };
+    auto emitMistCluster = [&](const VECTOR& origin, int mistCount, int crimsonCount, float spread) {
+        for (int i = 0; i < mistCount + crimsonCount; ++i)
+        {
+            bool isCrimson = (i >= mistCount);
+            float ox = (randUnit() * 2.0f - 1.0f) * spread;
+            float oz = (randUnit() * 2.0f - 1.0f) * spread;
+            float oy = isCrimson ? (0.4f + randUnit() * 1.1f) : (0.15f + randUnit() * 0.75f);
+            EmitEntityVfx(
+                VGet(origin.x + ox, oy, origin.z + oz),
+                VGet(ox * 0.18f, isCrimson ? (0.75f + randUnit() * 0.65f) : (0.35f + randUnit() * 0.35f), oz * 0.18f),
+                isCrimson ? 0.18f : (0.72f + randUnit() * 0.40f),
+                isCrimson ? (0.65f + randUnit() * 0.35f) : (1.15f + randUnit() * 0.55f),
+                isCrimson
+            );
+        }
+    };
+    auto addFairFear = [&](float delta) {
+        if (fearLevel < 0.94f)
+        {
+            fearLevel = (std::min)(0.94f, fearLevel + delta * fearRiseMultiplier);
+        }
+    };
+
+    VECTOR srcPos = pPos;
+    switch (type)
+    {
+    case HorrorEventType::WomanCrying:
+    {
+        float side = randSign() * (9.5f + randUnit() * 6.0f);
+        float frontBack = -2.5f + randUnit() * 6.5f;
+        srcPos = clampMap(VAdd(pPos, VAdd(VScale(right, side), VScale(fwd, frontBack))));
+        if (const HouseData* darkH = findHouse(true, 22.0f))
+        {
+            if (!darkH->porchLight)
+            {
+                srcPos = clampMap(VAdd(darkH->position, VGet(randSign() * 3.5f, 1.3f, randSign() * 3.5f)));
+            }
+        }
+        srcPos.y = 1.35f;
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::WomanCrying, pPos, fwd, srcPos, 30.0f, 0.95f);
+        emitMistCluster(srcPos, 6, 0, 1.1f);
+        HorrorUI::Instance().TriggerTextDistortion(24);
+        addFairFear(0.025f);
+        break;
+    }
+    case HorrorEventType::BabyCrying:
+    {
+        if (const HouseData* h = findHouse(true, 32.0f))
+        {
+            srcPos = VGet(h->position.x, 1.65f, h->position.z);
+            emitMistCluster(h->mailboxPosition, 5, 0, 0.8f);
+        }
+        else
+        {
+            srcPos = clampMap(VAdd(pPos, VAdd(VScale(right, randSign() * 12.0f), VScale(fwd, 6.0f))));
+            srcPos.y = 1.65f;
+            emitMistCluster(srcPos, 5, 0, 0.9f);
+        }
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::BabyCrying, pPos, fwd, srcPos, 32.0f, 0.95f);
+        HorrorUI::Instance().TriggerTextDistortion(22);
+        addFairFear(0.025f);
+        break;
+    }
+    case HorrorEventType::PhantomFootsteps:
+    {
+        srcPos = clampMap(VAdd(pPos, VAdd(VScale(fwd, -(3.0f + randUnit() * 1.8f)), VScale(right, randSign() * (0.7f + randUnit() * 0.9f)))));
+        srcPos.y = 0.0f;
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::PhantomFootsteps, pPos, fwd, srcPos, 18.0f, 1.00f);
+        activeEventFlinchTimer = (std::max)(activeEventFlinchTimer, 0.36f);
+        activeEventFocusBlur = (std::max)(activeEventFocusBlur, 0.42f);
+        HorrorUI::Instance().TriggerHorrorGlitchBurst(0.28f, 0.18f);
+        emitMistCluster(srcPos, 4, 0, 0.5f);
+        addFairFear(0.032f);
+        break;
+    }
+    case HorrorEventType::DistantScream:
+    {
+        bool foundNode = false;
+        if (!navNodes.empty())
+        {
+            for (int tries = 0; tries < 10; ++tries)
+            {
+                const auto& node = navNodes[std::rand() % navNodes.size()];
+                float dx = node.pos.x - pPos.x;
+                float dz = node.pos.z - pPos.z;
+                float d = std::sqrt(dx * dx + dz * dz);
+                if (d >= 15.0f && d <= 31.0f)
+                {
+                    srcPos = VGet(node.pos.x, 1.5f, node.pos.z);
+                    foundNode = true;
+                    break;
+                }
+            }
+        }
+        if (!foundNode)
+        {
+            srcPos = clampMap(VAdd(pPos, VAdd(VScale(fwd, 15.0f + randUnit() * 7.0f), VScale(right, randSign() * (8.0f + randUnit() * 7.0f)))));
+            srcPos.y = 1.5f;
+        }
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::DistantScream, pPos, fwd, srcPos, 38.0f, 1.00f);
+        emitMistCluster(srcPos, 5, 4, 1.2f);
+        for (const auto& l : nightEnv.GetStreetLights())
+        {
+            float dx = l.position.x - srcPos.x;
+            float dz = l.position.z - srcPos.z;
+            if (dx * dx + dz * dz < 14.0f * 14.0f)
+            {
+                nightEnv.TriggerStreetLightFlicker(l.id);
+                break;
+            }
+        }
+        activeEventDoubleVision = (std::max)(activeEventDoubleVision, 0.38f);
+        HorrorUI::Instance().TriggerHorrorGlitchBurst(0.42f, 0.25f);
+        addFairFear(0.035f);
+        break;
+    }
+    case HorrorEventType::CreepyLaugh:
+    {
+        srcPos = clampMap(VAdd(pPos, VAdd(VScale(right, randSign() * (7.5f + randUnit() * 5.0f)), VScale(fwd, 1.5f + randUnit() * 4.5f))));
+        srcPos.y = 1.45f;
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::CreepyLaugh, pPos, fwd, srcPos, 24.0f, 0.95f);
+        emitMistCluster(srcPos, 5, 2, 0.9f);
+        activeEventFocusBlur = (std::max)(activeEventFocusBlur, 0.34f);
+        HorrorUI::Instance().TriggerTextDistortion(26);
+        addFairFear(0.030f);
+        break;
+    }
+    case HorrorEventType::CloseWhisper:
+    {
+        srcPos = clampMap(VAdd(pPos, VAdd(VScale(right, randSign() * (1.8f + randUnit() * 0.8f)), VScale(fwd, -0.5f))));
+        srcPos.y = 1.55f;
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::CloseWhisper, pPos, fwd, srcPos, 14.0f, 1.00f);
+        activeEventFocusBlur = (std::max)(activeEventFocusBlur, 0.56f);
+        activeEventDoubleVision = (std::max)(activeEventDoubleVision, 0.32f);
+        HorrorUI::Instance().TriggerHorrorGlitchBurst(0.32f, 0.20f);
+        HorrorUI::Instance().TriggerTextDistortion(24);
+        addFairFear(0.036f);
+        break;
+    }
+    case HorrorEventType::HeavyBreathing:
+    {
+        srcPos = clampMap(VAdd(pPos, VAdd(VScale(fwd, -(1.5f + randUnit() * 0.8f)), VScale(right, randSign() * 0.45f))));
+        srcPos.y = 1.55f;
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::HeavyBreathing, pPos, fwd, srcPos, 12.0f, 1.00f);
+        activeEventFlinchTimer = (std::max)(activeEventFlinchTimer, 0.32f);
+        activeEventFocusBlur = (std::max)(activeEventFocusBlur, 0.46f);
+        if (minimap) minimap->TriggerMinimapGlitch(14);
+        addFairFear(0.032f);
+        break;
+    }
+    case HorrorEventType::HouseDoorKnock:
+    {
+        if (const HouseData* h = findHouse(false, 28.0f))
+        {
+            srcPos = VAdd(VScale(h->position, 0.55f), VScale(h->mailboxPosition, 0.45f));
+            srcPos.y = 1.30f;
+        }
+        else
+        {
+            srcPos = clampMap(VAdd(pPos, VAdd(VScale(right, randSign() * 9.0f), VScale(fwd, 5.0f))));
+            srcPos.y = 1.30f;
+        }
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::DoorKnock, pPos, fwd, srcPos, 28.0f, 1.00f);
+        emitMistCluster(srcPos, 5, 3, 0.7f);
+        activeEventFlinchTimer = (std::max)(activeEventFlinchTimer, 0.28f);
+        HorrorUI::Instance().TriggerHorrorGlitchBurst(0.35f, 0.18f);
+        addFairFear(0.030f);
+        break;
+    }
+    case HorrorEventType::MetalScrape:
+    {
+        srcPos = clampMap(VAdd(pPos, VAdd(VScale(right, randSign() * (6.5f + randUnit() * 5.0f)), VScale(fwd, 2.5f + randUnit() * 4.5f))));
+        srcPos.y = 1.05f;
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::MetalScrape, pPos, fwd, srcPos, 24.0f, 0.95f);
+        EmitEntityDissolveBurst(srcPos, true);
+        activeEventFocusBlur = (std::max)(activeEventFocusBlur, 0.32f);
+        HorrorUI::Instance().TriggerHorrorGlitchBurst(0.34f, 0.20f);
+        addFairFear(0.028f);
+        break;
+    }
+    case HorrorEventType::VhsStaticAnomaly:
+    {
+        srcPos = clampMap(VAdd(pPos, VAdd(VScale(fwd, 4.5f + randUnit() * 2.5f), VScale(right, randSign() * 2.5f))));
+        srcPos.y = 1.45f;
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::StaticVoice, pPos, fwd, srcPos, 20.0f, 1.00f);
+        HorrorUI::Instance().TriggerHorrorGlitchBurst(0.62f, 0.40f);
+        HorrorUI::Instance().TriggerTextDistortion(36);
+        activeEventDoubleVision = (std::max)(activeEventDoubleVision, 0.46f);
+        if (minimap)
+        {
+            minimap->TriggerMinimapGlitch(40);
+            activeEventMinimapInterference = 0.88f;
+            wasEventMinimapInterferenceActive = true;
+            minimap->SetMinimapInterference(activeEventMinimapInterference);
+        }
+        addFairFear(0.032f);
+        break;
+    }
+    case HorrorEventType::StreetlightBlackout:
+    {
+        if (const StreetLight* nearL = findLight(24.0f))
+        {
+            srcPos = VGet(nearL->position.x, 3.2f, nearL->position.z);
+            nightEnv.TriggerStreetLightFlicker(nearL->id);
+            nightEnv.TriggerTemporaryBlackout(160);
+        }
+        else
+        {
+            srcPos = clampMap(VAdd(pPos, VScale(fwd, 8.0f)));
+            srcPos.y = 3.2f;
+        }
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::StaticVoice, pPos, fwd, srcPos, 26.0f, 0.92f);
+        emitMistCluster(VGet(srcPos.x, 1.2f, srcPos.z), 5, 2, 0.85f);
+        HorrorUI::Instance().TriggerHorrorGlitchBurst(0.45f, 0.28f);
+        activeEventFocusBlur = (std::max)(activeEventFocusBlur, 0.30f);
+        addFairFear(0.035f);
+        break;
+    }
+    case HorrorEventType::HeadlightMalfunction:
+    {
+        srcPos = bicycle.GetHeadlightPosition();
+        if (VSize(VSub(srcPos, pPos)) > 16.0f)
+        {
+            srcPos = clampMap(VAdd(pPos, VScale(fwd, 1.8f)));
+            srcPos.y = 1.0f;
+        }
+        bicycle.TriggerHeadlightFlicker();
+        bicycle.TriggerHeadlightBlackout(0.85f);
+        AudioManager::Instance().PlaySpatialHorrorEvent(HorrorEventSfx::StaticVoice, pPos, fwd, srcPos, 18.0f, 0.90f);
+        HorrorUI::Instance().TriggerHorrorGlitchBurst(0.48f, 0.26f);
+        activeEventDoubleVision = (std::max)(activeEventDoubleVision, 0.36f);
+        if (minimap)
+        {
+            minimap->TriggerMinimapGlitch(24);
+            activeEventMinimapInterference = (std::max)(activeEventMinimapInterference, 0.55f);
+            wasEventMinimapInterferenceActive = true;
+            minimap->SetMinimapInterference(activeEventMinimapInterference);
+        }
+        addFairFear(0.030f);
+        break;
+    }
+    default:
+        break;
+    }
+
+    lastTriggeredEvent = type;
+    lastEventName = GetHorrorEventName(type);
+    float dx = srcPos.x - pPos.x;
+    float dz = srcPos.z - pPos.z;
+    lastEventDistance = std::sqrt(dx * dx + dz * dz);
+}
+
+void HorrorManager::UpdateHorrorEvents(
+    float dt,
+    Player& player,
+    Bicycle& bicycle,
+    NightEnvironment& nightEnv,
+    Minimap* minimap)
+{
+    // 1. イベント視覚効果・振動・ミニマップ障害の滑らかな減衰
+    if (activeEventFocusBlur > 0.0f)
+    {
+        activeEventFocusBlur = (std::max)(0.0f, activeEventFocusBlur - dt * 0.28f);
+    }
+    if (activeEventDoubleVision > 0.0f)
+    {
+        activeEventDoubleVision = (std::max)(0.0f, activeEventDoubleVision - dt * 0.26f);
+    }
+
+    if (activeEventFlinchTimer > 0.0f)
+    {
+        activeEventFlinchTimer = (std::max)(0.0f, activeEventFlinchTimer - dt);
+        wasEventFlinchActive = true;
+        float amp = (activeEventFlinchTimer / 0.36f) * 0.042f;
+        float phase = (0.36f - activeEventFlinchTimer) * 44.0f;
+        player.SetCameraShakeOffset(VGet(
+            std::sin(phase) * amp,
+            std::cos(phase * 1.37f) * amp * 0.65f,
+            0.0f
+        ));
+    }
+    else if (wasEventFlinchActive)
+    {
+        player.SetCameraShakeOffset(VGet(0.0f, 0.0f, 0.0f));
+        wasEventFlinchActive = false;
+    }
+
+    if (activeEventMinimapInterference > 0.0f)
+    {
+        activeEventMinimapInterference = (std::max)(0.0f, activeEventMinimapInterference - dt * 0.30f);
+        wasEventMinimapInterferenceActive = true;
+        if (minimap)
+        {
+            minimap->SetMinimapInterference(activeEventMinimapInterference);
+        }
+    }
+    else if (wasEventMinimapInterferenceActive)
+    {
+        if (minimap)
+        {
+            minimap->SetMinimapInterference(0.0f);
+        }
+        wasEventMinimapInterferenceActive = false;
+    }
+
+    // 2. 追跡中・襲撃中はランダム環境イベントを休止し追跡の緊張感を優先
+    if (chaseState == MonsterChaseState::Chasing || gameState != HorrorGameState::Normal)
+    {
+        if (horrorEventTimer < 3.5f) horrorEventTimer = 3.5f;
+        return;
+    }
+
+    // 3. 経過時間・深夜進行・恐怖度・日数に応じて次イベント発動間隔を調整
+    float rate = 1.0f + currentCombinedTension * 0.35f + (!inSafeLight ? 0.20f : 0.0f) + (currentDay - 1) * 0.06f;
+    horrorEventTimer -= dt * rate;
+    if (horrorEventTimer > 0.0f)
+    {
+        return;
+    }
+
+    // 4. 発動可否コンテキストを確認してシャッフルバッグから次イベントを発火
+    VECTOR pPos = player.GetPosition();
+    bool hasStreetLight = false;
+    if (fearLevel < 0.85f)
+    {
+        for (const auto& l : nightEnv.GetStreetLights())
+        {
+            if (l.state == StreetLightState::Off) continue;
+            float dx = l.position.x - pPos.x;
+            float dz = l.position.z - pPos.z;
+            if (dx * dx + dz * dz < 22.0f * 22.0f)
+            {
+                hasStreetLight = true;
+                break;
+            }
+        }
+    }
+    bool hasHeadlightActive = (bicycle.IsHeadlightOn() && !bicycle.IsBatteryEmpty() && fearLevel < 0.85f);
+
+    HorrorEventType nextType = PickNextHorrorEvent(hasStreetLight, hasHeadlightActive);
+    TriggerHorrorEvent(nextType, player, bicycle, nightEnv, minimap);
+
+    float baseMin = (std::max)(8.5f, 15.0f - currentDay * 0.8f - currentCombinedTension * 4.0f);
+    float randSpan = static_cast<float>(std::rand() % 100) / 100.0f * 6.5f;
+    horrorEventTimer = baseMin + randSpan;
+}
+
+void HorrorManager::DebugTriggerNextHorrorEvent(
+    Player& player,
+    Bicycle& bicycle,
+    NightEnvironment& nightEnv,
+    Minimap* minimap)
+{
+    if (gameState != HorrorGameState::Normal) return;
+    HorrorEventType nextType = static_cast<HorrorEventType>(debugEventCycleIndex % HORROR_EVENT_COUNT);
+    debugEventCycleIndex = (debugEventCycleIndex + 1) % HORROR_EVENT_COUNT;
+    TriggerHorrorEvent(nextType, player, bicycle, nightEnv, minimap);
+}
+
+void HorrorManager::ClearEntityVfx()
+{
+    for (int i = 0; i < MAX_ENTITY_VFX; ++i)
+    {
+        entityVfxPool[i].active = false;
+        entityVfxPool[i].age = 0.0f;
+        entityVfxPool[i].maxAge = 1.0f;
+        entityVfxPool[i].size = 0.3f;
+        entityVfxPool[i].isCrimson = false;
+        entityVfxPool[i].pos = VGet(0.0f, 0.0f, 0.0f);
+        entityVfxPool[i].vel = VGet(0.0f, 0.0f, 0.0f);
+    }
+    entityVfxEmitTimer = 0.0f;
+}
+
+void HorrorManager::EnsureEntityVfxTexture()
+{
+    if (entityWispTex != -1) return;
+    const int sz = 64;
+    int soft = MakeARGB8ColorSoftImage(sz, sz);
+    if (soft == -1) return;
+    for (int y = 0; y < sz; ++y)
+    {
+        float dy = (static_cast<float>(y) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+        for (int x = 0; x < sz; ++x)
+        {
+            float dx = (static_cast<float>(x) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+            float r = std::sqrt(dx * dx + dy * dy);
+            if (r >= 1.0f) { DrawPixelSoftImage(soft, x, y, 0, 0, 0, 0); continue; }
+            float fade = 1.0f - r;
+            float val = std::exp(-r * r * 4.5f) * fade * fade;
+            DrawPixelSoftImage(soft, x, y, 255, 255, 255, std::clamp(static_cast<int>(255.0f * val), 0, 255));
+        }
+    }
+    entityWispTex = CreateGraphFromSoftImage(soft);
+    DeleteSoftImage(soft);
+}
+
+void HorrorManager::EmitEntityVfx(const VECTOR& p, const VECTOR& v, float size, float maxAge, bool isCrimson)
+{
+    for (int i = 0; i < MAX_ENTITY_VFX; ++i)
+    {
+        if (!entityVfxPool[i].active)
+        {
+            entityVfxPool[i].pos = p;
+            entityVfxPool[i].vel = v;
+            entityVfxPool[i].size = size;
+            entityVfxPool[i].age = 0.0f;
+            entityVfxPool[i].maxAge = maxAge;
+            entityVfxPool[i].isCrimson = isCrimson;
+            entityVfxPool[i].active = true;
+            return;
+        }
+    }
+}
+
+void HorrorManager::EmitEntityDissolveBurst(const VECTOR& center, bool crimson)
+{
+    for (int i = 0; i < 24; ++i)
+    {
+        float ang = static_cast<float>(std::rand() % 628) / 100.0f;
+        float spd = 1.2f + static_cast<float>(std::rand() % 240) / 100.0f;
+        float vy = 0.4f + static_cast<float>(std::rand() % 180) / 100.0f;
+        EmitEntityVfx(
+            VGet(center.x + std::cos(ang) * 0.25f, center.y + 0.4f + static_cast<float>(std::rand() % 100) / 100.0f, center.z + std::sin(ang) * 0.25f),
+            VGet(std::cos(ang) * spd, vy, std::sin(ang) * spd),
+            crimson ? 0.16f : 0.72f,
+            crimson ? 0.65f : 1.0f,
+            crimson
+        );
+    }
+}
+
+void HorrorManager::UpdateEntityVfx(float dt)
+{
+    for (int i = 0; i < MAX_ENTITY_VFX; ++i)
+    {
+        EntityVfxParticle& pt = entityVfxPool[i];
+        if (!pt.active) continue;
+        pt.age += dt;
+        if (pt.age >= pt.maxAge) { pt.active = false; continue; }
+        pt.pos.x += pt.vel.x * dt;
+        pt.pos.y += pt.vel.y * dt;
+        pt.pos.z += pt.vel.z * dt;
+    }
+
+    entityVfxEmitTimer += dt;
+    if (entityVfxEmitTimer < 0.08f) return;
+    entityVfxEmitTimer = 0.0f;
+
+    if (chaseEntity.IsActive())
+    {
+        VECTOR cPos = chaseEntity.GetPosition();
+        bool chasing = (chaseState == MonsterChaseState::Chasing || gameState == HorrorGameState::Jumpscare);
+        float rx = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * 0.45f;
+        float rz = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * 0.45f;
+        EmitEntityVfx(
+            VGet(cPos.x + rx, cPos.y + (chasing ? 1.1f : 0.3f), cPos.z + rz),
+            VGet(rx * 0.35f, chasing ? 0.95f : 0.55f, rz * 0.35f),
+            chasing ? 0.15f : 0.78f,
+            chasing ? 0.65f : 1.15f,
+            chasing
+        );
+    }
+
+    if (crawlEntity.IsActive())
+    {
+        VECTOR crPos = crawlEntity.GetPosition();
+        float rx = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * 0.40f;
+        float rz = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * 0.40f;
+        EmitEntityVfx(
+            VGet(crPos.x + rx, crPos.y + 0.25f, crPos.z + rz),
+            VGet(rx * 0.25f, 0.45f, rz * 0.25f),
+            0.68f, 1.05f, (gameState == HorrorGameState::Jumpscare)
+        );
+    }
+}
+
+void HorrorManager::DrawEntityVfx()
+{
+    EnsureEntityVfxTexture();
+    if (entityWispTex == -1) return;
+
+    SetUseLighting(FALSE);
+    SetWriteZBuffer3D(FALSE);
+    SetTextureAddressMode(DX_TEXADDRESS_CLAMP);
+
+    for (int i = 0; i < MAX_ENTITY_VFX; ++i)
+    {
+        const EntityVfxParticle& pt = entityVfxPool[i];
+        if (!pt.active) continue;
+        float t = std::clamp(pt.age / pt.maxAge, 0.0f, 1.0f);
+        float fade = std::sin(t * 3.14159f);
+        if (pt.isCrimson)
+        {
+            SetDrawBright(240, 58, 48);
+            SetDrawBlendMode(DX_BLENDMODE_ADD, static_cast<int>(195.0f * fade));
+            DrawBillboard3D(pt.pos, 0.5f, 0.5f, pt.size * (1.0f - t * 0.35f), 0.0f, entityWispTex, TRUE);
+        }
+        else
+        {
+            SetDrawBright(95, 112, 132);
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, static_cast<int>(82.0f * fade));
+            DrawBillboard3D(pt.pos, 0.5f, 0.5f, pt.size * (0.85f + t * 0.70f), t * 1.2f, entityWispTex, TRUE);
+        }
+    }
+
+    SetDrawBright(255, 255, 255);
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    SetWriteZBuffer3D(TRUE);
+    SetUseLighting(TRUE);
+}
 
 // 終了処理
 void HorrorManager::Finalize()
 {
+    if (entityWispTex != -1) { DeleteGraph(entityWispTex); entityWispTex = -1; }
     crawlEntity.Finalize();
     chaseEntity.Finalize();
     dazedZombie.Finalize();

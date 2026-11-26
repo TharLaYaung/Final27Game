@@ -1,6 +1,7 @@
 #include "Newspaper.h"
 #include "Player.h"
 #include "HorrorUI.h"
+#include "AudioManager.h"
 #include <cmath>
 
 // コンストラクタ
@@ -231,6 +232,7 @@ void Newspaper::Update(
 
         // プレイヤーが新聞を持つ
         isHolding = true;
+        AudioManager::Instance().PlayNewspaperPickup();
 
         // 取得したので表示を消す
         canTake = false;

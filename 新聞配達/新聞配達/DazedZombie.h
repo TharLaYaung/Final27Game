@@ -99,4 +99,32 @@ private:
     // 出現候補地点リストおよび前回出現インデックス
     std::vector<VECTOR> spawnCandidates;
     int lastSpawnIndex;
+
+    // 怪異周辺VFX（瘴気ウィスプ・絶叫衝撃波・消失霧散パーティクル）
+    struct VfxParticle
+    {
+        VECTOR pos;
+        VECTOR vel;
+        float size;
+        float age;
+        float maxAge;
+        bool isEmber;
+        bool active;
+    };
+    static constexpr int MAX_VFX_PARTICLES = 56;
+    VfxParticle vfxParticles[MAX_VFX_PARTICLES];
+    float vfxEmitTimer;
+    bool shockwaveActive;
+    VECTOR shockwaveCenter;
+    float shockwaveAge;
+    int vfxWispTex;
+    int vfxRingTex;
+
+    void EnsureVfxTextures();
+    void FinalizeVfxTextures();
+    void ClearVfx();
+    void EmitVfxParticle(const VECTOR& p, const VECTOR& v, float size, float maxAge, bool isEmber);
+    void EmitScreamAndVanishBurst(bool isVanish);
+    void UpdateVfx(float dt);
+    void DrawVfx();
 };

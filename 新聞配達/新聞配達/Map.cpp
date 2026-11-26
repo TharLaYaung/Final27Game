@@ -5,6 +5,331 @@
 #include <vector>
 #include <algorithm>
 #include <cstdio>
+#include <cstdint>
+
+namespace
+{
+    struct MapVisualAssets
+    {
+        bool initialized = false;
+        int blockWallTex = -1;
+        int wallCapTex = -1;
+        int paverTex = -1;
+        int porchGlowTex = -1;
+
+        std::vector<VERTEX3D> paverTris;
+        std::vector<VERTEX3D> wallTris;
+        std::vector<VERTEX3D> wallCapTris;
+    };
+
+    MapVisualAssets g_mapVisuals;
+
+    uint32_t HashTile(int x, int y, uint32_t seed)
+    {
+        uint32_t h = static_cast<uint32_t>(x) * 374761393u + static_cast<uint32_t>(y) * 668265263u + seed * 1442695041u;
+        h = (h ^ (h >> 13)) * 1274126177u;
+        return h ^ (h >> 16);
+    }
+
+    int BuildCinderWallTexture()
+    {
+        const int size = 256;
+        int soft = MakeARGB8ColorSoftImage(size, size);
+        if (soft == -1) return -1;
+
+        for (int y = 0; y < size; ++y)
+        {
+            float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(size);
+            int row = static_cast<int>(floorf(v * 4.0f));
+            float rv = v * 4.0f - static_cast<float>(row);
+
+            for (int x = 0; x < size; ++x)
+            {
+                float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(size);
+                float uShift = u + ((row & 1) ? 0.25f : 0.0f);
+                int col = static_cast<int>(floorf(uShift * 2.0f));
+                float cu = uShift * 2.0f - static_cast<float>(col);
+
+                float n = static_cast<float>(HashTile(x, y, 71) & 0xFFu) / 255.0f;
+                float blockVar = (static_cast<float>(HashTile(col & 1, row & 3, 193) & 0xFFu) / 255.0f - 0.5f) * 14.0f;
+                float rainStreak = sinf(u * DX_PI_F * 10.0f + cosf(v * DX_PI_F * 4.0f)) * 5.0f;
+
+                // 目地溝（ブロック同士の凹みライン）
+                bool isMortar = (rv < 0.065f || rv > 0.935f || cu < 0.035f || cu > 0.965f);
+                float base = 112.0f + (n - 0.5f) * 24.0f + blockVar + rainStreak;
+                if (isMortar) base -= 32.0f;
+
+                int r = std::clamp(static_cast<int>(base * 0.96f), 25, 190);
+                int g = std::clamp(static_cast<int>(base * 1.00f), 25, 195);
+                int b = std::clamp(static_cast<int>(base * 1.05f), 28, 205);
+                DrawPixelSoftImage(soft, x, y, r, g, b, 255);
+            }
+        }
+
+        int tex = CreateGraphFromSoftImage(soft);
+        DeleteSoftImage(soft);
+        return tex;
+    }
+
+    int BuildWallCapTexture()
+    {
+        const int size = 128;
+        int soft = MakeARGB8ColorSoftImage(size, size);
+        if (soft == -1) return -1;
+
+        for (int y = 0; y < size; ++y)
+        {
+            float v = static_cast<float>(y) / static_cast<float>(size);
+            for (int x = 0; x < size; ++x)
+            {
+                float u = static_cast<float>(x) / static_cast<float>(size);
+                float n = static_cast<float>(HashTile(x, y, 283) & 0xFFu) / 255.0f;
+                float joint = (u < 0.03f || u > 0.97f || v < 0.03f || v > 0.97f) ? -18.0f : 0.0f;
+                int base = std::clamp(static_cast<int>(136.0f + (n - 0.5f) * 20.0f + joint), 40, 210);
+                DrawPixelSoftImage(soft, x, y, base - 4, base, base + 6, 255);
+            }
+        }
+
+        int tex = CreateGraphFromSoftImage(soft);
+        DeleteSoftImage(soft);
+        return tex;
+    }
+
+    int BuildPaverTexture()
+    {
+        const int size = 256;
+        int soft = MakeARGB8ColorSoftImage(size, size);
+        if (soft == -1) return -1;
+
+        for (int y = 0; y < size; ++y)
+        {
+            float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(size);
+            int row = static_cast<int>(floorf(v * 3.0f));
+            float rv = v * 3.0f - static_cast<float>(row);
+
+            for (int x = 0; x < size; ++x)
+            {
+                float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(size);
+                float uShift = u + ((row % 2) ? 0.167f : 0.0f);
+                int col = static_cast<int>(floorf(uShift * 3.0f));
+                float cu = uShift * 3.0f - static_cast<float>(col);
+
+                float grain = static_cast<float>(HashTile(x, y, 409) & 0xFFu) / 255.0f;
+                float tileTone = (static_cast<float>(HashTile(col % 3, row % 3, 521) & 0xFFu) / 255.0f - 0.5f) * 22.0f;
+                bool isJoint = (rv < 0.055f || rv > 0.945f || cu < 0.055f || cu > 0.945f);
+
+                float base = 122.0f + (grain - 0.5f) * 20.0f + tileTone;
+                if (isJoint) base = 56.0f + (grain - 0.5f) * 10.0f;
+
+                int r = std::clamp(static_cast<int>(base * 0.99f), 20, 210);
+                int g = std::clamp(static_cast<int>(base * 1.00f), 20, 210);
+                int b = std::clamp(static_cast<int>(base * 1.03f), 22, 215);
+                DrawPixelSoftImage(soft, x, y, r, g, b, 255);
+            }
+        }
+
+        int tex = CreateGraphFromSoftImage(soft);
+        DeleteSoftImage(soft);
+        return tex;
+    }
+
+    int BuildPorchGlowTexture()
+    {
+        const int size = 128;
+        int soft = MakeARGB8ColorSoftImage(size, size);
+        if (soft == -1) return -1;
+
+        for (int y = 0; y < size; ++y)
+        {
+            float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(size) * 2.0f - 1.0f;
+            for (int x = 0; x < size; ++x)
+            {
+                float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(size) * 2.0f - 1.0f;
+                float r = sqrtf(u * u + v * v);
+                if (r >= 1.0f)
+                {
+                    DrawPixelSoftImage(soft, x, y, 0, 0, 0, 0);
+                    continue;
+                }
+                float fade = 1.0f - r;
+                float glow = (expf(-r * r * 5.6f) * 0.72f + expf(-r * r * 20.0f) * 0.28f) * fade * fade;
+                int a = std::clamp(static_cast<int>(255.0f * glow), 0, 255);
+                DrawPixelSoftImage(soft, x, y, 255, 255, 255, a);
+            }
+        }
+
+        int tex = CreateGraphFromSoftImage(soft);
+        DeleteSoftImage(soft);
+        return tex;
+    }
+
+    void AppendFaceQuadStrip(
+        std::vector<VERTEX3D>& out,
+        const VECTOR& origin,
+        const VECTOR& uAxis, float uLen,
+        const VECTOR& vAxis, float vLen,
+        const VECTOR& norm,
+        float step, float uvScaleU, float uvScaleV,
+        COLOR_U8 difBot, COLOR_U8 difTop, COLOR_U8 spc)
+    {
+        int nu = (std::max)(1, static_cast<int>(ceilf(uLen / step)));
+        int nv = (std::max)(1, static_cast<int>(ceilf(vLen / step)));
+
+        auto lerpC = [](COLOR_U8 a, COLOR_U8 b, float t) -> COLOR_U8 {
+            return GetColorU8(
+                static_cast<BYTE>(a.r + (b.r - a.r) * t),
+                static_cast<BYTE>(a.g + (b.g - a.g) * t),
+                static_cast<BYTE>(a.b + (b.b - a.b) * t),
+                a.a
+            );
+        };
+
+        auto makeV = [&](float uDist, float vDist, float tv) {
+            VECTOR p = VAdd(origin, VAdd(VScale(uAxis, uDist), VScale(vAxis, vDist)));
+            VERTEX3D vert{};
+            vert.pos = p;
+            vert.norm = norm;
+            vert.dif = lerpC(difBot, difTop, tv);
+            vert.spc = spc;
+            vert.u = uDist * uvScaleU;
+            vert.v = vDist * uvScaleV;
+            vert.su = vert.u;
+            vert.sv = vert.v;
+            return vert;
+        };
+
+        for (int iv = 0; iv < nv; ++iv)
+        {
+            float tv0 = static_cast<float>(iv) / static_cast<float>(nv);
+            float tv1 = static_cast<float>(iv + 1) / static_cast<float>(nv);
+            float vd0 = vLen * tv0;
+            float vd1 = vLen * tv1;
+
+            for (int iu = 0; iu < nu; ++iu)
+            {
+                float ud0 = uLen * (static_cast<float>(iu) / static_cast<float>(nu));
+                float ud1 = uLen * (static_cast<float>(iu + 1) / static_cast<float>(nu));
+
+                VERTEX3D v00 = makeV(ud0, vd0, tv0);
+                VERTEX3D v10 = makeV(ud1, vd0, tv0);
+                VERTEX3D v11 = makeV(ud1, vd1, tv1);
+                VERTEX3D v01 = makeV(ud0, vd1, tv1);
+
+                // Cross(uAxis, vAxis) == norm なので CW は (v00, v10, v11), (v00, v11, v01)
+                out.push_back(v00); out.push_back(v10); out.push_back(v11);
+                out.push_back(v00); out.push_back(v11); out.push_back(v01);
+            }
+        }
+    }
+
+    void AppendTexturedBlock(
+        std::vector<VERTEX3D>& out,
+        float cx, float cy, float cz,
+        float hw, float hh, float hd,
+        float step, float uvScaleU, float uvScaleV,
+        COLOR_U8 difBot, COLOR_U8 difTop, COLOR_U8 capDif, COLOR_U8 spc)
+    {
+        float x1 = cx - hw, x2 = cx + hw;
+        float y1 = cy - hh, y2 = cy + hh;
+        float z1 = cz - hd, z2 = cz + hd;
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float dz = z2 - z1;
+
+        // Z- 面: u=(-1,0,0), v=(0,1,0)
+        AppendFaceQuadStrip(out, VGet(x2, y1, z1), VGet(-1, 0, 0), dx, VGet(0, 1, 0), dy, VGet(0, 0, -1), step, uvScaleU, uvScaleV, difBot, difTop, spc);
+        // Z+ 面: u=(1,0,0), v=(0,1,0)
+        AppendFaceQuadStrip(out, VGet(x1, y1, z2), VGet(1, 0, 0), dx, VGet(0, 1, 0), dy, VGet(0, 0, 1), step, uvScaleU, uvScaleV, difBot, difTop, spc);
+        // X- 面: u=(0,0,1), v=(0,1,0)
+        AppendFaceQuadStrip(out, VGet(x1, y1, z1), VGet(0, 0, 1), dz, VGet(0, 1, 0), dy, VGet(-1, 0, 0), step, uvScaleU, uvScaleV, difBot, difTop, spc);
+        // X+ 面: u=(0,0,-1), v=(0,1,0)
+        AppendFaceQuadStrip(out, VGet(x2, y1, z2), VGet(0, 0, -1), dz, VGet(0, 1, 0), dy, VGet(1, 0, 0), step, uvScaleU, uvScaleV, difBot, difTop, spc);
+        // Y+ 天面: u=(1,0,0), v=(0,0,-1)
+        AppendFaceQuadStrip(out, VGet(x1, y2, z2), VGet(1, 0, 0), dx, VGet(0, 0, -1), dz, VGet(0, 1, 0), step, uvScaleU, uvScaleU, capDif, capDif, spc);
+    }
+
+    void AppendConcreteFenceWithCap(float cx, float cy, float cz, float hw, float hh, float hd)
+    {
+        COLOR_U8 wallBot = GetColorU8(64, 70, 78, 255);
+        COLOR_U8 wallTop = GetColorU8(102, 110, 120, 255);
+        COLOR_U8 wallSpc = GetColorU8(28, 32, 36, 255);
+        AppendTexturedBlock(g_mapVisuals.wallTris, cx, cy, cz, hw, hh, hd, 1.8f, 0.55f, 0.85f, wallBot, wallTop, wallTop, wallSpc);
+
+        // 笠木コンクリートキャップ（塀頂上にわずかな張り出し）
+        COLOR_U8 capBot = GetColorU8(95, 102, 112, 255);
+        COLOR_U8 capTop = GetColorU8(122, 130, 140, 255);
+        AppendTexturedBlock(g_mapVisuals.wallCapTris, cx, cy + hh + 0.03f, cz, hw + 0.035f, 0.03f, hd + 0.035f, 2.0f, 0.6f, 0.6f, capBot, capTop, capTop, wallSpc);
+    }
+
+    void EnsureMapVisualAssets()
+    {
+        if (g_mapVisuals.initialized) return;
+
+        g_mapVisuals.blockWallTex = BuildCinderWallTexture();
+        g_mapVisuals.wallCapTex = BuildWallCapTexture();
+        g_mapVisuals.paverTex = BuildPaverTexture();
+        g_mapVisuals.porchGlowTex = BuildPorchGlowTexture();
+
+        // 住宅エントランス敷石
+        COLOR_U8 paveSide = GetColorU8(95, 102, 110, 255);
+        COLOR_U8 paveTop = GetColorU8(126, 134, 144, 255);
+        COLOR_U8 paveSpc = GetColorU8(42, 46, 52, 255);
+        struct BlockSpec { float cx, cy, cz, hw, hh, hd; };
+        const BlockSpec pavers[] = {
+            { -30.8f, 0.02f,   1.5f, 3.2f, 0.02f, 1.4f },
+            { -11.0f, 0.02f,  21.6f, 1.4f, 0.02f, 3.2f },
+            {   2.4f, 0.02f,  42.1f, 1.4f, 0.02f, 2.8f },
+            {  13.5f, 0.02f,  21.6f, 1.4f, 0.02f, 3.2f },
+            {   1.8f, 0.02f,  -4.5f, 1.4f, 0.02f, 2.4f },
+            {  30.8f, 0.02f,   1.5f, 3.2f, 0.02f, 1.4f },
+            {  30.8f, 0.02f, -23.5f, 3.2f, 0.02f, 1.4f },
+            { -30.8f, 0.02f, -23.5f, 3.2f, 0.02f, 1.4f }
+        };
+        for (const auto& p : pavers)
+        {
+            AppendTexturedBlock(g_mapVisuals.paverTris, p.cx, p.cy, p.cz, p.hw, p.hh, p.hd, 1.4f, 0.55f, 0.55f, paveSide, paveTop, paveTop, paveSpc);
+        }
+
+        // 敷地内ブロック塀＆外周境界壁
+        const BlockSpec walls[] = {
+            { -35.0f, 0.6f, -12.5f,  7.0f, 0.6f,  0.25f },
+            {  35.0f, 0.6f, -12.5f,  7.0f, 0.6f,  0.25f },
+            {  -4.2f, 0.6f,  28.0f,  0.25f, 0.6f, 11.5f },
+            {   4.2f, 0.6f,  28.0f,  0.25f, 0.6f, 11.5f },
+            {   0.0f, 0.6f,   6.0f,  8.5f, 0.6f,  0.25f },
+            { -13.0f, 0.6f,  34.0f,  8.0f, 0.6f,  0.25f },
+            {  15.0f, 0.6f,  34.0f,  8.0f, 0.6f,  0.25f },
+            {   0.0f, 1.2f, -36.0f, 43.0f, 1.2f,  0.5f },
+            {   0.0f, 1.2f,  51.0f, 43.0f, 1.2f,  0.5f },
+            { -42.5f, 1.2f,   8.0f,  0.5f, 1.2f, 43.0f },
+            {  42.5f, 1.2f,   8.0f,  0.5f, 1.2f, 43.0f }
+        };
+        for (const auto& w : walls)
+        {
+            AppendConcreteFenceWithCap(w.cx, w.cy, w.cz, w.hw, w.hh, w.hd);
+        }
+
+        g_mapVisuals.initialized = true;
+    }
+
+    void FinalizeMapVisualAssets()
+    {
+        int* handles[] = {
+            &g_mapVisuals.blockWallTex,
+            &g_mapVisuals.wallCapTex,
+            &g_mapVisuals.paverTex,
+            &g_mapVisuals.porchGlowTex
+        };
+        for (int* h : handles)
+        {
+            if (*h != -1) { DeleteGraph(*h); *h = -1; }
+        }
+        g_mapVisuals.paverTris.clear();
+        g_mapVisuals.wallTris.clear();
+        g_mapVisuals.wallCapTris.clear();
+        g_mapVisuals.initialized = false;
+    }
+}
 
 // 基本住宅モデルハンドル（4種類）
 static int g_houseBaseModels[4] = { -1, -1, -1, -1 };
@@ -20,30 +345,6 @@ static int g_houseTexture = -1;
 
 // 8棟の住宅定義データ
 static std::vector<HouseData> g_houses;
-
-// 3D直方体ブロック（塀・壁）を描画するヘルパー関数
-static void DrawBlockWall(float cx, float cy, float cz, float hw, float hh, float hd, unsigned int faceCol, unsigned int capCol)
-{
-    float x1 = cx - hw, x2 = cx + hw;
-    float y1 = cy - hh, y2 = cy + hh;
-    float z1 = cz - hd, z2 = cz + hd;
-
-    // 前面 (Z-)
-    DrawTriangle3D(VGet(x1, y1, z1), VGet(x2, y1, z1), VGet(x1, y2, z1), faceCol, TRUE);
-    DrawTriangle3D(VGet(x2, y1, z1), VGet(x2, y2, z1), VGet(x1, y2, z1), faceCol, TRUE);
-    // 背面 (Z+)
-    DrawTriangle3D(VGet(x1, y1, z2), VGet(x1, y2, z2), VGet(x2, y1, z2), faceCol, TRUE);
-    DrawTriangle3D(VGet(x2, y1, z2), VGet(x1, y2, z2), VGet(x2, y2, z2), faceCol, TRUE);
-    // 左面 (X-)
-    DrawTriangle3D(VGet(x1, y1, z1), VGet(x1, y2, z1), VGet(x1, y1, z2), faceCol, TRUE);
-    DrawTriangle3D(VGet(x1, y2, z1), VGet(x1, y2, z2), VGet(x1, y1, z2), faceCol, TRUE);
-    // 右面 (X+)
-    DrawTriangle3D(VGet(x2, y1, z1), VGet(x2, y1, z2), VGet(x2, y2, z1), faceCol, TRUE);
-    DrawTriangle3D(VGet(x2, y2, z1), VGet(x2, y1, z2), VGet(x2, y2, z2), faceCol, TRUE);
-    // 天面 (Y+)
-    DrawTriangle3D(VGet(x1, y2, z1), VGet(x2, y2, z1), VGet(x1, y2, z2), capCol, TRUE);
-    DrawTriangle3D(VGet(x2, y2, z1), VGet(x2, y2, z2), VGet(x1, y2, z2), capCol, TRUE);
-}
 
 // 静的コリジョン構築関数（住宅・塀・外周境界・ポスト）
 static void BuildMapCollision()
@@ -462,51 +763,32 @@ void MapDraw()
         }
     }
 
-    // 住宅ごとの敷石エントランス舗装（玄関ポーチからポスト・道路縁石までを自然に接続）
-    unsigned int paveFaceCol = GetColor(36, 40, 42);
-    unsigned int paveTopCol = GetColor(48, 52, 54);
+    // 住宅ごとの敷石エントランス舗装＆敷地ブロック塀＆外周境界壁（細分化＋テクスチャ＋法線付き描画）
+    EnsureMapVisualAssets();
 
-    // 住宅0エントランス敷石（西通り）
-    DrawBlockWall(-30.8f, 0.02f, 1.5f, 3.2f, 0.02f, 1.4f, paveFaceCol, paveTopCol);
-    // 住宅1エントランス敷石（北横通り西）
-    DrawBlockWall(-11.0f, 0.02f, 21.6f, 1.4f, 0.02f, 3.2f, paveFaceCol, paveTopCol);
-    // 住宅2エントランス敷石（北路地行き止まり）
-    DrawBlockWall(2.4f, 0.02f, 42.1f, 1.4f, 0.02f, 2.8f, paveFaceCol, paveTopCol);
-    // 住宅3エントランス敷石（北横通り東）
-    DrawBlockWall(13.5f, 0.02f, 21.6f, 1.4f, 0.02f, 3.2f, paveFaceCol, paveTopCol);
-    // 住宅4エントランス敷石（中央横通り）
-    DrawBlockWall(1.8f, 0.02f, -4.5f, 1.4f, 0.02f, 2.4f, paveFaceCol, paveTopCol);
-    // 住宅5エントランス敷石（東通り）
-    DrawBlockWall(30.8f, 0.02f, 1.5f, 3.2f, 0.02f, 1.4f, paveFaceCol, paveTopCol);
-    // 住宅6エントランス敷石（東通り南）
-    DrawBlockWall(30.8f, 0.02f, -23.5f, 3.2f, 0.02f, 1.4f, paveFaceCol, paveTopCol);
-    // 住宅7エントランス敷石（西通り南）
-    DrawBlockWall(-30.8f, 0.02f, -23.5f, 3.2f, 0.02f, 1.4f, paveFaceCol, paveTopCol);
+    int prevDrawMode = GetDrawMode();
+    SetUseLighting(TRUE);
+    SetUseZBuffer3D(TRUE);
+    SetWriteZBuffer3D(TRUE);
+    SetDrawMode(DX_DRAWMODE_BILINEAR);
+    SetTextureAddressMode(DX_TEXADDRESS_WRAP);
 
-    // 敷地ブロック塀（ブロック塀・フェンス）の3D描画
-    unsigned int wallFaceCol = GetColor(26, 30, 32);
-    unsigned int wallCapCol = GetColor(42, 48, 50);
+    if (!g_mapVisuals.paverTris.empty())
+    {
+        DrawPolygon3D(g_mapVisuals.paverTris.data(), static_cast<int>(g_mapVisuals.paverTris.size()) / 3, g_mapVisuals.paverTex, FALSE);
+    }
+    if (!g_mapVisuals.wallTris.empty())
+    {
+        DrawPolygon3D(g_mapVisuals.wallTris.data(), static_cast<int>(g_mapVisuals.wallTris.size()) / 3, g_mapVisuals.blockWallTex, FALSE);
+    }
+    if (!g_mapVisuals.wallCapTris.empty())
+    {
+        DrawPolygon3D(g_mapVisuals.wallCapTris.data(), static_cast<int>(g_mapVisuals.wallCapTris.size()) / 3, g_mapVisuals.wallCapTex, FALSE);
+    }
 
-    // 西側敷地境界塀（住宅7と住宅0の間）
-    DrawBlockWall(-35.0f, 0.6f, -12.5f, 7.0f, 0.6f, 0.25f, wallFaceCol, wallCapCol);
-    // 東側敷地境界塀（住宅6と住宅5の間）
-    DrawBlockWall(35.0f, 0.6f, -12.5f, 7.0f, 0.6f, 0.25f, wallFaceCol, wallCapCol);
-    // 北路地両脇のブロック塀
-    DrawBlockWall(-4.2f, 0.6f, 28.0f, 0.25f, 0.6f, 11.5f, wallFaceCol, wallCapCol);
-    DrawBlockWall(4.2f, 0.6f, 28.0f, 0.25f, 0.6f, 11.5f, wallFaceCol, wallCapCol);
-    // 住宅4裏手境界塀
-    DrawBlockWall(0.0f, 0.6f, 6.0f, 8.5f, 0.6f, 0.25f, wallFaceCol, wallCapCol);
-    // 北側奥壁
-    DrawBlockWall(-13.0f, 0.6f, 34.0f, 8.0f, 0.6f, 0.25f, wallFaceCol, wallCapCol);
-    DrawBlockWall(15.0f, 0.6f, 34.0f, 8.0f, 0.6f, 0.25f, wallFaceCol, wallCapCol);
+    SetDrawMode(prevDrawMode);
 
-    // 外周境界壁
-    DrawBlockWall(0.0f, 1.2f, -36.0f, 43.0f, 1.2f, 0.5f, wallFaceCol, wallCapCol);
-    DrawBlockWall(0.0f, 1.2f, 51.0f, 43.0f, 1.2f, 0.5f, wallFaceCol, wallCapCol);
-    DrawBlockWall(-42.5f, 1.2f, 8.0f, 0.5f, 1.2f, 43.0f, wallFaceCol, wallCapCol);
-    DrawBlockWall(42.5f, 1.2f, 8.0f, 0.5f, 1.2f, 43.0f, wallFaceCol, wallCapCol);
-
-    // 玄関灯（点灯設定されている住宅のポーチランプ球体と光彩描画）
+    // 玄関灯（点灯設定されている住宅のポーチランプ笠・発光電球・柔らかなグロー描画）
     for (size_t i = 0; i < g_houses.size(); i++)
     {
         if (g_houses[i].porchLight)
@@ -519,17 +801,31 @@ void MapDraw()
             lampPos = VAdd(lampPos, VScale(right, 1.2f));
             lampPos.y = 2.4f;
 
+            // ダークアイアンの小型ランタン笠
+            DrawCone3D(
+                VGet(lampPos.x, lampPos.y + 0.14f, lampPos.z),
+                VGet(lampPos.x, lampPos.y + 0.02f, lampPos.z),
+                0.20f, 10,
+                GetColor(22, 24, 28), GetColor(14, 16, 18), TRUE
+            );
+
             SetUseLighting(FALSE);
 
-            // ランプ本体球体
-            unsigned int bulbColor = GetColor(255, 230, 160);
-            DrawSphere3D(lampPos, 0.16f, 8, bulbColor, bulbColor, TRUE);
+            // 温かな乳白発光電球
+            unsigned int bulbColor = GetColor(255, 228, 158);
+            DrawSphere3D(VGet(lampPos.x, lampPos.y - 0.02f, lampPos.z), 0.10f, 10, bulbColor, bulbColor, TRUE);
 
-            // やわらかな光彩グロー
-            SetDrawBlendMode(DX_BLENDMODE_ADD, 90);
-            unsigned int glowColor = GetColor(180, 140, 50);
-            DrawSphere3D(lampPos, 0.38f, 8, glowColor, glowColor, TRUE);
-            SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+            // 滑らかな加算グロービルボード
+            if (g_mapVisuals.porchGlowTex != -1)
+            {
+                SetWriteZBuffer3D(FALSE);
+                SetDrawBright(255, 200, 110);
+                SetDrawBlendMode(DX_BLENDMODE_ADD, 135);
+                DrawBillboard3D(lampPos, 0.5f, 0.5f, 1.05f, 0.0f, g_mapVisuals.porchGlowTex, TRUE);
+                SetDrawBright(255, 255, 255);
+                SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+                SetWriteZBuffer3D(TRUE);
+            }
 
             SetUseLighting(TRUE);
         }
@@ -634,12 +930,13 @@ void MapFinalize()
         }
     }
 
-    // 住宅テクスチャの解放
+    // 住宅テクスチャおよびブロック塀等リソースの解放
     if (g_houseTexture != -1)
     {
         DeleteGraph(g_houseTexture);
         g_houseTexture = -1;
     }
+    FinalizeMapVisualAssets();
 
     g_houses.clear();
     WorldCollision::Instance().Clear();

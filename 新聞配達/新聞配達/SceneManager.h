@@ -1,6 +1,6 @@
-#include "AudioManager.h"
-#pragma once
+﻿#pragma once
 
+#include "AudioManager.h"
 #include "DxLib.h"
 
 // 前方宣言
@@ -18,7 +18,9 @@ class HorrorManager;
 // シーン種別列挙型
 enum class SceneType
 {
-    Title,      // タイトルシーン（深夜の静寂・不気味なVHS演出・ホラーメニュー）
+    Title,      // タイトルシーン（深夜3D背景・VHS演出・ロゴ＋待機プロンプト画面）
+    Menu,       // メニュー選択シーン（従来のメインメニュー・音量設定・操作説明）
+    Loading,    // ローディングシーン（1998 VHSテープ読込・進行ゲージ・巡回メモ）
     Game,       // ゲーム本編シーン（配達・自転車・怪異・恐怖システム）
     Clear,      // 配達クリアシーン（全配達達成・朝方の生還レポート）
     GameOver    // ゲームオーバーシーン（暗闇に呑まれた配達員・リトライ選択）
@@ -92,6 +94,10 @@ public:
 
     // シーン遷移の開始
     void StartTransition(SceneType target, float duration = 0.8f);
+
+    // ローディングシーンを経由してゲーム本編へ遷移
+    void StartLoadingToGame(int day, bool isRetry = false, float duration = 2.1f);
+    float GetLoadingProgress() const { return loadingProgress; }
 
     // ゲーム状態の全リセット（初回開始・リトライ・タイトル復帰用）
     void ResetGame(
@@ -200,6 +206,19 @@ private:
     float clearTimer;
     float gameOverTimer;
 
+    // ローディングシーン進行状態
+    float loadingTimer;
+    float loadingDuration;
+    float loadingProgress;
+    int pendingLoadingDay;
+    bool loadingAppliedReset;
+    bool loadingIsRetry;
+    bool loadingAnomalyAudioTriggered;
+    bool loadingCompleteAudioTriggered;
+    int lastMenuHoverSelection;
+    int lastPauseHoverSelection;
+    float titleLampAudioCooldown;
+
     // マウス入力情報
     int mouseX;
     int mouseY;
@@ -214,6 +233,8 @@ private:
     int fontMenu;
     int fontReportTitle;
     int fontReportBody;
+    int fontMinchoSub;
+    int fontCamcorder;
 
     // キー入力エッジトリガー
     bool oldEnterKey;
@@ -242,11 +263,28 @@ private:
     // トランジション演出描画
     void DrawTransitionOverlay();
 
-    // タイトルシーン描画（メイン・設定・キーガイド）
-    void DrawTitleScene(const NightEnvironment& nightEnv);
+    // タイトル・メニュー・ローディングシーン描画・カメラ制御
+    void UpdateTitleCamera(float dt, Bicycle& bicycle, NightEnvironment& nightEnv, WeatherManager& weatherManager, Player& player);
+    void UpdateMenuCamera(float dt, Bicycle& bicycle, NightEnvironment& nightEnv, WeatherManager& weatherManager, Player& player);
+    void DrawTitleLogoHero(int cx, int titleY, float jitterSine);
+    void DrawTitleSplashScreen(const NightEnvironment& nightEnv);
+    void DrawMenuScene(const NightEnvironment& nightEnv);
+    void DrawLoadingScene();
     void DrawTitleMainMenu(int cx, float jitterSine);
     void DrawTitleSettings(int cx);
     void DrawTitleKeyGuide(int cx);
+
+    // 高精細光学ヴィネット・VHSグレイン・霧エフェクトテクスチャ管理
+    int texRadialVignette;
+    int texFilmGrain;
+    int texFogLayer;
+    int texScreenSnap;
+    void CreateTitleAndLoadingTextures();
+    void ReleaseTitleAndLoadingTextures();
+    void DrawOpticalVignette() const;
+    void DrawAnalogFilmGrain(float timerSeed, int addAlpha = 18) const;
+    void DrawDriftingFogOverlay(float timerSeed, int alpha = 28) const;
+    void ApplyVhsTrackingEffect(float timerSeed, float anomalyStrength) const;
 
     // 共通設定パネル（タイトル・ポーズ共用）
     void DrawSettingsPanel(int cx, int setY, const char* headerTitle, bool inPause);
@@ -278,4 +316,7 @@ private:
 
     // CRT・VHSノイズ演出描画
     void DrawScanlinesAndNoise(int alpha = 20);
+
+    // 1998 VHSカムコーダー上部オーバーレイ＆ビューファインダー枠描画
+    void DrawVhsCamcorderHeader(const char* tapeText, const char* dateText, bool recLit, float animSeed) const;
 };

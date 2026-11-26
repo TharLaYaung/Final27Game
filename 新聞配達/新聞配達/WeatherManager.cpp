@@ -3,9 +3,132 @@
 #include "Bicycle.h"
 #include "NightEnvironment.h"
 #include "HorrorUI.h"
+#include "AudioManager.h"
+#include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+
+namespace
+{
+    uint32_t HashWeather2D(int x, int y, uint32_t seed)
+    {
+        uint32_t h = static_cast<uint32_t>(x) * 374761393u + static_cast<uint32_t>(y) * 668265263u + seed * 1442695041u;
+        h = (h ^ (h >> 13)) * 1274126177u;
+        return h ^ (h >> 16);
+    }
+
+    float SmoothWeatherNoise(float x, float y, int period, uint32_t seed)
+    {
+        float px = x * static_cast<float>(period);
+        float py = y * static_cast<float>(period);
+        int x0 = static_cast<int>(floorf(px));
+        int y0 = static_cast<int>(floorf(py));
+        float fx = px - static_cast<float>(x0);
+        float fy = py - static_cast<float>(y0);
+        fx = fx * fx * (3.0f - 2.0f * fx);
+        fy = fy * fy * (3.0f - 2.0f * fy);
+        auto w = [period](int v) { int r = v % period; return (r < 0) ? r + period : r; };
+        auto f = [](uint32_t h) { return static_cast<float>(h & 0xFFFFu) / 65535.0f; };
+        float n00 = f(HashWeather2D(w(x0), w(y0), seed));
+        float n10 = f(HashWeather2D(w(x0 + 1), w(y0), seed));
+        float n01 = f(HashWeather2D(w(x0), w(y0 + 1), seed));
+        float n11 = f(HashWeather2D(w(x0 + 1), w(y0 + 1), seed));
+        float a = n00 + (n10 - n00) * fx;
+        float b = n01 + (n11 - n01) * fx;
+        return a + (b - a) * fy;
+    }
+
+    int BuildMistCloudTexture()
+    {
+        const int sz = 128;
+        int soft = MakeARGB8ColorSoftImage(sz, sz);
+        if (soft == -1) return -1;
+        for (int y = 0; y < sz; ++y)
+        {
+            float v = (static_cast<float>(y) + 0.5f) / static_cast<float>(sz);
+            float dy = v * 2.0f - 1.0f;
+            for (int x = 0; x < sz; ++x)
+            {
+                float u = (static_cast<float>(x) + 0.5f) / static_cast<float>(sz);
+                float dx = u * 2.0f - 1.0f;
+                float r = sqrtf(dx * dx + dy * dy);
+                if (r >= 0.96f)
+                {
+                    DrawPixelSoftImage(soft, x, y, 0, 0, 0, 0);
+                    continue;
+                }
+                float fbm = SmoothWeatherNoise(u, v, 3, 71) * 0.55f
+                          + SmoothWeatherNoise(u, v, 6, 173) * 0.30f
+                          + SmoothWeatherNoise(u, v, 12, 311) * 0.15f;
+                float edge = 1.0f - std::clamp(r / 0.96f, 0.0f, 1.0f);
+                float smooth = edge * edge * (3.0f - 2.0f * edge);
+                float alpha = std::clamp(smooth * (0.45f + 0.65f * fbm), 0.0f, 1.0f);
+                DrawPixelSoftImage(soft, x, y, 255, 255, 255, static_cast<int>(255.0f * alpha));
+            }
+        }
+        int g = CreateGraphFromSoftImage(soft);
+        DeleteSoftImage(soft);
+        return g;
+    }
+
+    int BuildSnowflakeTexture()
+    {
+        const int sz = 64;
+        int soft = MakeARGB8ColorSoftImage(sz, sz);
+        if (soft == -1) return -1;
+        for (int y = 0; y < sz; ++y)
+        {
+            float dy = (static_cast<float>(y) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+            for (int x = 0; x < sz; ++x)
+            {
+                float dx = (static_cast<float>(x) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+                float r = sqrtf(dx * dx + dy * dy);
+                if (r >= 1.0f)
+                {
+                    DrawPixelSoftImage(soft, x, y, 0, 0, 0, 0);
+                    continue;
+                }
+                float ang = atan2f(dy, dx);
+                float spoke = 0.80f + 0.20f * powf(fabsf(cosf(ang * 3.0f)), 4.0f);
+                float g = expf(-r * r * 6.5f) * (1.0f - r) * spoke;
+                DrawPixelSoftImage(soft, x, y, 255, 255, 255, std::clamp(static_cast<int>(255.0f * g), 0, 255));
+            }
+        }
+        int tex = CreateGraphFromSoftImage(soft);
+        DeleteSoftImage(soft);
+        return tex;
+    }
+
+    int BuildSplashRingTexture()
+    {
+        const int sz = 64;
+        int soft = MakeARGB8ColorSoftImage(sz, sz);
+        if (soft == -1) return -1;
+        for (int y = 0; y < sz; ++y)
+        {
+            float dy = (static_cast<float>(y) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+            for (int x = 0; x < sz; ++x)
+            {
+                float dx = (static_cast<float>(x) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+                float r = sqrtf(dx * dx + dy * dy);
+                if (r >= 1.0f)
+                {
+                    DrawPixelSoftImage(soft, x, y, 0, 0, 0, 0);
+                    continue;
+                }
+                float ring = expf(-powf((r - 0.78f) / 0.08f, 2.0f)) * 0.65f;
+                float core = expf(-r * r * 24.0f) * 0.25f;
+                float val = std::clamp((ring + core) * (1.0f - r * 0.7f), 0.0f, 1.0f);
+                DrawPixelSoftImage(soft, x, y, 230, 240, 255, static_cast<int>(255.0f * val));
+            }
+        }
+        int tex = CreateGraphFromSoftImage(soft);
+        DeleteSoftImage(soft);
+        return tex;
+    }
+}
 
 // 線形補間ユーティリティ関数群
 static float LerpFloat(float a, float b, float t)
@@ -56,6 +179,14 @@ WeatherManager::WeatherManager()
     , overrideDuration(4.0f)
     , overrideRecoverDuration(5.0f)
     , showDebugHUD(false)
+    , nextSplashIndex(0)
+    , visualAssetsInitialized(false)
+    , mistCloudTex(-1)
+    , snowflakeTex(-1)
+    , splashRingTex(-1)
+    , lightningTimer(14.0f)
+    , lightningFlash(0.0f)
+    , lightningSubTimer(0.0f)
     , rainSoundHandle(-1)
     , windSoundHandle(-1)
     , snowSoundHandle(-1)
@@ -72,6 +203,14 @@ WeatherManager::WeatherManager()
     for (int i = 0; i < MAX_SNOW_COUNT; ++i)
     {
         snowPool[i].active = false;
+    }
+    for (int i = 0; i < MAX_SPLASH_COUNT; ++i)
+    {
+        splashPool[i].active = false;
+    }
+    for (int i = 0; i < MAX_MIST_PUFFS; ++i)
+    {
+        mistPool[i].active = false;
     }
 }
 
@@ -130,6 +269,45 @@ void WeatherManager::InitializeParticles()
         snowPool[i].driftStrength = 0.3f + static_cast<float>(GetRand(30)) / 100.0f;
         snowPool[i].active = true;
     }
+
+    for (int i = 0; i < MAX_SPLASH_COUNT; ++i)
+    {
+        splashPool[i].active = false;
+        splashPool[i].age = 0.0f;
+        splashPool[i].maxAge = 0.25f;
+        splashPool[i].maxRadius = 0.18f;
+        splashPool[i].position = VGet(0.0f, 0.018f, 0.0f);
+    }
+
+    for (int i = 0; i < MAX_MIST_PUFFS; ++i)
+    {
+        float ang = static_cast<float>(GetRand(628)) / 100.0f;
+        float dist = 3.5f + static_cast<float>(GetRand(1200)) / 100.0f;
+        mistPool[i].position = VGet(std::cos(ang) * dist, 0.55f + static_cast<float>(GetRand(180)) / 100.0f, std::sin(ang) * dist);
+        mistPool[i].size = 2.6f + static_cast<float>(GetRand(280)) / 100.0f;
+        mistPool[i].phase = static_cast<float>(GetRand(628)) / 100.0f;
+        mistPool[i].driftSpeed = 0.25f + static_cast<float>(GetRand(40)) / 100.0f;
+        mistPool[i].rotation = static_cast<float>(GetRand(628)) / 100.0f;
+        mistPool[i].alphaScale = 0.65f + static_cast<float>(GetRand(35)) / 100.0f;
+        mistPool[i].active = true;
+    }
+}
+
+void WeatherManager::EnsureVisualAssets()
+{
+    if (visualAssetsInitialized) return;
+    mistCloudTex = BuildMistCloudTexture();
+    snowflakeTex = BuildSnowflakeTexture();
+    splashRingTex = BuildSplashRingTexture();
+    visualAssetsInitialized = true;
+}
+
+void WeatherManager::FinalizeVisualAssets()
+{
+    if (mistCloudTex != -1) { DeleteGraph(mistCloudTex); mistCloudTex = -1; }
+    if (snowflakeTex != -1) { DeleteGraph(snowflakeTex); snowflakeTex = -1; }
+    if (splashRingTex != -1) { DeleteGraph(splashRingTex); splashRingTex = -1; }
+    visualAssetsInitialized = false;
 }
 
 // 天候プリセットパラメータ定義
@@ -547,14 +725,48 @@ void WeatherManager::Update(float dt, const Player& player, const Bicycle& bicyc
         currentParams.ambientColor = GetColorF(0.020f, 0.024f, 0.032f, 1.0f);
     }
 
+    // 豪雨時の遠雷シートライトニング演出
+    if (currentParams.targetRainCount >= 520)
+    {
+        lightningTimer -= dt;
+        if (lightningTimer <= 0.0f)
+        {
+            lightningFlash = 0.90f;
+            lightningSubTimer = 0.14f;
+            lightningTimer = 14.0f + static_cast<float>(GetRand(14));
+        }
+    }
+    if (lightningSubTimer > 0.0f)
+    {
+        lightningSubTimer -= dt;
+        if (lightningSubTimer > 0.04f && lightningSubTimer < 0.09f)
+        {
+            lightningFlash = 0.60f;
+        }
+    }
+    if (lightningFlash > 0.0f)
+    {
+        lightningFlash = (std::max)(0.0f, lightningFlash - dt * 4.5f);
+    }
+
+    int fogOutR = (std::min)(255, currentParams.fogR + static_cast<int>(lightningFlash * 26.0f));
+    int fogOutG = (std::min)(255, currentParams.fogG + static_cast<int>(lightningFlash * 32.0f));
+    int fogOutB = (std::min)(255, currentParams.fogB + static_cast<int>(lightningFlash * 48.0f));
+    COLOR_F ambOut = GetColorF(
+        currentParams.ambientColor.r + lightningFlash * 0.040f,
+        currentParams.ambientColor.g + lightningFlash * 0.048f,
+        currentParams.ambientColor.b + lightningFlash * 0.068f,
+        1.0f
+    );
+
     // 環境システムへのフォグおよびアンビエント光の伝達
     nightEnv.SetWeatherFogAndLighting(
         currentParams.fogStart,
         currentParams.fogEnd,
-        currentParams.fogR,
-        currentParams.fogG,
-        currentParams.fogB,
-        currentParams.ambientColor
+        fogOutR,
+        fogOutG,
+        fogOutB,
+        ambOut
     );
 
     // フォグ濃度に応じた自転車ヘッドライト到達距離の動的調整
@@ -580,6 +792,13 @@ void WeatherManager::Update(float dt, const Player& player, const Bicycle& bicyc
     VECTOR playerPos = player.GetPosition();
     UpdateRain(dt, playerPos);
     UpdateSnow(dt, playerPos);
+    UpdateSplashesAndMist(dt, playerPos);
+
+    // 雨量に応じた深夜雨天環境音およびUIカメラレンズ効果の同期
+    float rainMix = std::clamp(static_cast<float>(currentParams.targetRainCount) / 260.0f, 0.0f, 1.0f);
+    float snowMix = std::clamp(static_cast<float>(currentParams.targetSnowCount) / 280.0f, 0.0f, 1.0f);
+    AudioManager::Instance().SetRainAmbience(rainMix);
+    HorrorUI::Instance().SetWeatherScreenParams(rainMix, snowMix, lightningFlash * 0.85f);
 }
 
 // 雨パーティクルの更新
@@ -612,12 +831,65 @@ void WeatherManager::UpdateRain(float dt, const VECTOR& playerPos)
         // 地面への着地またはエリア外への離脱時に上空へリサイクル配置
         if (rainPool[i].position.y < 0.0f || distSq > radiusSq)
         {
+            if (rainPool[i].position.y < 0.0f && distSq < 121.0f)
+            {
+                RainSplash& sp = splashPool[nextSplashIndex];
+                nextSplashIndex = (nextSplashIndex + 1) % MAX_SPLASH_COUNT;
+                sp.position = VGet(rainPool[i].position.x, 0.0175f, rainPool[i].position.z);
+                sp.age = 0.0f;
+                sp.maxAge = 0.22f + static_cast<float>(GetRand(12)) / 100.0f;
+                sp.maxRadius = 0.14f + static_cast<float>(GetRand(10)) / 100.0f;
+                sp.active = true;
+            }
+
             float ang = static_cast<float>(GetRand(628)) / 100.0f;
             float r = std::sqrt(static_cast<float>(GetRand(1000)) / 1000.0f) * radius;
             rainPool[i].position.x = playerPos.x + std::cos(ang) * r;
             rainPool[i].position.z = playerPos.z + std::sin(ang) * r;
             rainPool[i].position.y = playerPos.y + 6.0f + static_cast<float>(GetRand(500)) / 100.0f;
             rainPool[i].speed = currentParams.rainSpeed + static_cast<float>(GetRand(40)) / 10.0f;
+        }
+    }
+}
+
+void WeatherManager::UpdateSplashesAndMist(float dt, const VECTOR& playerPos)
+{
+    // 地面水しぶき波紋の進行
+    for (int i = 0; i < MAX_SPLASH_COUNT; ++i)
+    {
+        if (!splashPool[i].active) continue;
+        splashPool[i].age += dt;
+        if (splashPool[i].age >= splashPool[i].maxAge)
+        {
+            splashPool[i].active = false;
+        }
+    }
+
+    // 地面を這う立体霧バンクの移動・循環配置
+    const float mistMaxR = (std::max)(14.0f, currentParams.fogEnd * 1.1f);
+    const float mistMaxRSq = mistMaxR * mistMaxR;
+    VECTOR windBase = VAdd(currentParams.windVelocity, VGet(0.55f, 0.0f, 0.25f));
+
+    for (int i = 0; i < MAX_MIST_PUFFS; ++i)
+    {
+        MistPuff& m = mistPool[i];
+        m.phase += dt * 0.45f;
+        m.rotation += dt * 0.06f * ((i % 2 == 0) ? 1.0f : -1.0f);
+
+        float swirlX = std::sin(m.phase + i * 0.7f) * 0.28f;
+        float swirlZ = std::cos(m.phase * 0.8f + i * 1.1f) * 0.28f;
+        m.position.x += (windBase.x * m.driftSpeed + swirlX) * dt;
+        m.position.z += (windBase.z * m.driftSpeed + swirlZ) * dt;
+
+        float dx = m.position.x - playerPos.x;
+        float dz = m.position.z - playerPos.z;
+        if (dx * dx + dz * dz > mistMaxRSq)
+        {
+            float ang = static_cast<float>(GetRand(628)) / 100.0f;
+            float dist = 3.5f + (static_cast<float>(GetRand(1000)) / 1000.0f) * (mistMaxR - 4.0f);
+            m.position.x = playerPos.x + std::cos(ang) * dist;
+            m.position.z = playerPos.z + std::sin(ang) * dist;
+            m.position.y = 0.45f + static_cast<float>(GetRand(190)) / 100.0f;
         }
     }
 }
@@ -710,68 +982,169 @@ bool WeatherManager::CheckParticleIllumination(const VECTOR& pos, const Bicycle&
     return false;
 }
 
-// 3Dパーティクル描画処理
+// 3Dパーティクル描画処理（漂う立体霧・地面雨波紋・立体雨筋・柔らかな雪ボケ）
 void WeatherManager::DrawParticles(const Bicycle& bicycle, const NightEnvironment& nightEnv)
 {
-    // 雨パーティクル描画
-    if (currentParams.targetRainCount > 0)
+    EnsureVisualAssets();
+
+    VECTOR camPos = GetCameraPosition();
+    VECTOR camRight = GetCameraRightVector();
+
+    SetUseLighting(FALSE);
+    SetWriteZBuffer3D(FALSE);
+    SetTextureAddressMode(DX_TEXADDRESS_CLAMP);
+
+    // 1. 地面・街路に漂うボリュメトリック霧バンク（視界密度と天候に連動）
+    if (mistCloudTex != -1 && nightEnv.IsFogEnabled())
     {
-        for (int i = 0; i < currentParams.targetRainCount; ++i)
+        float fogEndVal = (std::max)(8.0f, nightEnv.GetFogEnd());
+        float fogDensity = std::clamp((28.0f - fogEndVal) / 18.0f, 0.22f, 1.0f);
+        int mr = (std::min)(255, nightEnv.GetFogColorR() + 18);
+        int mg = (std::min)(255, nightEnv.GetFogColorG() + 20);
+        int mb = (std::min)(255, nightEnv.GetFogColorB() + 26);
+        SetDrawBright(mr, mg, mb);
+
+        for (int i = 0; i < MAX_MIST_PUFFS; ++i)
         {
-            if (!rainPool[i].active) continue;
+            const MistPuff& m = mistPool[i];
+            if (!m.active) continue;
+            float d = VSize(VSub(m.position, camPos));
+            if (d < 2.2f || d > fogEndVal * 1.05f) continue;
 
-            const VECTOR& p = rainPool[i].position;
-            VECTOR dropDir = VGet(
-                currentParams.windVelocity.x * 0.02f,
-                -rainPool[i].length,
-                currentParams.windVelocity.z * 0.02f
-            );
-            VECTOR pEnd = VAdd(p, dropDir);
+            float nearFade = std::clamp((d - 2.2f) / 3.0f, 0.0f, 1.0f);
+            float farFade = std::clamp((fogEndVal * 1.05f - d) / (fogEndVal * 0.35f), 0.0f, 1.0f);
+            int alpha = static_cast<int>((14.0f + 26.0f * fogDensity) * m.alphaScale * nearFade * farFade);
+            if (alpha <= 2) continue;
 
-            bool illuminated = CheckParticleIllumination(p, bicycle, nightEnv);
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, alpha);
+            DrawBillboard3D(m.position, 0.5f, 0.5f, m.size, m.rotation, mistCloudTex, TRUE);
+        }
+        SetDrawBright(255, 255, 255);
+    }
 
-            if (illuminated)
-            {
-                SetDrawBlendMode(DX_BLENDMODE_ALPHA, 220);
-                DrawLine3D(p, pEnd, GetColor(215, 225, 240));
-            }
-            else
-            {
-                SetDrawBlendMode(DX_BLENDMODE_ALPHA, 110);
-                DrawLine3D(p, pEnd, GetColor(95, 110, 125));
-            }
+    // 2. 濡れた路面の雨水波紋リング
+    if (splashRingTex != -1)
+    {
+        for (int i = 0; i < MAX_SPLASH_COUNT; ++i)
+        {
+            const RainSplash& sp = splashPool[i];
+            if (!sp.active) continue;
+            float t = std::clamp(sp.age / sp.maxAge, 0.0f, 1.0f);
+            float r = 0.03f + sp.maxRadius * 0.78f * std::sqrt(t);
+            bool illuminated = CheckParticleIllumination(sp.position, bicycle, nightEnv);
+            int a = static_cast<int>((illuminated ? 85.0f : 30.0f) * (1.0f - t) * (1.0f - t));
+            if (a <= 2) continue;
+
+            SetDrawBlendMode(DX_BLENDMODE_ADD, a);
+            COLOR_U8 dif = illuminated ? GetColorU8(210, 225, 255, 255) : GetColorU8(110, 128, 150, 255);
+            COLOR_U8 spc = GetColorU8(0, 0, 0, 0);
+            auto mkV = [&](float x, float z, float u, float v) {
+                VERTEX3D vert{};
+                vert.pos = VGet(x, sp.position.y, z);
+                vert.norm = VGet(0.0f, 1.0f, 0.0f);
+                vert.dif = dif;
+                vert.spc = spc;
+                vert.u = u; vert.v = v; vert.su = u; vert.sv = v;
+                return vert;
+            };
+            VERTEX3D q[6] = {
+                mkV(sp.position.x - r, sp.position.z - r, 0.0f, 0.0f),
+                mkV(sp.position.x - r, sp.position.z + r, 0.0f, 1.0f),
+                mkV(sp.position.x + r, sp.position.z + r, 1.0f, 1.0f),
+                mkV(sp.position.x - r, sp.position.z - r, 0.0f, 0.0f),
+                mkV(sp.position.x + r, sp.position.z + r, 1.0f, 1.0f),
+                mkV(sp.position.x + r, sp.position.z - r, 1.0f, 0.0f)
+            };
+            DrawPolygon3D(q, 2, splashRingTex, TRUE);
         }
     }
 
-    // 雪パーティクル描画
-    if (currentParams.targetSnowCount > 0)
+    // 3. 雨パーティクル描画（カメラ向きテーパード雨筋リボン）
+    if (currentParams.targetRainCount > 0)
+    {
+        std::vector<VERTEX3D> litDrops;
+        std::vector<VERTEX3D> dimDrops;
+        litDrops.reserve(600);
+        dimDrops.reserve(1200);
+
+        COLOR_U8 litTop = GetColorU8(225, 238, 255, 195);
+        COLOR_U8 litBot = GetColorU8(180, 200, 230, 60);
+        COLOR_U8 dimTop = GetColorU8(105, 120, 138, 105);
+        COLOR_U8 dimBot = GetColorU8(70, 82, 96, 25);
+        COLOR_U8 zeroSpc = GetColorU8(0, 0, 0, 0);
+
+        for (int i = 0; i < currentParams.targetRainCount; ++i)
+        {
+            if (!rainPool[i].active) continue;
+            const VECTOR& p = rainPool[i].position;
+            VECTOR dropDir = VGet(currentParams.windVelocity.x * 0.022f, -rainPool[i].length, currentParams.windVelocity.z * 0.022f);
+            VECTOR pEnd = VAdd(p, dropDir);
+            bool illuminated = CheckParticleIllumination(p, bicycle, nightEnv);
+            float distCam = VSize(VSub(p, camPos));
+            if (distCam < 0.85f) continue;
+
+            float halfW = illuminated ? 0.0042f : 0.0032f;
+            VECTOR side = VScale(camRight, halfW);
+            auto mkR = [&](const VECTOR& pos, COLOR_U8 c) {
+                VERTEX3D v{};
+                v.pos = pos;
+                v.norm = VGet(0.0f, 1.0f, 0.0f);
+                v.dif = c;
+                v.spc = zeroSpc;
+                return v;
+            };
+            COLOR_U8 cT = illuminated ? litTop : dimTop;
+            COLOR_U8 cB = illuminated ? litBot : dimBot;
+            VERTEX3D v0 = mkR(VSub(p, side), cT);
+            VERTEX3D v1 = mkR(VAdd(p, side), cT);
+            VERTEX3D v2 = mkR(VAdd(pEnd, side), cB);
+            VERTEX3D v3 = mkR(VSub(pEnd, side), cB);
+
+            std::vector<VERTEX3D>& dst = illuminated ? litDrops : dimDrops;
+            dst.push_back(v0); dst.push_back(v1); dst.push_back(v2);
+            dst.push_back(v0); dst.push_back(v2); dst.push_back(v3);
+        }
+
+        if (!dimDrops.empty())
+        {
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, 115);
+            DrawPolygon3D(dimDrops.data(), static_cast<int>(dimDrops.size()) / 3, DX_NONE_GRAPH, TRUE);
+        }
+        if (!litDrops.empty())
+        {
+            SetDrawBlendMode(DX_BLENDMODE_ADD, 185);
+            DrawPolygon3D(litDrops.data(), static_cast<int>(litDrops.size()) / 3, DX_NONE_GRAPH, TRUE);
+        }
+    }
+
+    // 4. 雪パーティクル描画（柔らかな結晶ボケグロー）
+    if (currentParams.targetSnowCount > 0 && snowflakeTex != -1)
     {
         for (int i = 0; i < currentParams.targetSnowCount; ++i)
         {
             if (!snowPool[i].active) continue;
-
             const VECTOR& p = snowPool[i].position;
-            float sz = snowPool[i].size;
+            float sz = snowPool[i].size * 1.45f;
             bool illuminated = CheckParticleIllumination(p, bicycle, nightEnv);
 
             if (illuminated)
             {
-                SetDrawBlendMode(DX_BLENDMODE_ALPHA, 240);
-                unsigned int c = GetColor(235, 240, 255);
-                DrawLine3D(p, VAdd(p, VGet(0.0f, -sz, 0.0f)), c);
-                DrawLine3D(VAdd(p, VGet(-sz * 0.5f, -sz * 0.5f, 0.0f)), VAdd(p, VGet(sz * 0.5f, -sz * 0.5f, 0.0f)), c);
+                SetDrawBright(240, 245, 255);
+                SetDrawBlendMode(DX_BLENDMODE_ADD, 215);
             }
             else
             {
-                SetDrawBlendMode(DX_BLENDMODE_ALPHA, 150);
-                unsigned int c = GetColor(155, 165, 180);
-                DrawLine3D(p, VAdd(p, VGet(0.0f, -sz, 0.0f)), c);
-                DrawLine3D(VAdd(p, VGet(-sz * 0.5f, -sz * 0.5f, 0.0f)), VAdd(p, VGet(sz * 0.5f, -sz * 0.5f, 0.0f)), c);
+                SetDrawBright(145, 160, 180);
+                SetDrawBlendMode(DX_BLENDMODE_ALPHA, 140);
             }
+            DrawBillboard3D(p, 0.5f, 0.5f, sz, snowPool[i].wobblePhase * 0.35f, snowflakeTex, TRUE);
         }
+        SetDrawBright(255, 255, 255);
     }
 
     SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    SetWriteZBuffer3D(TRUE);
+    SetUseLighting(TRUE);
 }
 
 // 天候・フォグデバッグHUD描画 (F10)
@@ -868,6 +1241,8 @@ void WeatherManager::ClearFogOverride()
 // 終了処理
 void WeatherManager::Finalize()
 {
+    FinalizeVisualAssets();
+
     // 将来のサウンドハンドル破棄フック
     if (rainSoundHandle != -1)
     {

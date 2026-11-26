@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "DxLib.h"
 #include <string>
@@ -85,6 +85,9 @@ public:
     // アナログ端末風の枠付きパネル描画
     void DrawRetroPanel(int x1, int y1, int x2, int y2, unsigned int borderColor, unsigned int bgColor, int alpha = 200);
 
+    // ドロップシャドウ付き文字列描画（可読性とホラー重厚感を向上）
+    void DrawShadowString(int x, int y, const char* text, unsigned int color, int fontHandle = -1, unsigned int shadowColor = 0, int shadowAlpha = 205);
+
     // ノイズ・ジッター付き文字列描画
     void DrawJitterString(int x, int y, const char* text, unsigned int color, int fontHandle = -1);
 
@@ -126,6 +129,12 @@ public:
     void SetUIInterference(float amount);
     float GetUIInterference() const;
 
+    // 恐怖イベント発生時のVHSグリッチ・色収差スパイク発火
+    void TriggerHorrorGlitchBurst(float strength, float durationSeconds);
+
+    // 天候連動カメラレンズ表現パラメータ設定（雨粒ボケ・霜・稲妻フラッシュ）
+    void SetWeatherScreenParams(float rainAmount, float snowAmount, float lightningFlash);
+
     // ホラー深度レベルの設定 (0: 正常 〜 4: 深刻な故障)
     void SetHorrorIntensity(int intensity);
     int GetHorrorIntensity() const;
@@ -154,6 +163,8 @@ public:
     int GetFontTitleHorror() const { return fontTitleHorror; }
     int GetFontKeyGuide() const { return fontKeyGuide; }
     int GetFontKeyAction() const { return fontKeyAction; }
+    int GetFontMono() const { return fontMono; }
+    int GetFontHorrorSerif() const { return fontHorrorSerif; }
 
 private:
     HorrorUI();
@@ -169,6 +180,8 @@ private:
     int fontTitleHorror;
     int fontKeyGuide;
     int fontKeyAction;
+    int fontMono;
+    int fontHorrorSerif;
 
     // ゲーム内時計
     int clockHour;                      // 現在の時 (1〜)
@@ -207,6 +220,14 @@ private:
     float doubleVisionAmount;
     float desaturationAmount;
     float focusBlurAmount;
+
+    // ホラーイベント用VHSグリッチ・色収差＆天候カメラレンズ演出
+    float glitchBurstTimer;
+    float glitchBurstMaxDuration;
+    float glitchBurstStrength;
+    float weatherRainOverlay;
+    float weatherSnowOverlay;
+    float weatherLightningFlash;
 
     // 操作ガイドHUD表示フラグ
     bool showKeyGuide;

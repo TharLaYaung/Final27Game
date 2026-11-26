@@ -136,6 +136,14 @@ private:
     // 街灯3Dポールとランプヘッドを描画（stateにより火花・床グロー表現を切り替え）
     void DrawPoleModel(const VECTOR& pos, float intensity, COLOR_F color, StreetLightState state);
 
+    // 夜間ビジュアル強化用ヘルパー（空ドーム・電線・街灯ボリューム光・自転車ビーム）
+    void EnsureVisualAssets();
+    void FinalizeVisualAssets();
+    void DrawSkyDome();
+    void DrawOverheadWires();
+    void DrawStreetLightAtmosphere(const VECTOR& pos, float intensity, COLOR_F color, StreetLightState state);
+    void DrawBicycleHeadlightBeam();
+
     // 現在の環境プリセット
     EnvironmentPreset currentPreset;
     bool manualPresetOverride;
@@ -161,6 +169,19 @@ private:
     float bicycleLightRange;
     float bicycleLightPower;
     COLOR_F bicycleLightColor;
+
+    // 自転車ヘッドライト可視ビーム描画用キャッシュ
+    bool cachedHeadlightActive;
+    VECTOR cachedHeadlightPos;
+    VECTOR cachedHeadlightDir;
+    float cachedHeadlightIntensity;
+    float cachedHeadlightRange;
+
+    // プロシージャル視覚テクスチャキャッシュ（空・発光グロー・街灯表面）
+    bool visualAssetsInitialized;
+    int glowBillboardTex;
+    int moonDiscTex;
+    int poleSteelTex;
 
     // 街灯群
     bool streetLightsEnabled;

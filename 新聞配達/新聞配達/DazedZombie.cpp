@@ -1,6 +1,8 @@
 #include "DazedZombie.h"
 #include "AudioManager.h"
+#include "HorrorUI.h"
 #include "WorldCollision.h"
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 #include <cstdio>
@@ -90,7 +92,14 @@ DazedZombie::DazedZombie()
     , yawAngle(0.0f)
     , scale(0.01f)
     , lastSpawnIndex(-1)
+    , vfxEmitTimer(0.0f)
+    , shockwaveActive(false)
+    , shockwaveCenter(VGet(0.0f, 0.0f, 0.0f))
+    , shockwaveAge(0.0f)
+    , vfxWispTex(-1)
+    , vfxRingTex(-1)
 {
+    ClearVfx();
     // 街全域の道路・路地・交差点からランダム出現候補地点（27箇所）を登録
     spawnCandidates = {
         // 南大通り (Z = -30付近)
@@ -247,6 +256,237 @@ void DazedZombie::Reset()
     {
         SetLightEnableHandle(lightHandle, FALSE);
     }
+    ClearVfx();
+}
+
+void DazedZombie::EnsureVfxTextures()
+{
+    if (vfxWispTex == -1)
+    {
+        const int sz = 64;
+        int soft = MakeARGB8ColorSoftImage(sz, sz);
+        if (soft != -1)
+        {
+            for (int y = 0; y < sz; ++y)
+            {
+                float dy = (static_cast<float>(y) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+                for (int x = 0; x < sz; ++x)
+                {
+                    float dx = (static_cast<float>(x) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+                    float r = std::sqrt(dx * dx + dy * dy);
+                    if (r >= 1.0f) { DrawPixelSoftImage(soft, x, y, 0, 0, 0, 0); continue; }
+                    float fade = 1.0f - r;
+                    float val = std::exp(-r * r * 4.2f) * fade * fade;
+                    DrawPixelSoftImage(soft, x, y, 255, 255, 255, std::clamp(static_cast<int>(255.0f * val), 0, 255));
+                }
+            }
+            vfxWispTex = CreateGraphFromSoftImage(soft);
+            DeleteSoftImage(soft);
+        }
+    }
+    if (vfxRingTex == -1)
+    {
+        const int sz = 128;
+        int soft = MakeARGB8ColorSoftImage(sz, sz);
+        if (soft != -1)
+        {
+            for (int y = 0; y < sz; ++y)
+            {
+                float dy = (static_cast<float>(y) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+                for (int x = 0; x < sz; ++x)
+                {
+                    float dx = (static_cast<float>(x) + 0.5f) / static_cast<float>(sz) * 2.0f - 1.0f;
+                    float r = std::sqrt(dx * dx + dy * dy);
+                    if (r >= 1.0f) { DrawPixelSoftImage(soft, x, y, 0, 0, 0, 0); continue; }
+                    float ang = std::atan2(dy, dx);
+                    float wave = 0.78f + 0.22f * std::sin(ang * 9.0f);
+                    float ring = std::exp(-std::pow((r - 0.84f) / 0.055f, 2.0f)) * wave * (1.0f - r * 0.35f);
+                    DrawPixelSoftImage(soft, x, y, 255, 255, 255, std::clamp(static_cast<int>(255.0f * ring), 0, 255));
+                }
+            }
+            vfxRingTex = CreateGraphFromSoftImage(soft);
+            DeleteSoftImage(soft);
+        }
+    }
+}
+
+void DazedZombie::FinalizeVfxTextures()
+{
+    if (vfxWispTex != -1) { DeleteGraph(vfxWispTex); vfxWispTex = -1; }
+    if (vfxRingTex != -1) { DeleteGraph(vfxRingTex); vfxRingTex = -1; }
+}
+
+void DazedZombie::ClearVfx()
+{
+    for (int i = 0; i < MAX_VFX_PARTICLES; ++i)
+    {
+        vfxParticles[i].active = false;
+        vfxParticles[i].age = 0.0f;
+        vfxParticles[i].maxAge = 1.0f;
+        vfxParticles[i].size = 0.2f;
+        vfxParticles[i].isEmber = false;
+        vfxParticles[i].pos = VGet(0.0f, 0.0f, 0.0f);
+        vfxParticles[i].vel = VGet(0.0f, 0.0f, 0.0f);
+    }
+    vfxEmitTimer = 0.0f;
+    shockwaveActive = false;
+    shockwaveAge = 0.0f;
+}
+
+void DazedZombie::EmitVfxParticle(const VECTOR& p, const VECTOR& v, float pSize, float maxAge, bool isEmber)
+{
+    for (int i = 0; i < MAX_VFX_PARTICLES; ++i)
+    {
+        if (!vfxParticles[i].active)
+        {
+            vfxParticles[i].pos = p;
+            vfxParticles[i].vel = v;
+            vfxParticles[i].size = pSize;
+            vfxParticles[i].age = 0.0f;
+            vfxParticles[i].maxAge = maxAge;
+            vfxParticles[i].isEmber = isEmber;
+            vfxParticles[i].active = true;
+            return;
+        }
+    }
+}
+
+void DazedZombie::EmitScreamAndVanishBurst(bool isVanish)
+{
+    int count = isVanish ? 30 : 18;
+    for (int i = 0; i < count; ++i)
+    {
+        float ang = static_cast<float>(std::rand() % 628) / 100.0f;
+        float spd = (isVanish ? 1.4f : 1.8f) + static_cast<float>(std::rand() % 220) / 100.0f;
+        float vy = 0.5f + static_cast<float>(std::rand() % 180) / 100.0f;
+        VECTOR sp = VGet(
+            position.x + std::cos(ang) * 0.30f,
+            position.y + 0.55f + static_cast<float>(std::rand() % 110) / 100.0f,
+            position.z + std::sin(ang) * 0.30f
+        );
+        VECTOR sv = VGet(std::cos(ang) * spd, vy, std::sin(ang) * spd);
+        bool ember = (i % 3 != 0);
+        EmitVfxParticle(sp, sv, ember ? 0.14f : 0.72f, ember ? 0.65f : 1.05f, ember);
+    }
+}
+
+void DazedZombie::UpdateVfx(float dt)
+{
+    if (shockwaveActive)
+    {
+        shockwaveAge += dt;
+        if (shockwaveAge >= 0.55f) shockwaveActive = false;
+    }
+
+    for (int i = 0; i < MAX_VFX_PARTICLES; ++i)
+    {
+        VfxParticle& pt = vfxParticles[i];
+        if (!pt.active) continue;
+        pt.age += dt;
+        if (pt.age >= pt.maxAge)
+        {
+            pt.active = false;
+            continue;
+        }
+        pt.pos.x += pt.vel.x * dt;
+        pt.pos.y += pt.vel.y * dt;
+        pt.pos.z += pt.vel.z * dt;
+        pt.vel.x *= (1.0f - (std::min)(0.8f, dt * 1.8f));
+        pt.vel.z *= (1.0f - (std::min)(0.8f, dt * 1.8f));
+    }
+
+    if (!IsVisible()) return;
+
+    vfxEmitTimer += dt;
+    if (state == DazedZombieState::SittingDazed && vfxEmitTimer >= 0.14f)
+    {
+        vfxEmitTimer = 0.0f;
+        float rx = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * 0.45f;
+        float rz = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * 0.45f;
+        EmitVfxParticle(
+            VGet(position.x + rx, position.y + 0.18f, position.z + rz),
+            VGet(rx * 0.15f, 0.48f, rz * 0.15f),
+            0.65f, 1.35f, false
+        );
+    }
+    else if ((state == DazedZombieState::Scream || state == DazedZombieState::InjuredRun) && vfxEmitTimer >= 0.055f)
+    {
+        vfxEmitTimer = 0.0f;
+        float rx = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * 0.40f;
+        float rz = (static_cast<float>(std::rand() % 200) / 100.0f - 1.0f) * 0.40f;
+        bool ember = (std::rand() % 2 == 0);
+        EmitVfxParticle(
+            VGet(position.x + rx, position.y + (ember ? 0.85f : 0.25f), position.z + rz),
+            VGet(rx * 0.4f, ember ? 0.95f : 0.55f, rz * 0.4f),
+            ember ? 0.12f : 0.72f, ember ? 0.55f : 0.95f, ember
+        );
+    }
+}
+
+void DazedZombie::DrawVfx()
+{
+    EnsureVfxTextures();
+    if (vfxWispTex == -1) return;
+
+    SetUseLighting(FALSE);
+    SetWriteZBuffer3D(FALSE);
+    SetTextureAddressMode(DX_TEXADDRESS_CLAMP);
+
+    // 絶叫衝撃波リング
+    if (shockwaveActive && vfxRingTex != -1)
+    {
+        float t = std::clamp(shockwaveAge / 0.55f, 0.0f, 1.0f);
+        float r = 0.35f + 4.2f * (1.0f - (1.0f - t) * (1.0f - t));
+        int alpha = static_cast<int>(155.0f * (1.0f - t));
+        SetDrawBlendMode(DX_BLENDMODE_ADD, alpha);
+        COLOR_U8 c = GetColorU8(230, 60, 55, 255);
+        COLOR_U8 z = GetColorU8(0, 0, 0, 0);
+        auto mk = [&](float x, float zPos, float u, float v) {
+            VERTEX3D vert{};
+            vert.pos = VGet(x, shockwaveCenter.y, zPos);
+            vert.norm = VGet(0.0f, 1.0f, 0.0f);
+            vert.dif = c; vert.spc = z;
+            vert.u = u; vert.v = v; vert.su = u; vert.sv = v;
+            return vert;
+        };
+        VERTEX3D ringVerts[6] = {
+            mk(shockwaveCenter.x - r, shockwaveCenter.z - r, 0.0f, 0.0f),
+            mk(shockwaveCenter.x - r, shockwaveCenter.z + r, 0.0f, 1.0f),
+            mk(shockwaveCenter.x + r, shockwaveCenter.z + r, 1.0f, 1.0f),
+            mk(shockwaveCenter.x - r, shockwaveCenter.z - r, 0.0f, 0.0f),
+            mk(shockwaveCenter.x + r, shockwaveCenter.z + r, 1.0f, 1.0f),
+            mk(shockwaveCenter.x + r, shockwaveCenter.z - r, 1.0f, 0.0f)
+        };
+        DrawPolygon3D(ringVerts, 2, vfxRingTex, TRUE);
+    }
+
+    // 瘴気ウィスプ・火の粉パーティクル
+    for (int i = 0; i < MAX_VFX_PARTICLES; ++i)
+    {
+        const VfxParticle& pt = vfxParticles[i];
+        if (!pt.active) continue;
+        float t = std::clamp(pt.age / pt.maxAge, 0.0f, 1.0f);
+        float fade = std::sin(t * 3.14159f);
+        if (pt.isEmber)
+        {
+            SetDrawBright(245, 75, 55);
+            SetDrawBlendMode(DX_BLENDMODE_ADD, static_cast<int>(210.0f * fade));
+            DrawBillboard3D(pt.pos, 0.5f, 0.5f, pt.size * (1.0f - t * 0.4f), 0.0f, vfxWispTex, TRUE);
+        }
+        else
+        {
+            bool redMood = (state == DazedZombieState::Scream || state == DazedZombieState::InjuredRun || state == DazedZombieState::Vanishing);
+            if (redMood) SetDrawBright(90, 32, 36);
+            else SetDrawBright(115, 132, 158);
+            SetDrawBlendMode(DX_BLENDMODE_ALPHA, static_cast<int>(85.0f * fade));
+            DrawBillboard3D(pt.pos, 0.5f, 0.5f, pt.size * (0.85f + t * 0.75f), t * 1.4f, vfxWispTex, TRUE);
+        }
+    }
+
+    SetDrawBright(255, 255, 255);
+    SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);
+    SetWriteZBuffer3D(TRUE);
+    SetUseLighting(TRUE);
 }
 
 int DazedZombie::GetActiveModelHandle() const
@@ -493,7 +733,12 @@ void DazedZombie::Update(float dt, const VECTOR& playerPos, float& outFearDelta)
             stateTimer = 0.0f;
             animPlayTime = 0.0f;
             LookAtTarget(playerPos, 1.0f);
-            AudioManager::Instance().PlayMonsterRoar();
+            AudioManager::Instance().PlayZombieScream();
+            HorrorUI::Instance().TriggerHorrorGlitchBurst(0.85f, 0.45f);
+            shockwaveActive = true;
+            shockwaveCenter = VGet(position.x, 0.05f, position.z);
+            shockwaveAge = 0.0f;
+            EmitScreamAndVanishBurst(false);
             outFearDelta += 0.06f;
         }
         break;
@@ -566,6 +811,8 @@ void DazedZombie::Update(float dt, const VECTOR& playerPos, float& outFearDelta)
             state = DazedZombieState::Vanishing;
             stateTimer = 0.0f;
             vanishOpacity = 1.0f;
+            EmitScreamAndVanishBurst(true);
+            HorrorUI::Instance().TriggerHorrorGlitchBurst(0.55f, 0.28f);
             if (reachedClose)
             {
                 outFearDelta += 0.05f;
@@ -649,31 +896,34 @@ void DazedZombie::Update(float dt, const VECTOR& playerPos, float& outFearDelta)
             SetLightEnableHandle(lightHandle, FALSE);
         }
     }
+
+    UpdateVfx(dt);
 }
 
 void DazedZombie::Draw()
 {
     int handle = GetActiveModelHandle();
-    if (handle == -1 || !IsVisible())
+    if (handle != -1 && IsVisible())
     {
-        return;
+        float opacity = (state == DazedZombieState::Vanishing) ? vanishOpacity : 1.0f;
+        MV1SetOpacityRate(handle, opacity);
+        MV1SetPosition(handle, position);
+        MV1SetRotationXYZ(handle, VGet(0.0f, yawAngle, 0.0f));
+        MV1SetScale(handle, VGet(scale, scale, scale));
+        MV1DrawModel(handle);
+
+        if (opacity < 1.0f)
+        {
+            MV1SetOpacityRate(handle, 1.0f);
+        }
     }
 
-    float opacity = (state == DazedZombieState::Vanishing) ? vanishOpacity : 1.0f;
-    MV1SetOpacityRate(handle, opacity);
-    MV1SetPosition(handle, position);
-    MV1SetRotationXYZ(handle, VGet(0.0f, yawAngle, 0.0f));
-    MV1SetScale(handle, VGet(scale, scale, scale));
-    MV1DrawModel(handle);
-
-    if (opacity < 1.0f)
-    {
-        MV1SetOpacityRate(handle, 1.0f);
-    }
+    DrawVfx();
 }
 
 void DazedZombie::Finalize()
 {
+    FinalizeVfxTextures();
     if (dazedModelHandle != -1)
     {
         if (dazedAnimAttach != -1) MV1DetachAnim(dazedModelHandle, dazedAnimAttach);
